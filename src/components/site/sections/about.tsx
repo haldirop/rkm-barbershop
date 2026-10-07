@@ -4,7 +4,7 @@ import { SectionHeading } from "@/components/site/section-heading";
 const STEPS = [
   { title: "Even afstemmen", text: "Elke behandeling begint met een kort gesprek: wat wil je, en wat past bij je haar en je routine?" },
   { title: "Precisiewerk", text: "Schaar, tondeuse en mes, met aandacht voor elke overgang en elke lijn." },
-  { title: "Strak afgewerkt", text: "Styling en een eerlijk advies, zodat je look ook thuis goed blijft zitten." },
+  { title: "Strak afgewerkt", text: "Styling, zodat je look ook thuis goed blijft zitten." },
 ];
 
 export function About() {
