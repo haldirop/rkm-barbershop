@@ -73,9 +73,19 @@ GitHub bewaart de code van je website. Vercel haalt de website daar vandaan.
 
 **Database-adres (`DATABASE_URL`):**
 
-4. Klik bovenaan op de knop **Connect**.
-5. Kies bij **Method** (of "Connection type") voor **Transaction pooler**.
+4. Wacht tot het project klaar is met opstarten. Klik dan bovenaan de pagina (naast de projectnaam)
+   op de knop **Connect** (stekker-icoon).
+5. Kies in het venster het tabblad **Connection String** (in sommige versies **Direct**).
+   Laat **Type** op **URI** staan. Kies bij **Method** voor **Transaction pooler**. Zie je geen
+   keuzemenu? Scroll dan omlaag: soms staan **Direct connection**, **Transaction pooler** en
+   **Session pooler** als losse blokken onder elkaar.
 6. Kopieer de regel die begint met `postgresql://postgres.` en eindigt op `:6543/postgres`.
+
+   **Zo herken je de goede:** `postgresql://postgres.abcdefgh:[YOUR-PASSWORD]@aws-…pooler.supabase.com:6543/postgres`
+   - er staat `pooler.supabase.com` in, en hij eindigt op `:6543/postgres`.
+   - Staat er `db.abcdefgh.supabase.co` in? Dat is de *Direct connection*; die werkt **niet** met Vercel.
+   - Vind je alleen **Session pooler**? Kopieer die en verander aan het eind `:5432/` in `:6543/`.
+     Dan is het de Transaction pooler (zelfde adres, andere poort).
 7. Plak hem in `.env.vercel` achter `DATABASE_URL=` en vervang `[YOUR-PASSWORD]` (inclusief de
    haakjes) door je databasewachtwoord uit stap 2.
 
