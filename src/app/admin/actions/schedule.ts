@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { cleanText, isoDateSchema, timeSchema, uuidSchema } from "@/lib/validation";
+import { cleanText, parseBlockForm, timeSchema, uuidSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
 import { addBlock, addBreaks, deleteBlock, deleteBreak, saveBusinessHours } from "@/server/services/admin-config";
 import { formObject, invalid, refreshAll, toFormState, toResult, type SimpleResult } from "./helpers";
@@ -76,23 +76,7 @@ export async function deleteBreakAction(id: string): Promise<SimpleResult> {
 export async function addBlockAction(_prev: FormState, formData: FormData): Promise<FormState> {
   await requireAdmin();
   const data = formObject(formData);
-  const allDay = data.allDay === "on";
-  const parsed = z
-    .object({
-      startDate: isoDateSchema,
-      endDate: z.union([isoDateSchema, z.literal("")]),
-      startTime: allDay ? z.any().transform(() => null) : timeSchema,
-      endTime: allDay ? z.any().transform(() => null) : timeSchema,
-      barberId: optionalBarber,
-      reason: optionalLabel,
-    })
-    .transform((v) => ({ ...v, endDate: v.endDate || v.startDate }))
-    .refine((v) => v.endDate >= v.startDate, { path: ["endDate"], message: "Einddatum ligt voor de begindatum." })
-    .refine((v) => !v.startTime || !v.endTime || v.endTime > v.startTime, {
-      path: ["endTime"],
-      message: "Eindtijd moet na begintijd liggen.",
-    })
-    .safeParse(data);
+  const parsed = parseBlockForm(data);
   if (!parsed.success) return invalid(parsed.error);
   let affected = 0;
   try {

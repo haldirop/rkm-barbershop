@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { openDatabase, setDb, type DatabaseHandle } from "@/server/db/client";
-import { appointments, barbers, customers, services } from "@/server/db/schema";
+import { appointments, barbers, blockedTimes, customers, services } from "@/server/db/schema";
 import { seedBaseData } from "@/server/db/seed";
 import { getDayAvailability, getSuggestions } from "@/server/services/availability";
 import {
@@ -206,5 +206,16 @@ describe("suggestions", () => {
     expect(suggestions[0].date).toBe(NOW.date);
     expect(suggestions[0].times.length).toBeGreaterThan(0);
     expect(suggestions[0].times.every((t) => t >= "11:00")).toBe(true); // lead time of 60 minutes
+  });
+
+  it("looks past a long closed period (e.g. opening on 1 November)", async () => {
+    await handle.db.insert(blockedTimes).values({ startDate: NOW.date, endDate: "2026-10-31", reason: "Opening" });
+    try {
+      const suggestions = await getSuggestions({ durationMinutes: 30, barberId: null, now: NOW });
+      expect(suggestions.length).toBeGreaterThan(0);
+      expect(suggestions[0].date).toBe("2026-11-02"); // 1 November is a Sunday (closed)
+    } finally {
+      await handle.db.delete(blockedTimes);
+    }
   });
 });

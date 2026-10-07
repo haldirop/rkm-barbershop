@@ -93,3 +93,38 @@ export function fieldErrors(error: z.ZodError): FieldErrors {
   }
   return result;
 }
+
+/**
+ * A block (closed period) from the admin form. With "Hele dag" ticked the time
+ * fields are not shown at all, so they are treated as empty instead of required.
+ */
+export function parseBlockForm(data: Record<string, string>) {
+  const allDay = data.allDay === "on";
+  return z
+    .object({
+      startDate: isoDateSchema,
+      endDate: z.union([isoDateSchema, z.literal("")]),
+      startTime: timeSchema.nullable(),
+      endTime: timeSchema.nullable(),
+      barberId: z.union([uuidSchema, z.literal("")]).transform((v) => v || null),
+      reason: z
+        .string()
+        .max(80)
+        .transform(cleanText)
+        .transform((v) => v || null),
+    })
+    .transform((v) => ({ ...v, endDate: v.endDate || v.startDate }))
+    .refine((v) => v.endDate >= v.startDate, { path: ["endDate"], message: "Einddatum ligt voor de begindatum." })
+    .refine((v) => !v.startTime || !v.endTime || v.endTime > v.startTime, {
+      path: ["endTime"],
+      message: "Eindtijd moet na begintijd liggen.",
+    })
+    .safeParse({
+      startDate: data.startDate ?? "",
+      endDate: data.endDate ?? "",
+      startTime: allDay ? null : (data.startTime ?? ""),
+      endTime: allDay ? null : (data.endTime ?? ""),
+      barberId: data.barberId ?? "",
+      reason: data.reason ?? "",
+    });
+}

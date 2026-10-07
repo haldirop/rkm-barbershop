@@ -250,7 +250,10 @@ export async function getSuggestions(
 ): Promise<Suggestion[]> {
   const now = query.now ?? zonedNow();
   const from = now.date;
-  const to = addDays(from, query.searchDays ?? 21);
+  // Look as far ahead as customers may book, so a closed period (holiday, opening
+  // date in the future) does not leave the suggestions empty.
+  const horizon = query.searchDays ?? Math.min((await loadSettings(db)).bookingHorizonDays, 120);
+  const to = addDays(from, horizon);
   const schedule = await loadSchedule(from, to, db);
   const window = bookingWindow(schedule.settings, now);
   const filter = barberFilter(query.barberId);
