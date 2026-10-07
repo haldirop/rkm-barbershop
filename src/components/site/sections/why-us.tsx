@@ -10,13 +10,13 @@ const REASONS = [
   },
   {
     Icon: Clock,
-    title: "Afspraak is afspraak",
-    text: "Je boekt een vast moment en wordt op tijd geholpen. Geen wachtrij, geen gedoe.",
+    title: "Afspraak of binnenlopen",
+    text: "Met een afspraak zit je op een vast moment in de stoel. Geen afspraak? Loop gerust binnen: als er tijd is, helpen we je meteen.",
   },
   {
     Icon: MessageSquare,
     title: "Persoonlijk advies",
-    text: "We kijken naar je haartype, gezichtsvorm en stijl, en adviseren wat echt bij je past.",
+    text: "We denken mee over je haartype, gezichtsvorm en stijl. Wat je met ons advies doet, kies je helemaal zelf.",
   },
   {
     Icon: ShieldCheck,
