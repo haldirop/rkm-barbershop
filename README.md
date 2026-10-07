@@ -128,7 +128,7 @@ en `SUPABASE_SECRET_KEY=sb_secret_test`.
 Vercel leest alles uit [`vercel.json`](vercel.json):
 
 - **Build:** `npm run vercel-build` — past eerst de database-migraties toe en bouwt daarna de site.
-- **Regio:** Frankfurt (`fra1`), dicht bij een Supabase-project in Central EU.
+- **Regio:** Dublin (`dub1`), dicht bij het Supabase-project in West EU (Ireland, `eu-west-1`). Verhuist de database naar een andere regio, pas dan `regions` in `vercel.json` aan (bijv. `fra1` voor Frankfurt).
 - **Cron:** dagelijks om 17:00 UTC `/api/cron/herinneringen` (herinneringen + afspraken afronden).
   Vercel stuurt daarbij automatisch `Authorization: Bearer <CRON_SECRET>` mee.
 

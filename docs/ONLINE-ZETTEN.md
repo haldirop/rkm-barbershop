@@ -67,7 +67,7 @@ GitHub bewaart de code van je website. Vercel haalt de website daar vandaan.
    - **Name:** `rkm-barbershop`
    - **Database Password:** klik op **Generate a password**. Kopieer het en bewaar het veilig
      (bijv. in je wachtwoordmanager). Je hebt het zo nodig.
-   - **Region:** **Central EU (Frankfurt)** (dichtbij, en je gegevens blijven in de EU).
+   - **Region:** een EU-regio, bijv. **West EU (Ireland)** — de website draait bij Vercel ook in Ierland (Dublin), dus dat is het snelst. Je gegevens blijven in de EU.
    - Plan: **Free**.
 3. Klik op **Create new project** en wacht een paar minuten.
 
