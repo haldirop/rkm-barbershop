@@ -2,7 +2,7 @@
 
 /*
  * RKM Barbershop — design tokens.
- * Dark, warm neutrals with a restrained gold accent. All colours used in
+ * Black marble and polished gold, taken from the logo. All colours used in
  * components come from these tokens.
  */
 @theme {
@@ -17,12 +17,17 @@
   --color-ink-muted: #b3ac9f;
   --color-ink-faint: #7b766d;
 
-  --color-gold: #c8a96a;
-  --color-gold-bright: #dec28c;
-  --color-gold-deep: #9c7f45;
+  /* Sampled from the logo: shadow → mid-tone → highlight. */
+  --color-gold: #dba85c;
+  --color-gold-bright: #f6cf87;
+  --color-gold-deep: #a8722f;
+  --color-gold-light: #ffeac2;
 
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
-  --font-display: var(--font-cormorant), ui-serif, Georgia, serif;
+  /* Roman capitals like the logo, for headings. */
+  --font-display: var(--font-cinzel), ui-serif, Georgia, serif;
+  /* Elegant italic serif for taglines and accents. */
+  --font-serif: var(--font-cormorant), ui-serif, Georgia, serif;
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 
@@ -52,6 +57,25 @@
 @layer base {
   :root {
     color-scheme: dark;
+
+    /* Polished gold as in the logo: highlight on top, a darker band, reflection below. */
+    --gold-metal: linear-gradient(
+      180deg,
+      var(--color-gold-light) 0%,
+      var(--color-gold-bright) 28%,
+      var(--color-gold) 50%,
+      var(--color-gold-deep) 66%,
+      var(--color-gold) 84%,
+      var(--color-gold-bright) 100%
+    );
+    --gold-metal-surface: linear-gradient(
+      180deg,
+      #f9dc9b 0%,
+      var(--color-gold-bright) 22%,
+      var(--color-gold) 58%,
+      #c48d43 100%
+    );
+    --marble: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1000' height='1000'%3E%3Cfilter id='s' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.005 0.012' numOctaves='5' seed='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 0.96 0 0 0 0 0.9 0 0 0 -1.6 1.05'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' exponent='2' amplitude='0.14'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Cfilter id='v' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='turbulence' baseFrequency='0.004 0.011' numOctaves='7' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.92 0 0 0 0 0.7 0 0 0 0 0.36 -3.8 0 0 0 1'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='gamma' exponent='3' amplitude='0.9'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23s)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23v)'/%3E%3C/svg%3E");
   }
 
   html {
@@ -66,6 +90,7 @@
 
   /* Cormorant defaults to old-style figures; prices and dates read better with lining figures. */
   .font-display,
+  .font-serif,
   .heading-display {
     font-variant-numeric: lining-nums;
   }
@@ -108,11 +133,77 @@
   }
 
   .heading-display {
-    @apply font-display font-medium tracking-tight text-ink;
+    @apply font-display font-semibold tracking-[0.02em] text-ink;
+  }
+
+  /* Accent words in headings are set in polished gold instead of italics (Cinzel has no italic). */
+  .heading-display em {
+    font-style: normal;
+  }
+  .heading-display em,
+  .text-gold-metal {
+    background: var(--gold-metal);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  /* Polished gold surface for primary buttons. */
+  .bg-gold-metal {
+    background: var(--gold-metal-surface);
+    box-shadow:
+      inset 0 1px 0 rgb(255 245 220 / 0.55),
+      inset 0 -1px 0 rgb(90 55 15 / 0.35),
+      0 10px 30px -12px rgb(219 168 92 / 0.65);
+  }
+  .bg-gold-metal:hover {
+    filter: brightness(1.08) saturate(1.05);
   }
 
   .gold-rule {
     @apply h-px w-12 bg-gradient-to-r from-gold to-transparent;
+  }
+
+  /* Hairline in gold that fades out at both ends, as next to "BARBERSHOP" in the logo. */
+  .gold-line {
+    @apply h-px bg-gradient-to-r from-transparent via-gold to-transparent;
+  }
+
+  /*
+   * Black marble with fine gold veins (generated in the browser, nothing to download).
+   * Markup: <div class="marble-corners"><span class="marble" /></div> — the wrapper
+   * fades the stone out towards the middle, the inner element is rotated so the
+   * veins run diagonally like on the business card.
+   */
+  .marble-corners {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    -webkit-mask-image:
+      radial-gradient(ellipse 42% 55% at 0% 0%, #000 20%, transparent 100%),
+      radial-gradient(ellipse 42% 55% at 100% 100%, #000 20%, transparent 100%);
+    mask-image:
+      radial-gradient(ellipse 42% 55% at 0% 0%, #000 20%, transparent 100%),
+      radial-gradient(ellipse 42% 55% at 100% 100%, #000 20%, transparent 100%);
+  }
+  .marble {
+    position: absolute;
+    inset: -40%;
+    background-image: var(--marble);
+    background-size: 1000px 1000px;
+    transform: rotate(-32deg);
+    opacity: 0.6;
+  }
+
+  /* Diagonal beams of polished gold, like the edges of the business card. */
+  .gold-beam {
+    position: absolute;
+    height: 2px;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, transparent, var(--color-gold-deep) 18%, var(--color-gold-light) 55%, var(--color-gold) 80%, transparent);
+    box-shadow: 0 0 18px 1px rgb(246 207 135 / 0.35);
+    pointer-events: none;
   }
 
   /* Subtle film grain for large dark surfaces. */

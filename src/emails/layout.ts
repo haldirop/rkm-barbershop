@@ -20,7 +20,7 @@ const C = {
   text: "#f4f1ea",
   muted: "#c4beb3",
   faint: "#8a857c",
-  gold: "#c8a96a",
+  gold: "#dba85c",
 };
 
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
@@ -43,7 +43,12 @@ export interface EmailContent {
   secondary?: EmailButton;
   closing?: string[];
   footer: string[];
+  /** Absolute URL of the logo image (see EMAIL_LOGO_PATH); without it the header is plain text. */
+  logoUrl?: string;
 }
+
+/** Logo for the e-mail header, served from the website (public/brand). */
+export const EMAIL_LOGO_PATH = "/brand/rkm-logo-email.png";
 
 function paragraph(text: string, color = C.muted) {
   return `<p style="margin:0 0 16px;font-family:${SANS};font-size:15px;line-height:24px;color:${color};">${escapeHtml(text)}</p>`;
@@ -101,8 +106,12 @@ export function renderEmail(subject: string, content: EmailContent): { subject: 
 <tr><td align="center" style="padding:36px 12px;">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:560px;">
 <tr><td align="center" style="padding:0 0 28px;">
-<div style="font-family:${SERIF};font-size:30px;line-height:34px;letter-spacing:8px;color:${C.text};">RKM</div>
-<div style="font-family:${SANS};font-size:11px;line-height:16px;letter-spacing:6px;font-weight:700;color:${C.gold};">BARBERSHOP</div>
+${
+  content.logoUrl
+    ? `<img src="${escapeHtml(content.logoUrl)}" width="180" height="88" alt="RKM" style="display:block;width:180px;height:auto;margin:0 auto 6px;border:0;outline:none;text-decoration:none;font-family:${SERIF};font-size:30px;letter-spacing:8px;color:${C.gold};">`
+    : `<div style="font-family:${SERIF};font-size:30px;line-height:34px;letter-spacing:8px;color:${C.text};">RKM</div>`
+}
+<div style="font-family:${SERIF};font-size:12px;line-height:16px;letter-spacing:7px;color:${C.text};">BARBERSHOP</div>
 </td></tr>
 <tr><td bgcolor="${C.card}" style="background-color:${C.card};border:1px solid ${C.line};border-radius:16px;padding:36px 32px;">
 ${body}

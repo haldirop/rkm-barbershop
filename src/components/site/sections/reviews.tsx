@@ -48,7 +48,7 @@ export function Reviews({ reviews, googleReviewsUrl }: { reviews: Review[]; goog
                       </span>
                     ) : null}
                   </div>
-                  <blockquote className="mt-5 flex-1 font-display text-xl leading-snug text-ink">
+                  <blockquote className="mt-5 flex-1 font-serif text-[1.35rem] leading-snug text-ink italic">
                     “{review.body}”
                   </blockquote>
                   <figcaption className="mt-6 text-sm text-ink-muted">

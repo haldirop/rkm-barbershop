@@ -1,10 +1,21 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { ImageResponse } from "next/og";
 
 export const alt = "RKM Barbershop — Strak geknipt. Zelfverzekerd naar buiten.";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-/** Social preview image (WhatsApp, Facebook, LinkedIn, …), generated at build time. */
+// The logo doesn't depend on the request: read it once.
+const logo = `data:image/png;base64,${await readFile(join(process.cwd(), "src/assets/rkm-mark.png"), "base64")}`;
+
+const line = (direction: "left" | "right") => ({
+  width: 150,
+  height: 2,
+  background: `linear-gradient(to ${direction}, rgba(219,168,92,0), #dba85c)`,
+});
+
+/** Social preview image (WhatsApp, Facebook, LinkedIn, …). */
 export default function OpengraphImage() {
   return new ImageResponse(
     (
@@ -14,23 +25,22 @@ export default function OpengraphImage() {
           height: "100%",
           display: "flex",
           flexDirection: "column",
+          alignItems: "center",
           justifyContent: "center",
-          padding: "80px 96px",
-          background: "radial-gradient(circle at 85% 15%, rgba(200,169,106,0.25), transparent 55%), #0b0b0c",
+          background: "radial-gradient(circle at 50% 40%, rgba(219,168,92,0.22), transparent 60%), #0b0b0c",
           color: "#f4f1ea",
           fontFamily: "Georgia, serif",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <div style={{ width: 64, height: 1, background: "#c8a96a" }} />
-          <div style={{ fontSize: 26, letterSpacing: 8, color: "#c8a96a", fontFamily: "sans-serif" }}>BARBERSHOP</div>
+        {/* eslint-disable-next-line @next/next/no-img-element -- ImageResponse renders plain <img> */}
+        <img src={logo} width={520} height={241} alt="" />
+        <div style={{ display: "flex", alignItems: "center", gap: 28, marginTop: 30 }}>
+          <div style={line("right")} />
+          <div style={{ fontSize: 34, letterSpacing: 16, color: "#f4f1ea" }}>BARBERSHOP</div>
+          <div style={line("left")} />
         </div>
-        <div style={{ fontSize: 118, marginTop: 28, lineHeight: 1 }}>RKM Barbershop</div>
-        <div style={{ fontSize: 46, marginTop: 28, color: "#dec28c", fontStyle: "italic" }}>
+        <div style={{ fontSize: 38, marginTop: 34, color: "#f6cf87", fontStyle: "italic" }}>
           Strak geknipt. Zelfverzekerd naar buiten.
-        </div>
-        <div style={{ fontSize: 28, marginTop: 48, color: "#b3ac9f", fontFamily: "sans-serif" }}>
-          Maak eenvoudig online een afspraak
         </div>
       </div>
     ),

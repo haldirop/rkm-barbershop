@@ -1,14 +1,14 @@
 import Link from "next/link";
-import { Emblem } from "@/components/site/logo";
+import { BrandLockup } from "@/components/site/logo";
 import { buttonClasses } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
     <main className="grain grid min-h-dvh place-items-center px-4 text-center">
       <div>
-        <Emblem className="mx-auto size-14 text-gold" />
+        <BrandLockup sizes="14rem" className="mx-auto w-56" />
         <p className="eyebrow mt-8">Pagina niet gevonden</p>
-        <h1 className="heading-display mt-4 text-5xl sm:text-6xl">Deze pagina bestaat niet</h1>
+        <h1 className="heading-display mt-4 text-4xl sm:text-5xl">Deze pagina bestaat niet</h1>
         <p className="mx-auto mt-4 max-w-md text-ink-muted">
           Misschien is de link verlopen of verkeerd overgenomen. Ga terug naar de homepage of maak direct een afspraak.
         </p>

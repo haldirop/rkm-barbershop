@@ -23,7 +23,7 @@ export function MobileBookingBar({ phone }: { phone: string }) {
         ) : null}
         <Link
           href="/afspraak-maken"
-          className="flex h-13 flex-1 items-center justify-center gap-2 rounded-full bg-gold text-base font-semibold text-canvas active:scale-[0.98]"
+          className="flex h-13 flex-1 items-center justify-center gap-2 rounded-full bg-gold-metal text-base font-semibold text-canvas active:scale-[0.98]"
         >
           <CalendarDays className="size-5" aria-hidden />
           Afspraak maken

@@ -89,7 +89,7 @@ export function TimeSlots({
                     className={cn(
                       "h-12 rounded-xl border text-[15px] font-semibold tabular-nums transition-all active:scale-[0.97]",
                       isSelected
-                        ? "border-gold bg-gold text-canvas shadow-[0_8px_24px_-10px_rgba(200,169,106,0.8)]"
+                        ? "border-gold bg-gold text-canvas shadow-[0_8px_24px_-10px_rgba(219,168,92,0.8)]"
                         : "border-line-strong bg-surface-2 text-ink hover:border-gold/60",
                     )}
                   >

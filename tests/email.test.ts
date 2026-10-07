@@ -37,6 +37,13 @@ describe("e-mail templates", () => {
     expect(mail.text).toContain("Je afspraak is nog niet definitief");
   });
 
+  it("shows the logo from the website in the header, with a text fallback", () => {
+    const withLogo = templates.approved({ ...ctx, links: { ...ctx.links, logo: "https://rkm.test/brand/rkm-logo-email.png" } });
+    expect(withLogo.html).toContain('<img src="https://rkm.test/brand/rkm-logo-email.png"');
+    expect(withLogo.html).toContain('alt="RKM"');
+    expect(templates.approved(ctx).html).not.toContain("<img");
+  });
+
   it("escapes customer input in the HTML", () => {
     const html = templates.approved(ctx).html;
     expect(html).not.toContain("<script>");

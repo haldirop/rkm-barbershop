@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import { Cinzel, Cormorant_Garamond, Manrope } from "next/font/google";
 import { getSettings, siteUrl } from "@/server/services/settings";
 import "./globals.css";
 
@@ -8,6 +8,14 @@ const display = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["500", "600", "700"],
   style: ["normal", "italic"],
+  display: "swap",
+});
+
+// Roman capitals in the style of the logo, for headings and the word mark.
+const caps = Cinzel({
+  variable: "--font-cinzel",
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
   display: "swap",
 });
 
@@ -64,7 +72,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="nl" className={`${display.variable} ${sans.variable}`} data-scroll-behavior="smooth">
+    <html lang="nl" className={`${display.variable} ${caps.variable} ${sans.variable}`} data-scroll-behavior="smooth">
       <body className="min-h-dvh">{children}</body>
     </html>
   );

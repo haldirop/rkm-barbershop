@@ -22,7 +22,7 @@ export function SectionHeading({
         <span className="gold-rule" aria-hidden />
         {eyebrow}
       </p>
-      <h2 id={id} className="heading-display mt-4 text-4xl leading-[1.05] sm:text-5xl">
+      <h2 id={id} className="heading-display mt-4 text-3xl leading-[1.15] sm:text-[2.75rem]">
         {title}
       </h2>
       {intro ? <p className="mt-5 text-base leading-relaxed text-ink-muted sm:text-lg">{intro}</p> : null}

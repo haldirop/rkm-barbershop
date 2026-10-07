@@ -6,7 +6,7 @@ import { passwordProblem } from "@/server/auth/password";
 import { requireAdmin } from "@/server/auth/session";
 import { getDb } from "@/server/db/client";
 import { removeDemoData } from "@/server/db/seed";
-import { renderEmail } from "@/emails/layout";
+import { EMAIL_LOGO_PATH, renderEmail } from "@/emails/layout";
 import { sendMail } from "@/server/notifications/mailer";
 import {
   createUser,
@@ -15,7 +15,7 @@ import {
   saveReview,
   saveSettings,
 } from "@/server/services/admin-config";
-import { loadSettings } from "@/server/services/settings";
+import { loadSettings, siteUrl } from "@/server/services/settings";
 import { formObject, invalid, refreshAll, toFormState, toResult, type SimpleResult } from "./helpers";
 import type { FormState } from "./types";
 
@@ -164,6 +164,7 @@ export async function sendTestEmailAction(): Promise<SimpleResult> {
         "Dit is een testbericht vanuit het beheer van je website. Als je dit leest, worden e-mails correct verstuurd via Resend.",
       ],
       footer: [settings.businessName],
+      logoUrl: `${siteUrl()}${EMAIL_LOGO_PATH}`,
     }),
     template: "test",
   });

@@ -101,7 +101,7 @@ export function SiteHeader({ phone }: { phone: string }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setOpen(false)}
-                className="border-b border-line py-4 font-display text-3xl text-ink"
+                className="border-b border-line py-4 font-display text-2xl text-ink"
               >
                 {item.label}
               </Link>

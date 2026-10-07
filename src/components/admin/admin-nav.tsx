@@ -19,7 +19,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { logout } from "@/app/admin/actions/auth";
-import { Emblem } from "@/components/site/logo";
+import { LogoMark } from "@/components/site/logo";
 import { cn } from "@/lib/cn";
 
 const NAV = [
@@ -95,12 +95,9 @@ function Footer({ userName }: { userName: string }) {
 export function AdminSidebar({ pending, userName }: { pending: number; userName: string }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface px-4 py-6 lg:flex">
-      <Link href="/admin" className="flex items-center gap-3 px-3">
-        <Emblem className="size-8 text-gold" />
-        <span className="leading-none">
-          <span className="block font-display text-xl font-semibold tracking-wider text-ink">RKM</span>
-          <span className="text-[10px] font-semibold tracking-[0.3em] text-gold">BEHEER</span>
-        </span>
+      <Link href="/admin" className="flex items-end gap-3 px-3" aria-label="RKM Beheer">
+        <LogoMark sizes="76px" className="w-[76px]" />
+        <span className="pb-1 text-[10px] font-semibold tracking-[0.3em] text-gold">BEHEER</span>
       </Link>
       <nav aria-label="Beheer" className="mt-8 flex-1 overflow-y-auto">
         <NavLinks pending={pending} />
@@ -115,9 +112,9 @@ export function AdminMobileBar({ pending, userName }: { pending: number; userNam
   return (
     <div className="sticky top-0 z-40 border-b border-line bg-surface/95 backdrop-blur-xl lg:hidden">
       <div className="flex h-16 items-center justify-between px-4">
-        <Link href="/admin" className="flex items-center gap-2.5">
-          <Emblem className="size-7 text-gold" />
-          <span className="font-display text-lg font-semibold tracking-wider text-ink">RKM Beheer</span>
+        <Link href="/admin" className="flex items-end gap-2.5" aria-label="RKM Beheer">
+          <LogoMark sizes="60px" className="w-[60px]" />
+          <span className="pb-0.5 text-[10px] font-semibold tracking-[0.3em] text-gold">BEHEER</span>
         </Link>
         <div className="flex items-center gap-2">
           {pending > 0 ? (

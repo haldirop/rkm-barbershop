@@ -8,7 +8,7 @@ export interface TemplateContext {
   settings: Settings;
   appointment: Appointment;
   customer: Customer;
-  links: { manage?: string; book?: string; admin?: string; ics?: string };
+  links: { manage?: string; book?: string; admin?: string; ics?: string; logo?: string };
   reason?: string | null;
 }
 
@@ -50,7 +50,7 @@ const manage = (ctx: TemplateContext, label = "Afspraak bekijken of wijzigen") =
   ctx.links.manage ? { label, url: ctx.links.manage } : undefined;
 
 function email(ctx: TemplateContext, subject: string, content: Omit<EmailContent, "footer">, forCustomer = true) {
-  return renderEmail(subject, { ...content, footer: footer(ctx.settings, forCustomer) });
+  return renderEmail(subject, { ...content, footer: footer(ctx.settings, forCustomer), logoUrl: ctx.links.logo });
 }
 
 export const templates = {

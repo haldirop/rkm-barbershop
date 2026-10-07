@@ -5,6 +5,7 @@ import { appointments, customers } from "@/server/db/schema";
 import { createManageToken } from "@/server/security";
 import { loadSettings, siteUrl } from "@/server/services/settings";
 import { sendMail } from "./mailer";
+import { EMAIL_LOGO_PATH } from "@/emails/layout";
 import { templates, type TemplateContext, type TemplateName } from "@/emails/templates";
 import { ownerEmail } from "@/server/config";
 
@@ -34,6 +35,7 @@ async function context(appointmentId: string, reason?: string | null): Promise<T
       ics: `${base}/api/afspraak/${token}/agenda.ics`,
       book: book.toString(),
       admin: `${base}/admin/afspraken/${appointmentId}`,
+      logo: `${base}${EMAIL_LOGO_PATH}`,
     },
   };
 }

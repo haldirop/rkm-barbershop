@@ -4,7 +4,7 @@ import { capitalize, telHref, weekdayShort } from "@/lib/format";
 import { groupOpeningDays } from "@/lib/opening-hours";
 import type { SiteData } from "@/server/services/site";
 import { formatAddress, mapsUrl } from "@/server/services/settings";
-import { Logo } from "./logo";
+import { BrandLockup } from "./logo";
 import { FacebookIcon, InstagramIcon } from "./social-icons";
 
 export function SiteFooter({ site }: { site: SiteData }) {
@@ -14,7 +14,9 @@ export function SiteFooter({ site }: { site: SiteData }) {
     <footer className="border-t border-line bg-surface pb-28 lg:pb-0">
       <div className="container-page grid gap-12 py-16 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-5">
-          <Logo />
+          <Link href="/" aria-label="RKM Barbershop — home" className="block w-52">
+            <BrandLockup sizes="13rem" />
+          </Link>
           <p className="max-w-xs text-sm leading-relaxed text-ink-muted">
             Vakmanschap in knippen, fades en baardverzorging. Maak eenvoudig online een afspraak.
           </p>
