@@ -115,6 +115,7 @@ Elke verzonden of mislukte e-mail is terug te zien bij de afspraak in het beheer
 | `npm run dev` | Ontwikkelserver (draait eerst `db:setup`) |
 | `npm test` | Alle tests |
 | `npm run typecheck` / `npm run lint` | Controles |
+| `ENV_FILE=.env.vercel npm run db:setup` | Hetzelfde, maar alleen met de waarden uit `.env.vercel` (de productiedatabase) |
 | `npm run db:generate` | Nieuwe migratie na een wijziging in `src/server/db/schema.ts` |
 | `npm run db:demo` | Demodata toevoegen (`-- --remove` om te verwijderen) |
 | `npm run admin:create -- e-mail "Naam"` | Beheerder aanmaken of wachtwoord resetten (toont een tijdelijk wachtwoord) |
