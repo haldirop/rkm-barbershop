@@ -1,5 +1,6 @@
-import { weekdayName } from "./format";
-import { isoWeekday, timeToMinutes, type ZonedNow } from "./time";
+import { subtractInterval, type Interval } from "./availability";
+import { formatDateLong, weekdayName } from "./format";
+import { addDays, isoWeekday, minutesToTime, timeToMinutes, type IsoDate, type ZonedNow } from "./time";
 
 export interface OpeningDay {
   weekday: number;
@@ -13,24 +14,64 @@ export interface OpenStatus {
   label: string;
 }
 
-/** "Nu open · tot 18:00", "Vandaag open vanaf 09:00", "Gesloten · dinsdag weer open om 09:00". */
-export function openStatus(days: OpeningDay[], now: ZonedNow, closedToday = false): OpenStatus {
-  const todayIndex = isoWeekday(now.date);
-  const today = days.find((d) => d.weekday === todayIndex);
-  if (today?.isOpen && !closedToday) {
-    const open = timeToMinutes(today.open);
-    const close = timeToMinutes(today.close);
-    if (now.minutes >= open && now.minutes < close) {
-      return { isOpen: true, label: `Nu open · tot ${today.close}` };
-    }
-    if (now.minutes < open) return { isOpen: false, label: `Vandaag open vanaf ${today.open}` };
+/** A block for the whole shop (Openingstijden → Blokkades); without times it lasts all day. */
+export interface ShopClosure {
+  startDate: IsoDate;
+  endDate: IsoDate;
+  startTime: string | null;
+  endTime: string | null;
+}
+
+/** When the shop is open on a date: the regular hours minus whole-shop blocks. */
+function openIntervals(days: OpeningDay[], closures: ShopClosure[], date: IsoDate): Interval[] {
+  const day = days.find((d) => d.weekday === isoWeekday(date));
+  if (!day?.isOpen) return [];
+  let open: Interval[] = [{ start: timeToMinutes(day.open), end: timeToMinutes(day.close) }];
+  for (const c of closures) {
+    if (c.startDate > date || c.endDate < date) continue;
+    open = subtractInterval(open, {
+      start: c.startTime ? timeToMinutes(c.startTime) : 0,
+      end: c.endTime ? timeToMinutes(c.endTime) : 24 * 60,
+    });
   }
-  for (let offset = 1; offset <= 7; offset++) {
-    const weekday = ((todayIndex - 1 + offset) % 7) + 1;
-    const next = days.find((d) => d.weekday === weekday);
-    if (next?.isOpen) {
-      const when = offset === 1 ? "morgen" : weekdayName(weekday);
-      return { isOpen: false, label: `Gesloten · ${when} weer open om ${next.open}` };
+  return open;
+}
+
+/** "morgen", "dinsdag", or — further ahead, e.g. after a closed period — "maandag 2 november". */
+function whenLabel(date: IsoDate, offset: number): string {
+  if (offset === 1) return "morgen";
+  if (offset < 7) return weekdayName(isoWeekday(date));
+  return formatDateLong(date);
+}
+
+/**
+ * "Nu open · tot 18:00", "Vandaag open vanaf 09:00", "Gesloten · dinsdag weer open om 09:00",
+ * "Gesloten · maandag 2 november weer open om 12:00". Takes blocks into account, so a
+ * holiday or an opening date in the future is shown correctly.
+ */
+export function openStatus(
+  days: OpeningDay[],
+  now: ZonedNow,
+  closures: ShopClosure[] = [],
+  searchDays = 120,
+): OpenStatus {
+  const today = openIntervals(days, closures, now.date);
+  for (const iv of today) {
+    if (now.minutes >= iv.start && now.minutes < iv.end) {
+      return { isOpen: true, label: `Nu open · tot ${minutesToTime(iv.end)}` };
+    }
+    if (now.minutes < iv.start) {
+      // Before opening, or during a break in the day (e.g. closed 12:00–13:00).
+      return today[0] === iv
+        ? { isOpen: false, label: `Vandaag open vanaf ${minutesToTime(iv.start)}` }
+        : { isOpen: false, label: `Gesloten · vandaag weer open om ${minutesToTime(iv.start)}` };
+    }
+  }
+  for (let offset = 1; offset <= searchDays; offset++) {
+    const date = addDays(now.date, offset);
+    const [first] = openIntervals(days, closures, date);
+    if (first) {
+      return { isOpen: false, label: `Gesloten · ${whenLabel(date, offset)} weer open om ${minutesToTime(first.start)}` };
     }
   }
   return { isOpen: false, label: "Gesloten" };
