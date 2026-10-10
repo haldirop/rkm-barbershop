@@ -41,7 +41,11 @@ function explainResendError(status: number, body: { name?: string; message?: str
     );
   }
   if (/domain is not verified/i.test(message)) {
-    return new MailError("Het afzenderdomein in EMAIL_FROM is nog niet geverifieerd in Resend.");
+    // Name the domain, so a typo or placeholder in EMAIL_FROM is easy to spot.
+    const domain = /The (\S+) domain is not verified/i.exec(message)?.[1];
+    return new MailError(
+      `Het afzenderdomein ${domain ? `"${domain}" ` : ""}in EMAIL_FROM is nog niet geverifieerd in Resend.`,
+    );
   }
   if (body.name === "daily_quota_exceeded" || body.name === "monthly_quota_exceeded") {
     return new MailError("Het verzendlimiet van je Resend-abonnement is bereikt.");

@@ -80,7 +80,7 @@ describe("Resend provider", () => {
   it("explains a domain that is not verified yet", async () => {
     const provider = new ResendMailProvider(config, (async () =>
       new Response(JSON.stringify({ statusCode: 403, name: "validation_error", message: "The rkm.test domain is not verified. Please, add and verify your domain." }), { status: 403 })) as unknown as typeof fetch);
-    await expect(provider.send(message)).rejects.toThrow(/nog niet geverifieerd/);
+    await expect(provider.send(message)).rejects.toThrow('Het afzenderdomein "rkm.test" in EMAIL_FROM is nog niet geverifieerd');
   });
 
   it("retries once when Resend is temporarily unavailable", async () => {
