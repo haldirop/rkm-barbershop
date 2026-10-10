@@ -31,6 +31,7 @@ const serviceSchema = z.object({
     .int("Gebruik hele minuten.")
     .min(5, "Minimaal 5 minuten.")
     .max(480, "Maximaal 8 uur."),
+  vatRate: z.coerce.number().pipe(z.union([z.literal(0), z.literal(9), z.literal(21)], "Kies een btw-tarief.")),
   sortOrder: z.coerce.number().int().min(0).max(999).default(0),
 });
 

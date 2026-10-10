@@ -31,6 +31,11 @@ export function formatPrice(cents: number): string {
   return (cents % 100 === 0 ? euroRounded : euro).format(cents / 100);
 }
 
+/** Always with cents, for receipts and till totals: 2500 → "€ 25,00" */
+export function formatAmount(cents: number): string {
+  return euro.format(cents / 100);
+}
+
 export function formatDuration(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);

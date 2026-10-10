@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigserial,
   boolean,
   check,
@@ -53,6 +54,13 @@ export const actorType = pgEnum("actor_type", ["CUSTOMER", "ADMIN", "SYSTEM"]);
 export const appointmentSource = pgEnum("appointment_source", ["ONLINE", "ADMIN"]);
 
 export const emailStatus = pgEnum("email_status", ["SENT", "LOGGED", "FAILED"]);
+
+export const paymentMethod = pgEnum("payment_method", ["CASH", "CARD", "OTHER"]);
+
+/** A refund ("tegenboeking") is a new receipt with negative amounts; receipts are never changed or deleted. */
+export const saleKind = pgEnum("sale_kind", ["SALE", "REFUND"]);
+
+export const saleLineKind = pgEnum("sale_line_kind", ["SERVICE", "PRODUCT"]);
 
 // ---------------------------------------------------------------------------
 // Beheerders & sessies
@@ -146,6 +154,8 @@ export const services = pgTable(
     description: text("description"),
     priceCents: integer("price_cents").notNull(),
     durationMinutes: integer("duration_minutes").notNull(),
+    /** Btw-percentage, used at the till. Hairdressing services fall under the low rate (9%). */
+    vatRate: smallint("vat_rate").notNull().default(9),
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     ...timestamps,
@@ -153,6 +163,7 @@ export const services = pgTable(
   (t) => [
     check("services_price_chk", sql`${t.priceCents} >= 0`),
     check("services_duration_chk", sql`${t.durationMinutes} BETWEEN 5 AND 480`),
+    check("services_vat_chk", sql`${t.vatRate} IN (0, 9, 21)`),
   ],
 );
 
@@ -359,6 +370,110 @@ export const emailLog = pgTable(
   (t) => [index("email_log_appointment_idx").on(t.appointmentId)],
 );
 
+// ---------------------------------------------------------------------------
+// Kassa
+// ---------------------------------------------------------------------------
+
+/** Products sold at the till (wax, shampoo …). `stock` null = stock is not tracked. */
+export const products = pgTable(
+  "products",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: text("name").notNull(),
+    priceCents: integer("price_cents").notNull(),
+    vatRate: smallint("vat_rate").notNull().default(21),
+    stock: integer("stock"),
+    isActive: boolean("is_active").notNull().default(true),
+    sortOrder: integer("sort_order").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    check("products_price_chk", sql`${t.priceCents} >= 0`),
+    check("products_vat_chk", sql`${t.vatRate} IN (0, 9, 21)`),
+  ],
+);
+
+/**
+ * Receipts ("bonnen"). Numbered without gaps, never changed or deleted: a mistake is
+ * corrected with a refund receipt (kind REFUND, negative amounts, refund_of_id).
+ * Names are snapshots so a receipt stays readable after a barber or customer is removed.
+ */
+export const sales = pgTable(
+  "sales",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    number: integer("number").notNull(),
+    kind: saleKind("kind").notNull().default("SALE"),
+    refundOfId: uuid("refund_of_id").references((): AnyPgColumn => sales.id, { onDelete: "restrict" }),
+    /** Shop-local date the receipt belongs to (for the day closing). */
+    date: date("date").notNull(),
+    appointmentId: uuid("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+    customerId: uuid("customer_id").references(() => customers.id, { onDelete: "set null" }),
+    barberId: uuid("barber_id").references(() => barbers.id, { onDelete: "set null" }),
+    barberName: text("barber_name"),
+    paymentMethod: paymentMethod("payment_method").notNull(),
+    /** Sum of the lines, before discount. */
+    subtotalCents: integer("subtotal_cents").notNull(),
+    discountCents: integer("discount_cents").notNull().default(0),
+    /** Voluntary tip: paid on top, kept out of revenue and VAT. */
+    tipCents: integer("tip_cents").notNull().default(0),
+    /** What the customer paid: subtotal − discount + tip. */
+    totalCents: integer("total_cents").notNull(),
+    note: text("note"),
+    createdByUserId: uuid("created_by_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("sales_number_key").on(t.number),
+    uniqueIndex("sales_refund_of_key").on(t.refundOfId),
+    uniqueIndex("sales_appointment_key").on(t.appointmentId).where(sql`${t.kind} = 'SALE'`),
+    index("sales_date_idx").on(t.date),
+    index("sales_customer_idx").on(t.customerId),
+    check("sales_refund_chk", sql`(${t.kind} = 'REFUND') = (${t.refundOfId} IS NOT NULL)`),
+  ],
+);
+
+export const saleLines = pgTable(
+  "sale_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    saleId: uuid("sale_id")
+      .notNull()
+      .references(() => sales.id, { onDelete: "cascade" }),
+    kind: saleLineKind("kind").notNull(),
+    serviceId: uuid("service_id").references(() => services.id, { onDelete: "set null" }),
+    productId: uuid("product_id").references(() => products.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    quantity: integer("quantity").notNull(),
+    unitPriceCents: integer("unit_price_cents").notNull(),
+    vatRate: smallint("vat_rate").notNull(),
+    /** quantity × unit price (negative on a refund). */
+    totalCents: integer("total_cents").notNull(),
+    /** This line's share of the receipt discount. */
+    discountCents: integer("discount_cents").notNull().default(0),
+    /** VAT included in (total − discount). */
+    vatCents: integer("vat_cents").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (t) => [index("sale_lines_sale_idx").on(t.saleId)],
+);
+
+/** "Kas tellen" at the end of a day: what should be in the drawer and what was counted. */
+export const cashCounts = pgTable("cash_counts", {
+  date: date("date").primaryKey(),
+  /** Change in the drawer at opening ("wisselgeld"). */
+  floatCents: integer("float_cents").notNull().default(0),
+  /** Cash receipts of the day at the moment of counting. */
+  cashSalesCents: integer("cash_sales_cents").notNull(),
+  countedCents: integer("counted_cents").notNull(),
+  note: text("note"),
+  countedByUserId: uuid("counted_by_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 /** Single-row table (id = 1) with business details and booking rules. */
 export const settings = pgTable(
   "settings",
@@ -375,6 +490,8 @@ export const settings = pgTable(
     facebookUrl: text("facebook_url"),
     googleReviewsUrl: text("google_reviews_url"),
     kvkNumber: text("kvk_number"),
+    /** Btw-identificatienummer, printed on receipts. */
+    vatNumber: text("vat_number"),
     /** Where "nieuwe aanvraag" notifications go. Falls back to `email`. */
     notificationEmail: text("notification_email"),
     slotIntervalMinutes: integer("slot_interval_minutes").notNull().default(15),
@@ -410,3 +527,8 @@ export type Settings = typeof settings.$inferSelect;
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
 export type AvailabilityAlert = typeof availabilityAlerts.$inferSelect;
+export type Product = typeof products.$inferSelect;
+export type Sale = typeof sales.$inferSelect;
+export type SaleLine = typeof saleLines.$inferSelect;
+export type CashCount = typeof cashCounts.$inferSelect;
+export type PaymentMethod = (typeof paymentMethod.enumValues)[number];

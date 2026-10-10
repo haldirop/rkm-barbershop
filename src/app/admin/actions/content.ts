@@ -90,6 +90,11 @@ const businessSchema = z.object({
     .trim()
     .refine((v) => v === "" || /^\d{8}$/.test(v), "Een KvK-nummer heeft 8 cijfers.")
     .transform((v) => v || null),
+  vatNumber: z
+    .string()
+    .transform((v) => v.replace(/[\s.]/g, "").toUpperCase())
+    .refine((v) => v === "" || /^NL\d{9}B\d{2}$/.test(v), "Een btw-nummer ziet eruit als NL123456789B01.")
+    .transform((v) => v || null),
   notificationEmail: z
     .string()
     .trim()

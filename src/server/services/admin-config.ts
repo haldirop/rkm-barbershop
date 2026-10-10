@@ -10,6 +10,7 @@ import {
   blockedTimes,
   breaks,
   businessHours,
+  products,
   reviews,
   services,
   settings,
@@ -40,6 +41,7 @@ export interface ServiceInput {
   description: string | null;
   priceCents: number;
   durationMinutes: number;
+  vatRate: number;
   isActive: boolean;
   sortOrder: number;
 }
@@ -242,6 +244,37 @@ export async function saveReview(
 
 export async function deleteReview(id: string) {
   await getDb().delete(reviews).where(eq(reviews.id, id));
+}
+
+// ---------------------------------------------------------------------------
+// Producten (kassa)
+// ---------------------------------------------------------------------------
+
+export interface ProductInput {
+  name: string;
+  priceCents: number;
+  vatRate: number;
+  /** null = stock is not tracked */
+  stock: number | null;
+  isActive: boolean;
+  sortOrder: number;
+}
+
+export async function saveProduct(id: string | null, input: ProductInput) {
+  const db = getDb();
+  if (id) {
+    const [row] = await db.update(products).set(input).where(eq(products.id, id)).returning();
+    if (!row) throw new DomainError("Product niet gevonden.", "NOT_FOUND");
+    return row;
+  }
+  const [row] = await db.insert(products).values(input).returning();
+  return row;
+}
+
+/** Receipts keep their own copy of the name and price, so a sold product can still be removed. */
+export async function deleteProduct(id: string) {
+  const deleted = await getDb().delete(products).where(eq(products.id, id)).returning({ id: products.id });
+  if (!deleted.length) throw new DomainError("Product niet gevonden.", "NOT_FOUND");
 }
 
 // ---------------------------------------------------------------------------

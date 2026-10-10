@@ -6,8 +6,9 @@ import { createManageToken } from "@/server/security";
 import { loadSettings, siteUrl } from "@/server/services/settings";
 import { sendMail } from "./mailer";
 import { EMAIL_LOGO_PATH } from "@/emails/layout";
-import { availabilityAlertEmail, templates, type TemplateContext, type TemplateName } from "@/emails/templates";
+import { availabilityAlertEmail, receiptEmail, templates, type TemplateContext, type TemplateName } from "@/emails/templates";
 import { bookingHref } from "@/lib/links";
+import { getSale } from "@/server/services/pos";
 import type { FreedUpSpot, SendOutcome } from "@/server/services/waitlist";
 import { ownerEmail } from "@/server/config";
 
@@ -150,4 +151,23 @@ export async function notifyAvailabilityAlert(spot: FreedUpSpot): Promise<SendOu
     replyTo: settings.email || undefined,
     template: "availabilityAlert",
   });
+}
+
+/** Sends the receipt ("kassabon") of a sale or refund to an e-mail address. */
+export async function sendReceipt(saleId: string, to: string): Promise<SendOutcome> {
+  const detail = await getSale(saleId);
+  if (!detail) return { ok: false, error: "Deze bon bestaat niet." };
+  const { sale } = detail;
+  const mail = receiptEmail({
+    settings: await loadSettings(),
+    number: sale.number,
+    isRefund: sale.kind === "REFUND",
+    refundOfNumber: detail.refundOf?.number,
+    createdAt: sale.createdAt,
+    barberName: sale.barberName,
+    paymentMethod: sale.paymentMethod,
+    receipt: { ...sale, lines: detail.lines },
+    logoUrl: `${siteUrl()}${EMAIL_LOGO_PATH}`,
+  });
+  return sendMail({ ...mail, to, template: "receipt", appointmentId: sale.appointmentId });
 }

@@ -1,6 +1,7 @@
-import { capitalize, formatDateLong, formatPrice } from "@/lib/format";
+import { capitalize, formatAmount, formatDateLong, formatDateTime, formatPrice } from "@/lib/format";
+import { PAYMENT_METHODS, receiptRows, type PaymentMethodKey, type ReceiptInput, type ReceiptRow } from "@/lib/pos";
 import type { Appointment, Customer, Settings } from "@/server/db/schema";
-import { renderEmail, type EmailContent } from "./layout";
+import { renderEmail, type EmailContent, type EmailTableRow } from "./layout";
 
 /** All transactional e-mails, in Dutch. Each returns { subject, html, text }. */
 
@@ -223,6 +224,60 @@ export function availabilityAlertEmail(input: {
       ...footer(input.settings, false),
       "Je ontvangt deze eenmalige e-mail omdat je je op onze website hebt aangemeld voor een melding.",
     ],
+    logoUrl: input.logoUrl,
+  });
+}
+
+const RECEIPT_ROW_STYLE: Record<ReceiptRow["kind"], Omit<EmailTableRow, "label" | "value">> = {
+  line: {},
+  subtotal: { divider: true },
+  discount: {},
+  tip: {},
+  total: { strong: true, divider: true },
+  vat: { muted: true },
+};
+
+/** The receipt ("kassabon") after paying at the till, or a refund receipt. */
+export function receiptEmail(input: {
+  settings: Settings;
+  number: number;
+  isRefund: boolean;
+  /** Receipt number this refund undoes. */
+  refundOfNumber?: number | null;
+  createdAt: Date;
+  barberName: string | null;
+  paymentMethod: PaymentMethodKey;
+  receipt: ReceiptInput;
+  logoUrl?: string;
+}): RenderedEmail {
+  const s = input.settings;
+  const when = formatDateTime(input.createdAt);
+  const subject = input.isRefund
+    ? `Tegenboeking ${input.number} van ${s.businessName}`
+    : `Je kassabon van ${s.businessName}`;
+  return renderEmail(subject, {
+    preheader: `Bon ${input.number} · ${formatAmount(input.receipt.totalCents)} · ${when}`,
+    heading: input.isRefund ? "Tegenboeking" : "Bedankt voor je bezoek",
+    paragraphs: [
+      input.isRefund
+        ? `${input.refundOfNumber ? `Bon ${input.refundOfNumber}` : "Een eerdere bon"} is teruggedraaid. Hieronder zie je de tegenboeking.`
+        : `Hieronder vind je je kassabon. Tot de volgende keer bij ${s.businessName}!`,
+    ],
+    details: [
+      ["Bonnummer", String(input.number)],
+      ["Datum", when],
+      ...(input.barberName ? ([["Barber", input.barberName]] as Array<[string, string]>) : []),
+      ["Betaald met", PAYMENT_METHODS[input.paymentMethod]],
+    ],
+    table: receiptRows(input.receipt).map((row) => ({
+      label: row.label,
+      value: formatAmount(row.cents),
+      ...RECEIPT_ROW_STYLE[row.kind],
+    })),
+    footer: [
+      ...footer(s, false),
+      [s.kvkNumber ? `KvK ${s.kvkNumber}` : "", s.vatNumber ? `Btw ${s.vatNumber}` : ""].filter(Boolean).join(" · "),
+    ].filter(Boolean),
     logoUrl: input.logoUrl,
   });
 }

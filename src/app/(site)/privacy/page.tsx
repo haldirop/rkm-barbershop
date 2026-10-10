@@ -35,6 +35,7 @@ export default async function PrivacyPage() {
           <ul>
             <li>Voor- en achternaam, telefoonnummer en e-mailadres</li>
             <li>Gegevens over je afspraak: behandeling, barber, datum, tijd en eventuele opmerkingen</li>
+            <li>Gegevens over je betaling in de zaak: wat je hebt afgerekend, het bedrag en hoe je hebt betaald</li>
           </ul>
         </section>
         <section>
@@ -57,7 +58,8 @@ export default async function PrivacyPage() {
           <h2>Hoe lang we gegevens bewaren</h2>
           <p>
             We bewaren je gegevens zolang je klant bij ons bent en verwijderen ze op verzoek. Gegevens die we wettelijk
-            moeten bewaren (zoals voor de belastingdienst) bewaren we zo lang als de wet voorschrijft.
+            moeten bewaren (zoals kassabonnen voor de Belastingdienst, in principe 7 jaar) bewaren we zo lang als de
+            wet voorschrijft. Vraag je om verwijdering, dan blijft de bon bestaan maar zonder je naam.
           </p>
         </section>
         <section>

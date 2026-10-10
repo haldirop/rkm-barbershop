@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { deleteServiceAction, saveServiceAction } from "@/app/admin/actions/catalog";
-import { Checkbox, Field, Input, Textarea } from "@/components/ui/form";
+import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { DeleteButton, FormError, useActionFeedback } from "./form-helpers";
 
@@ -12,6 +12,7 @@ export interface ServiceValues {
   description: string | null;
   priceCents: number;
   durationMinutes: number;
+  vatRate: number;
   isActive: boolean;
   sortOrder: number;
 }
@@ -26,7 +27,7 @@ export function ServiceForm({ service }: { service?: ServiceValues }) {
     <form ref={formRef} action={action} className="space-y-4">
       <input type="hidden" name="id" value={service?.id ?? ""} />
       <FormError state={state} />
-      <div className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr]">
+      <div className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr_1fr]">
         <Field label="Naam" htmlFor={`name-${key}`} error={errors.name}>
           <Input id={`name-${key}`} name="name" defaultValue={service?.name} required maxLength={60} />
         </Field>
@@ -51,6 +52,13 @@ export function ServiceForm({ service }: { service?: ServiceValues }) {
             defaultValue={service?.durationMinutes ?? 30}
             required
           />
+        </Field>
+        <Field label="Btw" htmlFor={`vat-${key}`} error={errors.vatRate} hint="Voor de kassa.">
+          <Select id={`vat-${key}`} name="vatRate" defaultValue={String(service?.vatRate ?? 9)}>
+            <option value="9">9%</option>
+            <option value="21">21%</option>
+            <option value="0">0%</option>
+          </Select>
         </Field>
       </div>
       <Field label="Omschrijving" htmlFor={`description-${key}`} error={errors.description} hint="Wordt getoond op de website en bij het boeken.">

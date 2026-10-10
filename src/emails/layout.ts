@@ -37,6 +37,8 @@ export interface EmailContent {
   heading: string;
   paragraphs: string[];
   details?: Array<[label: string, value: string]>;
+  /** Receipt-style rows: description left, amount right. */
+  table?: EmailTableRow[];
   /** Highlighted note below the details, e.g. "Je afspraak is nog niet definitief." */
   note?: string;
   button?: EmailButton;
@@ -45,6 +47,17 @@ export interface EmailContent {
   footer: string[];
   /** Absolute URL of the logo image (see EMAIL_LOGO_PATH); without it the header is plain text. */
   logoUrl?: string;
+}
+
+export interface EmailTableRow {
+  label: string;
+  value: string;
+  /** Bold, e.g. the total. */
+  strong?: boolean;
+  /** A line above this row, e.g. before the subtotal. */
+  divider?: boolean;
+  /** Smaller and greyer, e.g. the VAT breakdown. */
+  muted?: boolean;
 }
 
 /** Logo for the e-mail header, served from the website (public/brand). */
@@ -66,6 +79,16 @@ function detailsTable(rows: Array<[string, string]>) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">${cells}</table>`;
 }
 
+function amountsTable(rows: EmailTableRow[]) {
+  const cells = rows
+    .map((row) => {
+      const style = `padding:${row.divider ? "12px" : "5px"} 0 5px;${row.divider ? `border-top:1px solid ${C.line};` : ""}font-family:${SANS};font-size:${row.muted ? 13 : 15}px;line-height:22px;color:${row.muted ? C.faint : C.text};${row.strong ? "font-weight:700;" : ""}`;
+      return `<tr><td style="${style}">${escapeHtml(row.label)}</td><td align="right" style="${style}white-space:nowrap;padding-left:16px;">${escapeHtml(row.value)}</td></tr>`;
+    })
+    .join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 20px;">${cells}</table>`;
+}
+
 function primaryButton({ label, url }: EmailButton) {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:8px 0 12px;"><tr>
 <td align="center" bgcolor="${C.gold}" style="background-color:${C.gold};border-radius:999px;">
@@ -82,6 +105,7 @@ export function renderEmail(subject: string, content: EmailContent): { subject: 
     `<h1 style="margin:0 0 18px;font-family:${SERIF};font-size:28px;line-height:34px;font-weight:normal;color:${C.text};">${escapeHtml(content.heading)}</h1>`,
     ...content.paragraphs.map((p) => paragraph(p)),
     content.details?.length ? detailsTable(content.details) : "",
+    content.table?.length ? amountsTable(content.table) : "",
     content.note
       ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 20px;"><tr><td style="padding:14px 16px;border-left:3px solid ${C.gold};background-color:#1b1a17;" bgcolor="#1b1a17">${paragraph(content.note, C.text).replace("margin:0 0 16px", "margin:0")}</td></tr></table>`
       : "",
@@ -131,6 +155,7 @@ ${content.footer.map(escapeHtml).join("<br>")}
     ...content.paragraphs,
     "",
     ...(content.details ?? []).map(([label, value]) => `${label}: ${value}`),
+    ...(content.table ?? []).flatMap((row) => [...(row.divider ? ["--------"] : []), `${row.label}: ${row.value}`]),
     ...(content.note ? ["", content.note] : []),
     "",
     ...(content.button ? [`${content.button.label}: ${content.button.url}`] : []),

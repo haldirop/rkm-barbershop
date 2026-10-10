@@ -8,6 +8,7 @@ import {
   blockedTimes,
   breaks,
   businessHours,
+  products,
   services,
 } from "@/server/db/schema";
 import type { IsoDate } from "@/lib/time";
@@ -25,6 +26,15 @@ export const getActiveServices = cache(() => listServices({ activeOnly: true }))
 export async function getService(id: string, db: DbOrTx = getDb()) {
   const [row] = await db.select().from(services).where(eq(services.id, id));
   return row ?? null;
+}
+
+/** Products for the till (wax, shampoo …), managed under Beheer → Producten. */
+export async function listProducts(opts: { activeOnly?: boolean } = {}, db: DbOrTx = getDb()) {
+  return db
+    .select()
+    .from(products)
+    .where(opts.activeOnly ? eq(products.isActive, true) : undefined)
+    .orderBy(asc(products.sortOrder), asc(products.name));
 }
 
 export type BarberWithHours = Awaited<ReturnType<typeof listBarbers>>[number];

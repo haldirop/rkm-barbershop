@@ -1,4 +1,4 @@
-import { Mail, MessageSquare, Pencil, Phone, StickyNote, UserRound } from "lucide-react";
+import { Mail, MessageSquare, Pencil, Phone, Receipt, StickyNote, UserRound } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/admin/page-header";
@@ -11,6 +11,7 @@ import { timeToMinutes, zonedNow } from "@/lib/time";
 import { uuidSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
 import { getAppointmentDetail } from "@/server/services/appointments";
+import { getSaleForAppointment } from "@/server/services/pos";
 
 export const metadata = { title: "Afspraak" };
 
@@ -37,7 +38,7 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
   await requireAdmin();
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) notFound();
-  const detail = await getAppointmentDetail(id);
+  const [detail, paid] = await Promise.all([getAppointmentDetail(id), getSaleForAppointment(id)]);
   if (!detail) notFound();
 
   const { appointment: a, customer: c } = detail;
@@ -60,9 +61,20 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
 
       <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
         <StatusActions id={a.id} status={a.status} hasEmail={Boolean(c.email)} isPast={isPast} />
-        <ButtonLink href={`/admin/afspraken/${a.id}/bewerken`} variant="secondary">
-          <Pencil className="size-4" aria-hidden /> Bewerken
-        </ButtonLink>
+        <div className="flex flex-wrap gap-2">
+          {paid ? (
+            <ButtonLink href={`/admin/kassa/bonnen/${paid.id}`} variant="secondary">
+              <Receipt className="size-4" aria-hidden /> Afgerekend · bon {paid.number}
+            </ButtonLink>
+          ) : a.status === "APPROVED" || a.status === "COMPLETED" ? (
+            <ButtonLink href={`/admin/kassa?afspraak=${a.id}`}>
+              <Receipt className="size-4" aria-hidden /> Afrekenen
+            </ButtonLink>
+          ) : null}
+          <ButtonLink href={`/admin/afspraken/${a.id}/bewerken`} variant="secondary">
+            <Pencil className="size-4" aria-hidden /> Bewerken
+          </ButtonLink>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">

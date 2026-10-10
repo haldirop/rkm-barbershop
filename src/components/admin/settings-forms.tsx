@@ -40,7 +40,8 @@ export function BusinessForm({ settings }: { settings: Settings }) {
           {field("postalCode", "Postcode", { required: true })}
           {field("city", "Plaats", { required: true })}
         </div>
-        {field("kvkNumber", "KvK-nummer (optioneel)")}
+        {field("kvkNumber", "KvK-nummer (optioneel)", { placeholder: "12345678" }, "Staat op de website en op kassabonnen.")}
+        {field("vatNumber", "Btw-nummer (optioneel)", { placeholder: "NL000000000B01" }, "Staat op kassabonnen. Je vindt het op post van de Belastingdienst.")}
         {field(
           "notificationEmail",
           "E-mail voor meldingen",
