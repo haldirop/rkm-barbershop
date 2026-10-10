@@ -1,7 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
-import { CashCountForm } from "@/components/admin/pos/cash-count-form";
-import { KassaTabs } from "@/components/admin/pos/kassa-tabs";
+import { CashCountForm } from "@/components/kassa/cash-count-form";
 import { PageHeader } from "@/components/admin/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -14,8 +13,8 @@ import { getCashCount, listCashCounts, salesSummary } from "@/server/services/po
 
 export const metadata = { title: "Dagafsluiting" };
 
-export default async function DayClosingPage({ searchParams }: PageProps<"/admin/kassa/dagafsluiting">) {
-  await requireAdmin();
+export default async function DayClosingPage({ searchParams }: PageProps<"/kassa/dagafsluiting">) {
+  await requireAdmin("/kassa");
   const today = zonedNow().date;
   const requested = (await searchParams).datum;
   const date = typeof requested === "string" && isIsoDate(requested) && requested <= today ? requested : today;
@@ -25,12 +24,11 @@ export default async function DayClosingPage({ searchParams }: PageProps<"/admin
 
   return (
     <div>
-      <PageHeader title="Kassa" description="Dagtotalen en de kas tellen aan het eind van de dag." />
-      <KassaTabs active="dagafsluiting" />
+      <PageHeader title="Dagafsluiting" description="Dagtotalen en de kas tellen aan het eind van de dag." />
 
       <div className="mb-6 flex items-center justify-between gap-3">
         <Link
-          href={`/admin/kassa/dagafsluiting?datum=${addDays(date, -1)}`}
+          href={`/kassa/dagafsluiting?datum=${addDays(date, -1)}`}
           className="grid size-10 place-items-center rounded-full text-ink-muted hover:bg-surface-3 hover:text-ink"
           aria-label="Vorige dag"
         >
@@ -42,7 +40,7 @@ export default async function DayClosingPage({ searchParams }: PageProps<"/admin
         </h2>
         {date < today ? (
           <Link
-            href={`/admin/kassa/dagafsluiting?datum=${addDays(date, 1)}`}
+            href={`/kassa/dagafsluiting?datum=${addDays(date, 1)}`}
             className="grid size-10 place-items-center rounded-full text-ink-muted hover:bg-surface-3 hover:text-ink"
             aria-label="Volgende dag"
           >
@@ -59,7 +57,7 @@ export default async function DayClosingPage({ searchParams }: PageProps<"/admin
             title="Dagtotaal"
             description={`${summary.receipts} ${summary.receipts === 1 ? "bon" : "bonnen"}${summary.refunds ? ` · ${summary.refunds} tegenboeking(en)` : ""}`}
             action={
-              <Link href={`/admin/kassa/bonnen?van=${date}&tot=${date}`} className="text-sm text-gold hover:text-gold-bright">
+              <Link href={`/kassa/bonnen?van=${date}&tot=${date}`} className="text-sm text-gold hover:text-gold-bright">
                 Bonnen bekijken
               </Link>
             }
@@ -145,7 +143,7 @@ export default async function DayClosingPage({ searchParams }: PageProps<"/admin
                   return (
                     <tr key={c.date} className="border-t border-line">
                       <td className="px-5 py-3">
-                        <Link href={`/admin/kassa/dagafsluiting?datum=${c.date}`} className="text-ink hover:text-gold-bright">
+                        <Link href={`/kassa/dagafsluiting?datum=${c.date}`} className="text-ink hover:text-gold-bright">
                           {capitalize(formatDateShort(c.date))}
                         </Link>
                       </td>

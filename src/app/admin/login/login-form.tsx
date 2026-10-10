@@ -6,10 +6,11 @@ import { Alert } from "@/components/ui/alert";
 import { Field, Input } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 
-export function LoginForm() {
+export function LoginForm({ returnTo }: { returnTo?: string | null }) {
   const [state, action] = useActionState(login, null);
   return (
     <form action={action} className="mt-7 space-y-5">
+      {returnTo ? <input type="hidden" name="naar" value={returnTo} /> : null}
       {state?.error ? <Alert tone="error">{state.error}</Alert> : null}
       <Field label="E-mailadres" htmlFor="email">
         <Input

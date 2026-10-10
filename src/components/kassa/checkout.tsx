@@ -4,7 +4,7 @@ import { Banknote, CircleCheck, CreditCard, LoaderCircle, Minus, Package, Plus, 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { checkoutAction, type CheckoutResult } from "@/app/admin/actions/pos";
+import { checkoutAction, type CheckoutResult } from "@/app/kassa/actions";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/form";
@@ -203,10 +203,10 @@ export function Checkout({
           </Alert>
         ) : null}
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-          <ButtonLink href={`/admin/bon/${result.saleId}?print=1`} target="_blank" variant="secondary">
+          <ButtonLink href={`/kassa/bon/${result.saleId}?print=1`} target="_blank" variant="secondary">
             <Printer className="size-4" aria-hidden /> Bon printen
           </ButtonLink>
-          <ButtonLink href={`/admin/kassa/bonnen/${result.saleId}`} variant="secondary">
+          <ButtonLink href={`/kassa/bonnen/${result.saleId}`} variant="secondary">
             <Receipt className="size-4" aria-hidden /> Bon bekijken
           </ButtonLink>
           <Button onClick={reset}>Volgende klant</Button>
@@ -306,7 +306,7 @@ export function Checkout({
           ) : (
             <p className="rounded-xl border border-dashed border-line-strong p-4 text-sm text-ink-muted">
               Nog geen producten. Verkoop je wax, shampoo of iets anders? Voeg het toe onder{" "}
-              <Link href="/admin/producten" className="text-gold underline-offset-2 hover:underline">
+              <Link href="/kassa/producten" className="text-gold underline-offset-2 hover:underline">
                 Producten
               </Link>
               , dan verschijnt het hier.

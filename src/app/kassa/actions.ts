@@ -3,12 +3,12 @@
 import { z } from "zod";
 import { parseEuroCents } from "@/lib/pos";
 import { cleanText, isoDateSchema, uuidSchema } from "@/lib/validation";
-import { requireAdmin } from "@/server/auth/session";
+import { isOwner, requireAdmin } from "@/server/auth/session";
 import { sendReceipt } from "@/server/notifications/notify";
 import { deleteProduct, saveProduct } from "@/server/services/admin-config";
-import { checkout, refundSale, saveCashCount } from "@/server/services/pos";
-import { formObject, invalid, refreshAll, toFormState, toResult, type SimpleResult } from "./helpers";
-import type { FormState } from "./types";
+import { checkout, deleteSale, refundSale, saveCashCount } from "@/server/services/pos";
+import { formObject, invalid, refreshAll, toFormState, toResult, type SimpleResult } from "@/app/admin/actions/helpers";
+import type { FormState } from "@/app/admin/actions/types";
 
 const optionalEmail = z
   .string()
@@ -86,6 +86,23 @@ export async function refundAction(saleId: string, reason: string): Promise<Simp
     const refund = await refundSale(parsed.data.saleId, { reason: parsed.data.reason, userId: user.id });
     refreshAll();
     return { ok: true, message: `Tegenboeking gemaakt: bon ${refund.number}.`, refundId: refund.id };
+  } catch (error) {
+    return toResult(error);
+  }
+}
+
+/** Only the owner (ADMIN_EMAIL) may remove a receipt; it stays on record with the reason. */
+export async function deleteSaleAction(saleId: string, reason: string): Promise<SimpleResult> {
+  const user = await requireAdmin();
+  if (!isOwner(user)) return { ok: false, error: "Alleen de eigenaar kan bonnen verwijderen." };
+  const parsed = z
+    .object({ saleId: uuidSchema, reason: z.string().transform(cleanText).pipe(z.string().min(3, "Geef een korte reden op.").max(300)) })
+    .safeParse({ saleId, reason });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Ongeldige invoer." };
+  try {
+    const numbers = await deleteSale(parsed.data.saleId, { reason: parsed.data.reason, userId: user.id });
+    refreshAll();
+    return { ok: true, message: numbers.length > 1 ? `Bon ${numbers.join(" en ")} verwijderd.` : `Bon ${numbers[0]} verwijderd.` };
   } catch (error) {
     return toResult(error);
   }

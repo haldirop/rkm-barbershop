@@ -40,11 +40,24 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   }
 });
 
-/** Use at the top of every admin page, server action and route handler. */
-export async function requireAdmin(): Promise<SessionUser> {
+/** Where to go after logging in: only our own admin or till pages (no open redirects). */
+export function safeReturnPath(value: unknown): string | null {
+  return typeof value === "string" && /^\/(admin|kassa)(\/[\w\-/?=&%.]*)?$/.test(value) ? value : null;
+}
+
+/**
+ * Use at the top of every admin or till page, server action and route handler.
+ * `returnTo` brings the user back there after logging in (e.g. "/kassa").
+ */
+export async function requireAdmin(returnTo?: string): Promise<SessionUser> {
   const user = await getCurrentUser();
-  if (!user) redirect("/admin/login");
+  if (!user) redirect(returnTo ? `/admin/login?naar=${encodeURIComponent(returnTo)}` : "/admin/login");
   return user;
+}
+
+/** The owner (ADMIN_EMAIL) may do a few things other administrators may not, such as removing receipts. */
+export function isOwner(user: SessionUser): boolean {
+  return user.role === "OWNER";
 }
 
 export async function signIn(email: string, password: string): Promise<AuthResult> {

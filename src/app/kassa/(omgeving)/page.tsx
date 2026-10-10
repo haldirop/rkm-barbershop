@@ -1,5 +1,4 @@
-import { Checkout, type TillAppointment } from "@/components/admin/pos/checkout";
-import { KassaTabs } from "@/components/admin/pos/kassa-tabs";
+import { Checkout, type TillAppointment } from "@/components/kassa/checkout";
 import { PageHeader } from "@/components/admin/page-header";
 import { Alert } from "@/components/ui/alert";
 import { zonedNow } from "@/lib/time";
@@ -9,7 +8,7 @@ import { isMailConfigured } from "@/server/notifications/mailer";
 import { listBarbers, listProducts, listServices } from "@/server/services/catalog";
 import { getCheckoutAppointment, listUnpaidAppointments } from "@/server/services/pos";
 
-export const metadata = { title: "Kassa" };
+export const metadata = { title: "Afrekenen" };
 
 type Row = Awaited<ReturnType<typeof listUnpaidAppointments>>[number];
 
@@ -25,8 +24,8 @@ const toTill = (a: Row): TillAppointment => ({
   barberName: a.barberName,
 });
 
-export default async function KassaPage({ searchParams }: PageProps<"/admin/kassa">) {
-  await requireAdmin();
+export default async function KassaPage({ searchParams }: PageProps<"/kassa">) {
+  await requireAdmin("/kassa");
   const today = zonedNow().date;
   const requested = (await searchParams).afspraak;
   const appointmentId = typeof requested === "string" && uuidSchema.safeParse(requested).success ? requested : null;
@@ -53,8 +52,7 @@ export default async function KassaPage({ searchParams }: PageProps<"/admin/kass
 
   return (
     <div>
-      <PageHeader title="Kassa" description="Reken een afspraak of een binnenloper af. Elke betaling krijgt een eigen bonnummer." />
-      <KassaTabs active="afrekenen" />
+      <PageHeader title="Afrekenen" description="Reken een afspraak of een binnenloper af. Elke betaling krijgt een eigen bonnummer." />
       {linkedProblem ? <Alert tone="warning" className="mb-6">{linkedProblem}</Alert> : null}
       <Checkout
         key={preselect?.id ?? "walk-in"}

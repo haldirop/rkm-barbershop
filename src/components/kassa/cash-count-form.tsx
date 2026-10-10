@@ -1,13 +1,13 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { saveCashCountAction } from "@/app/admin/actions/pos";
+import { saveCashCountAction } from "@/app/kassa/actions";
 import { Field, Input } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { cn } from "@/lib/cn";
 import { formatAmount } from "@/lib/format";
 import { centsToInput, parseEuroCents } from "@/lib/pos";
-import { FormError, useActionFeedback } from "../form-helpers";
+import { FormError, useActionFeedback } from "@/components/admin/form-helpers";
 
 /** "Kas tellen": change at opening + what's counted, against the cash receipts of the day. */
 export function CashCountForm({

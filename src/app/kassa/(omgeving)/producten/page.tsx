@@ -1,6 +1,6 @@
 import { Package } from "lucide-react";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
-import { ProductForm } from "@/components/admin/product-form";
+import { ProductForm } from "@/components/kassa/product-form";
 import { Badge } from "@/components/ui/badge";
 import { formatAmount } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
@@ -9,7 +9,7 @@ import { listProducts } from "@/server/services/catalog";
 export const metadata = { title: "Producten" };
 
 export default async function ProductsPage() {
-  await requireAdmin();
+  await requireAdmin("/kassa");
   const products = await listProducts();
   return (
     <div>

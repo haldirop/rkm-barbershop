@@ -394,8 +394,9 @@ export const products = pgTable(
 );
 
 /**
- * Receipts ("bonnen"). Numbered without gaps, never changed or deleted: a mistake is
- * corrected with a refund receipt (kind REFUND, negative amounts, refund_of_id).
+ * Receipts ("bonnen"). Numbered without gaps and never changed: a mistake is corrected
+ * with a refund receipt (kind REFUND, negative amounts, refund_of_id). Only the owner
+ * can remove a receipt, and even then it is kept as a record (deleted_at).
  * Names are snapshots so a receipt stays readable after a barber or customer is removed.
  */
 export const sales = pgTable(
@@ -422,11 +423,20 @@ export const sales = pgTable(
     note: text("note"),
     createdByUserId: uuid("created_by_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    /**
+     * Removed by the owner. The row stays (with who, when and why) so the number
+     * sequence keeps an explanation for every gap, but it no longer counts anywhere.
+     */
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedByUserId: uuid("deleted_by_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    deleteReason: text("delete_reason"),
   },
   (t) => [
     uniqueIndex("sales_number_key").on(t.number),
-    uniqueIndex("sales_refund_of_key").on(t.refundOfId),
-    uniqueIndex("sales_appointment_key").on(t.appointmentId).where(sql`${t.kind} = 'SALE'`),
+    uniqueIndex("sales_refund_of_key").on(t.refundOfId).where(sql`${t.deletedAt} IS NULL`),
+    uniqueIndex("sales_appointment_key")
+      .on(t.appointmentId)
+      .where(sql`${t.kind} = 'SALE' AND ${t.deletedAt} IS NULL`),
     index("sales_date_idx").on(t.date),
     index("sales_customer_idx").on(t.customerId),
     check("sales_refund_chk", sql`(${t.kind} = 'REFUND') = (${t.refundOfId} IS NOT NULL)`),

@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 /** Accessible modal built on the native <dialog> element (focus trap and Esc for free). */
 export function Dialog({
@@ -18,6 +18,8 @@ export function Dialog({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  // Unique per dialog, so several dialogs on one page each keep their own label.
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = ref.current;
@@ -31,14 +33,14 @@ export function Dialog({
       ref={ref}
       onClose={onClose}
       onClick={(e) => e.target === ref.current && onClose()}
-      aria-labelledby="dialog-title"
+      aria-labelledby={titleId}
       className="m-auto w-[calc(100%-2rem)] max-w-md rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/70 backdrop:backdrop-blur-sm"
     >
       {open ? (
         <div className="p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 id="dialog-title" className="text-lg font-semibold">
+              <h2 id={titleId} className="text-lg font-semibold">
                 {title}
               </h2>
               {description ? <p className="mt-1 text-sm text-ink-muted">{description}</p> : null}

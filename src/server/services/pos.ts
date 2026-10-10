@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { priceSale, summarizeVat, type Discount, type PaymentMethodKey } from "@/lib/pos";
 import { timeToMinutes, zonedNow, type IsoDate, type ZonedNow } from "@/lib/time";
 import { getDb, type Database, type DbOrTx } from "@/server/db/client";
@@ -19,9 +19,13 @@ import { DomainError, lockBookings, logEvent } from "./shared";
 
 /**
  * The till ("kassa"). Every payment becomes a receipt with a consecutive number.
- * Receipts are never changed or deleted; a mistake is undone with a refund receipt
- * that mirrors the original with negative amounts.
+ * Receipts are never changed; a mistake is undone with a refund receipt that mirrors
+ * the original with negative amounts. Only the owner can remove a receipt: it then
+ * stops counting everywhere but is kept as a record (deleted_at).
  */
+
+/** Receipts that count: everything except receipts the owner removed. */
+const active = isNull(sales.deletedAt);
 
 /** One till action at a time, so receipt numbers stay consecutive without gaps. */
 async function lockTill(tx: DbOrTx) {
@@ -74,7 +78,7 @@ export async function checkout(input: CheckoutInput, opts: { now?: ZonedNow } = 
       const [paid] = await tx
         .select({ number: sales.number })
         .from(sales)
-        .where(and(eq(sales.appointmentId, appointment.id), eq(sales.kind, "SALE")));
+        .where(and(eq(sales.appointmentId, appointment.id), eq(sales.kind, "SALE"), active));
       if (paid) throw new DomainError(`Deze afspraak is al afgerekend (bon ${paid.number}).`, "NOT_ALLOWED");
       customerId = appointment.customerId;
     } else if (customerId) {
@@ -193,8 +197,12 @@ export async function refundSale(
     await lockTill(tx);
     const [original] = await tx.select().from(sales).where(eq(sales.id, saleId)).for("update");
     if (!original) throw new DomainError("Deze bon bestaat niet.", "NOT_FOUND");
+    if (original.deletedAt) throw new DomainError("Deze bon is verwijderd.", "NOT_ALLOWED");
     if (original.kind === "REFUND") throw new DomainError("Een tegenboeking kun je niet terugdraaien.", "NOT_ALLOWED");
-    const [existing] = await tx.select({ number: sales.number }).from(sales).where(eq(sales.refundOfId, original.id));
+    const [existing] = await tx
+      .select({ number: sales.number })
+      .from(sales)
+      .where(and(eq(sales.refundOfId, original.id), active));
     if (existing) throw new DomainError(`Deze bon is al teruggedraaid met bon ${existing.number}.`, "NOT_ALLOWED");
 
     const lines = await tx.select().from(saleLines).where(eq(saleLines.saleId, original.id)).orderBy(asc(saleLines.sortOrder));
@@ -248,6 +256,67 @@ export async function refundSale(
   });
 }
 
+/**
+ * Removes a receipt (owner only — checked by the caller). It disappears from every
+ * overview, its stock effect is undone, and a removed sale frees its appointment for
+ * checkout again. Removing a sale also removes its refund; removing a refund makes the
+ * original sale count again. The row is kept with who removed it, when and why.
+ */
+export async function deleteSale(saleId: string, input: { reason: string; userId: string | null }, db: Database = getDb()) {
+  return db.transaction(async (tx) => {
+    await lockTill(tx);
+    const [sale] = await tx.select().from(sales).where(eq(sales.id, saleId)).for("update");
+    if (!sale) throw new DomainError("Deze bon bestaat niet.", "NOT_FOUND");
+    if (sale.deletedAt) throw new DomainError("Deze bon is al verwijderd.", "NOT_ALLOWED");
+
+    const removed = [sale];
+    if (sale.kind === "SALE") {
+      const [refund] = await tx.select().from(sales).where(and(eq(sales.refundOfId, sale.id), active)).for("update");
+      if (refund) removed.push(refund);
+    }
+    const ids = removed.map((r) => r.id);
+    await tx
+      .update(sales)
+      .set({ deletedAt: new Date(), deletedByUserId: input.userId, deleteReason: input.reason })
+      .where(inArray(sales.id, ids));
+
+    // Undo the stock effect: a sale took products out (+quantity back), a refund put
+    // them back (its quantities are negative, so they come out again).
+    const lines = await tx.select().from(saleLines).where(inArray(saleLines.saleId, ids));
+    const change = new Map<string, number>();
+    for (const line of lines) {
+      if (line.productId) change.set(line.productId, (change.get(line.productId) ?? 0) + line.quantity);
+    }
+    for (const [productId, quantity] of change) {
+      if (quantity === 0) continue;
+      await tx
+        .update(products)
+        .set({ stock: sql`${products.stock} + ${quantity}` })
+        .where(and(eq(products.id, productId), sql`${products.stock} IS NOT NULL`));
+    }
+    return removed.map((r) => r.number);
+  });
+}
+
+/** Receipts the owner removed in a period, for the record. */
+export async function listDeletedSales(from: IsoDate, to: IsoDate, db: DbOrTx = getDb()) {
+  return db
+    .select({
+      id: sales.id,
+      number: sales.number,
+      kind: sales.kind,
+      date: sales.date,
+      totalCents: sales.totalCents,
+      deletedAt: sales.deletedAt,
+      deleteReason: sales.deleteReason,
+      deletedBy: adminUsers.name,
+    })
+    .from(sales)
+    .leftJoin(adminUsers, eq(adminUsers.id, sales.deletedByUserId))
+    .where(and(gte(sales.date, from), lte(sales.date, to), isNotNull(sales.deletedAt)))
+    .orderBy(desc(sales.number));
+}
+
 // ---------------------------------------------------------------------------
 // Bonnen bekijken
 // ---------------------------------------------------------------------------
@@ -258,13 +327,16 @@ export async function getSale(id: string, db: DbOrTx = getDb()) {
       sale: sales,
       customer: { id: customers.id, firstName: customers.firstName, lastName: customers.lastName, email: customers.email },
       cashier: adminUsers.name,
+      deletedBy: sql<string | null>`(SELECT u."name" FROM "admin_users" u WHERE u."id" = ${sales.deletedByUserId})`,
     })
     .from(sales)
     .leftJoin(customers, eq(customers.id, sales.customerId))
     .leftJoin(adminUsers, eq(adminUsers.id, sales.createdByUserId))
     .where(eq(sales.id, id));
   if (!row) return null;
-  const relatedId = row.sale.kind === "SALE" ? eq(sales.refundOfId, id) : eq(sales.id, row.sale.refundOfId ?? id);
+  // The refund that (still) undoes this sale, or the sale this refund undoes.
+  const relatedId =
+    row.sale.kind === "SALE" ? and(eq(sales.refundOfId, id), active) : eq(sales.id, row.sale.refundOfId ?? id);
   const [lines, [related]] = await Promise.all([
     db.select().from(saleLines).where(eq(saleLines.saleId, id)).orderBy(asc(saleLines.sortOrder)),
     db.select({ id: sales.id, number: sales.number }).from(sales).where(relatedId),
@@ -296,12 +368,12 @@ export async function listSales(from: IsoDate, to: IsoDate, db: DbOrTx = getDb()
       barberName: sales.barberName,
       firstName: customers.firstName,
       lastName: customers.lastName,
-      refundedBy: sql<number | null>`(SELECT r."number" FROM "sales" r WHERE r."refund_of_id" = ${sales.id})`,
+      refundedBy: sql<number | null>`(SELECT r."number" FROM "sales" r WHERE r."refund_of_id" = ${sales.id} AND r."deleted_at" IS NULL)`,
       lineNames: sql<string>`(SELECT string_agg(l."name", ', ' ORDER BY l."sort_order") FROM "sale_lines" l WHERE l."sale_id" = ${sales.id})`,
     })
     .from(sales)
     .leftJoin(customers, eq(customers.id, sales.customerId))
-    .where(and(gte(sales.date, from), lte(sales.date, to)))
+    .where(and(gte(sales.date, from), lte(sales.date, to), active))
     .orderBy(desc(sales.number));
 }
 
@@ -310,7 +382,7 @@ export async function getSaleForAppointment(appointmentId: string, db: DbOrTx = 
   const [row] = await db
     .select({ id: sales.id, number: sales.number })
     .from(sales)
-    .where(and(eq(sales.appointmentId, appointmentId), eq(sales.kind, "SALE")));
+    .where(and(eq(sales.appointmentId, appointmentId), eq(sales.kind, "SALE"), active));
   return row ?? null;
 }
 
@@ -341,7 +413,7 @@ function checkoutQuery(db: DbOrTx) {
     .select(checkoutColumns)
     .from(appointments)
     .innerJoin(customers, eq(customers.id, appointments.customerId))
-    .leftJoin(sales, and(eq(sales.appointmentId, appointments.id), eq(sales.kind, "SALE")));
+    .leftJoin(sales, and(eq(sales.appointmentId, appointments.id), eq(sales.kind, "SALE"), active));
 }
 
 export type CheckoutAppointment = Awaited<ReturnType<typeof getCheckoutAppointment>>;
@@ -365,7 +437,7 @@ export async function getCheckoutAppointment(id: string, db: DbOrTx = getDb()) {
 const money = (expression: ReturnType<typeof sql>) => sql<number>`COALESCE(${expression}, 0)`.mapWith(Number);
 
 export async function salesSummary(from: IsoDate, to: IsoDate, db: DbOrTx = getDb()) {
-  const inPeriod = and(gte(sales.date, from), lte(sales.date, to));
+  const inPeriod = and(gte(sales.date, from), lte(sales.date, to), active);
   const [[totals], byMethod, vatRows, items, byBarber] = await Promise.all([
     db
       .select({
@@ -429,7 +501,7 @@ async function cashSalesOn(date: IsoDate, db: DbOrTx) {
   const [{ cents }] = await db
     .select({ cents: money(sql`SUM(${sales.totalCents})`) })
     .from(sales)
-    .where(and(eq(sales.date, date), eq(sales.paymentMethod, "CASH")));
+    .where(and(eq(sales.date, date), eq(sales.paymentMethod, "CASH"), active));
   return cents;
 }
 
@@ -484,7 +556,7 @@ export async function exportSalesCsv(from: IsoDate, to: IsoDate, db: DbOrTx = ge
     .select({ sale: sales, line: saleLines })
     .from(sales)
     .leftJoin(saleLines, eq(saleLines.saleId, sales.id))
-    .where(and(gte(sales.date, from), lte(sales.date, to)))
+    .where(and(gte(sales.date, from), lte(sales.date, to), active))
     .orderBy(asc(sales.number), asc(saleLines.sortOrder));
 
   const header = [

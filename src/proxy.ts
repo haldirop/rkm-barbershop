@@ -7,13 +7,14 @@ const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/wachtwoord-vergeten"];
 
 function toLogin(request: NextRequest) {
   const url = request.nextUrl.clone();
+  const fromTill = url.pathname.startsWith("/kassa");
   url.pathname = "/admin/login";
-  url.search = "";
+  url.search = fromTill ? "?naar=/kassa" : "";
   return NextResponse.redirect(url);
 }
 
 /**
- * Runs before /admin and /auth requests.
+ * Runs before /admin, /kassa and /auth requests.
  * - Supabase: refreshes the login session (cookies) and sends visitors without a session to the login page.
  * - Local development login: only checks that a session cookie exists.
  * Either way this is a first gate only: every admin page and action verifies the
@@ -21,7 +22,8 @@ function toLogin(request: NextRequest) {
  */
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublic = !pathname.startsWith("/admin") || PUBLIC_ADMIN_PATHS.includes(pathname);
+  const isProtected = pathname.startsWith("/admin") || pathname.startsWith("/kassa");
+  const isPublic = !isProtected || PUBLIC_ADMIN_PATHS.includes(pathname);
   const config = supabaseConfig();
 
   if (!config) {
@@ -55,5 +57,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin", "/admin/:path*", "/auth/:path*"],
+  matcher: ["/admin", "/admin/:path*", "/kassa", "/kassa/:path*", "/auth/:path*"],
 };

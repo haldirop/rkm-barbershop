@@ -7,7 +7,7 @@ import type { SaleDetail } from "@/server/services/pos";
 
 /**
  * A receipt as the customer gets it: on screen in the admin, and on paper (80 mm
- * receipt printers or A4) from /admin/bon/[id]. Always black on white.
+ * receipt printers or A4) from /kassa/bon/[id]. Always black on white.
  */
 export function ReceiptView({ detail, settings, className }: { detail: SaleDetail; settings: Settings; className?: string }) {
   const { sale } = detail;

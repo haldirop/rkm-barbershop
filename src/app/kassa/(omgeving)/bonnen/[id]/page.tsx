@@ -1,36 +1,39 @@
 import { Printer } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { KassaTabs } from "@/components/admin/pos/kassa-tabs";
-import { ReceiptView } from "@/components/admin/pos/receipt";
-import { EmailReceipt, RefundButton } from "@/components/admin/pos/receipt-actions";
+import { ReceiptView } from "@/components/kassa/receipt";
+import { DeleteReceiptButton, EmailReceipt, RefundButton } from "@/components/kassa/receipt-actions";
 import { PageHeader } from "@/components/admin/page-header";
+import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { formatAmount, formatDateTime } from "@/lib/format";
 import { uuidSchema } from "@/lib/validation";
-import { requireAdmin } from "@/server/auth/session";
+import { isOwner, requireAdmin } from "@/server/auth/session";
 import { getSale } from "@/server/services/pos";
 import { getSettings } from "@/server/services/settings";
 
 export const metadata = { title: "Bon" };
 
-export default async function ReceiptPage({ params }: PageProps<"/admin/kassa/bonnen/[id]">) {
-  await requireAdmin();
+export default async function ReceiptPage({ params }: PageProps<"/kassa/bonnen/[id]">) {
+  const user = await requireAdmin("/kassa");
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) notFound();
   const [detail, settings] = await Promise.all([getSale(id), getSettings()]);
   if (!detail) notFound();
   const { sale, customer } = detail;
+  const deleted = Boolean(sale.deletedAt);
+  const backHref = `/kassa/bonnen?van=${sale.date}&tot=${sale.date}`;
 
   return (
     <div>
       <PageHeader
-        back={{ href: `/admin/kassa/bonnen?van=${sale.date}&tot=${sale.date}`, label: "Bonnen" }}
+        back={{ href: backHref, label: "Bonnen" }}
         title={
           <span className="flex flex-wrap items-center gap-3">
             Bon {sale.number}
+            {deleted ? <Badge className="bg-red-400/10 text-red-300 ring-red-400/30">Verwijderd</Badge> : null}
             {sale.kind === "REFUND" ? (
               <Badge className="bg-red-400/10 text-red-300 ring-red-400/30">Tegenboeking</Badge>
             ) : detail.refundedBy ? (
@@ -40,12 +43,19 @@ export default async function ReceiptPage({ params }: PageProps<"/admin/kassa/bo
         }
         description={`${formatDateTime(sale.createdAt)} · ${formatAmount(sale.totalCents)}`}
         actions={
-          <ButtonLink href={`/admin/bon/${sale.id}?print=1`} target="_blank" variant="secondary">
+          <ButtonLink href={`/kassa/bon/${sale.id}?print=1`} target="_blank" variant="secondary">
             <Printer className="size-4" aria-hidden /> Printen
           </ButtonLink>
         }
       />
-      <KassaTabs active="bonnen" />
+
+      {deleted ? (
+        <Alert tone="warning" className="mb-6" title="Deze bon is verwijderd">
+          Verwijderd op {formatDateTime(sale.deletedAt!)}
+          {detail.deletedBy ? ` door ${detail.deletedBy}` : ""}. Reden: {sale.deleteReason ?? "—"}. Hij telt niet meer mee in de
+          omzet, de dagafsluiting of de export, maar blijft hier bewaard.
+        </Alert>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <div className="space-y-6">
@@ -90,7 +100,7 @@ export default async function ReceiptPage({ params }: PageProps<"/admin/kassa/bo
                 <div>
                   <dt className="text-ink-faint">Teruggedraaid met</dt>
                   <dd className="mt-0.5">
-                    <Link href={`/admin/kassa/bonnen/${detail.refundedBy.id}`} className="text-gold hover:text-gold-bright">
+                    <Link href={`/kassa/bonnen/${detail.refundedBy.id}`} className="text-gold hover:text-gold-bright">
                       Bon {detail.refundedBy.number}
                     </Link>
                   </dd>
@@ -100,7 +110,7 @@ export default async function ReceiptPage({ params }: PageProps<"/admin/kassa/bo
                 <div>
                   <dt className="text-ink-faint">Draait terug</dt>
                   <dd className="mt-0.5">
-                    <Link href={`/admin/kassa/bonnen/${detail.refundOf.id}`} className="text-gold hover:text-gold-bright">
+                    <Link href={`/kassa/bonnen/${detail.refundOf.id}`} className="text-gold hover:text-gold-bright">
                       Bon {detail.refundOf.number}
                     </Link>
                   </dd>
@@ -109,14 +119,16 @@ export default async function ReceiptPage({ params }: PageProps<"/admin/kassa/bo
             </dl>
           </Card>
 
-          <Card>
-            <CardHeader title="Bon mailen" description="Stuur de bon (opnieuw) naar de klant." />
-            <div className="p-5">
-              <EmailReceipt saleId={sale.id} defaultEmail={customer?.email ?? null} />
-            </div>
-          </Card>
+          {!deleted ? (
+            <Card>
+              <CardHeader title="Bon mailen" description="Stuur de bon (opnieuw) naar de klant." />
+              <div className="p-5">
+                <EmailReceipt saleId={sale.id} defaultEmail={customer?.email ?? null} />
+              </div>
+            </Card>
+          ) : null}
 
-          {sale.kind === "SALE" && !detail.refundedBy ? (
+          {!deleted && sale.kind === "SALE" && !detail.refundedBy ? (
             <Card>
               <CardHeader
                 title="Fout gemaakt?"
@@ -124,6 +136,23 @@ export default async function ReceiptPage({ params }: PageProps<"/admin/kassa/bo
               />
               <div className="p-5">
                 <RefundButton saleId={sale.id} number={sale.number} total={formatAmount(sale.totalCents)} />
+              </div>
+            </Card>
+          ) : null}
+
+          {!deleted && isOwner(user) ? (
+            <Card className="border-red-400/20">
+              <CardHeader
+                title="Bon verwijderen"
+                description="Alleen jij als eigenaar ziet dit. Bedoeld voor testbonnen of een bon die dubbel is aangeslagen; voor een echte terugbetaling gebruik je een tegenboeking."
+              />
+              <div className="p-5">
+                <DeleteReceiptButton
+                  saleId={sale.id}
+                  number={sale.number}
+                  refundNumber={detail.refundedBy?.number ?? null}
+                  backHref={backHref}
+                />
               </div>
             </Card>
           ) : null}

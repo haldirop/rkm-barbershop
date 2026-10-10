@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { AuthCard } from "@/components/admin/auth-card";
 import { Alert } from "@/components/ui/alert";
 import { authMode } from "@/server/config";
-import { getCurrentUser } from "@/server/auth/session";
+import { getCurrentUser, safeReturnPath } from "@/server/auth/session";
 import { LoginForm } from "./login-form";
 
 export const metadata = { title: "Inloggen" };
@@ -14,17 +14,19 @@ const NOTICES: Record<string, { tone: "error" | "info"; text: string }> = {
 };
 
 export default async function LoginPage({ searchParams }: PageProps<"/admin/login">) {
-  if (await getCurrentUser()) redirect("/admin");
-  const { melding } = await searchParams;
+  const { melding, naar } = await searchParams;
+  const returnTo = safeReturnPath(naar);
+  if (await getCurrentUser()) redirect(returnTo ?? "/admin");
   const notice = typeof melding === "string" ? NOTICES[melding] : undefined;
+  const toTill = returnTo?.startsWith("/kassa");
   return (
-    <AuthCard title="Inloggen beheer" intro="Alleen voor medewerkers van RKM Barbershop.">
+    <AuthCard title={toTill ? "Inloggen kassa" : "Inloggen beheer"} intro="Alleen voor medewerkers van RKM Barbershop.">
       {notice ? (
         <Alert tone={notice.tone} className="mt-6">
           {notice.text}
         </Alert>
       ) : null}
-      <LoginForm />
+      <LoginForm returnTo={returnTo} />
       {authMode() === "supabase" ? (
         <p className="mt-6 text-center text-sm">
           <Link href="/admin/wachtwoord-vergeten" className="text-ink-muted hover:text-gold">

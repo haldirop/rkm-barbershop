@@ -1,17 +1,16 @@
 import { Download, Receipt } from "lucide-react";
 import Link from "next/link";
-import { KassaTabs } from "@/components/admin/pos/kassa-tabs";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/form";
 import { cn } from "@/lib/cn";
-import { capitalize, formatAmount, formatDateLong, formatDateShort } from "@/lib/format";
+import { capitalize, formatAmount, formatDateLong, formatDateShort, formatDateTime } from "@/lib/format";
 import { PAYMENT_METHODS, type PaymentMethodKey } from "@/lib/pos";
 import { addDays, addMonths, diffInDays, endOfMonth, isIsoDate, startOfMonth, startOfWeek, zonedNow } from "@/lib/time";
-import { requireAdmin } from "@/server/auth/session";
-import { listSales, salesSummary } from "@/server/services/pos";
+import { isOwner, requireAdmin } from "@/server/auth/session";
+import { listDeletedSales, listSales, salesSummary } from "@/server/services/pos";
 
 export const metadata = { title: "Bonnen & omzet" };
 
@@ -25,11 +24,16 @@ function period(params: Record<string, string | string[] | undefined>, today: st
   return { from, to };
 }
 
-export default async function SalesPage({ searchParams }: PageProps<"/admin/kassa/bonnen">) {
-  await requireAdmin();
+export default async function SalesPage({ searchParams }: PageProps<"/kassa/bonnen">) {
+  const user = await requireAdmin("/kassa");
+  const owner = isOwner(user);
   const today = zonedNow().date;
   const { from, to } = period(await searchParams, today);
-  const [summary, receipts] = await Promise.all([salesSummary(from, to), listSales(from, to)]);
+  const [summary, receipts, deleted] = await Promise.all([
+    salesSummary(from, to),
+    listSales(from, to),
+    owner ? listDeletedSales(from, to) : [],
+  ]);
 
   const lastMonth = addMonths(startOfMonth(today), -1);
   const presets = [
@@ -52,22 +56,21 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/kass
   return (
     <div>
       <PageHeader
-        title="Kassa"
+        title="Bonnen & omzet"
         description="Omzet, btw en alle bonnen per periode."
         actions={
-          <ButtonLink href={`/admin/kassa/export?van=${from}&tot=${to}`} variant="secondary">
+          <ButtonLink href={`/kassa/export?van=${from}&tot=${to}`} variant="secondary">
             <Download className="size-4" aria-hidden /> Exporteren (CSV)
           </ButtonLink>
         }
       />
-      <KassaTabs active="bonnen" />
 
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-wrap gap-2">
           {presets.map((p) => (
             <Link
               key={p.label}
-              href={`/admin/kassa/bonnen?van=${p.from}&tot=${p.to}`}
+              href={`/kassa/bonnen?van=${p.from}&tot=${p.to}`}
               className={cn(
                 "rounded-full border px-3.5 py-1.5 text-sm transition-colors",
                 p.from === from && p.to === to ? "border-gold bg-gold/10 text-gold-bright" : "border-line-strong text-ink-muted hover:text-ink",
@@ -77,7 +80,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/kass
             </Link>
           ))}
         </div>
-        <form className="flex flex-wrap items-end gap-2" action="/admin/kassa/bonnen">
+        <form className="flex flex-wrap items-end gap-2" action="/kassa/bonnen">
           <label className="flex flex-col text-sm text-ink-muted">
             Van
             <Input type="date" name="van" defaultValue={from} className="mt-1 h-10 w-auto" />
@@ -202,7 +205,7 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/kass
             {receipts.map((r) => (
               <li key={r.id}>
                 <Link
-                  href={`/admin/kassa/bonnen/${r.id}`}
+                  href={`/kassa/bonnen/${r.id}`}
                   className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 text-sm transition-colors hover:bg-surface-2"
                 >
                   <span className="min-w-0">
@@ -236,6 +239,37 @@ export default async function SalesPage({ searchParams }: PageProps<"/admin/kass
           </EmptyState>
         )}
       </section>
+
+      {deleted.length ? (
+        <section aria-labelledby="deleted-title" className="mt-8">
+          <h2 id="deleted-title" className="mb-1 text-lg font-semibold text-ink">
+            Verwijderde bonnen
+          </h2>
+          <p className="mb-3 text-sm text-ink-muted">Alleen zichtbaar voor de eigenaar. Ze tellen nergens meer mee.</p>
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+            {deleted.map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/kassa/bonnen/${r.id}`}
+                  className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 text-sm transition-colors hover:bg-surface-2"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-medium text-ink-muted line-through">
+                      Bon {r.number}
+                      {r.kind === "REFUND" ? " (tegenboeking)" : ""}
+                    </span>
+                    <span className="block text-ink-faint">
+                      {r.deletedAt ? formatDateTime(r.deletedAt) : ""}
+                      {r.deletedBy ? ` · ${r.deletedBy}` : ""} · {r.deleteReason}
+                    </span>
+                  </span>
+                  <span className="text-ink-faint tabular-nums">{formatAmount(r.totalCents)}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

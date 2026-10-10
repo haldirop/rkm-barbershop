@@ -10,9 +10,12 @@ import { changeStatus } from "@/server/services/appointments";
 import { createBookingRequest } from "@/server/services/booking";
 import {
   checkout,
+  deleteSale,
   exportSalesCsv,
   getCashCount,
   getSale,
+  listDeletedSales,
+  listSales,
   listUnpaidAppointments,
   refundSale,
   salesSummary,
@@ -217,6 +220,55 @@ describe("till", () => {
     // Sale and refund cancel each other out.
     const summary = await salesSummary(NOW.date, NOW.date);
     expect(summary).toMatchObject({ receipts: 1, refunds: 1, revenueCents: 0, tipsCents: 0, receivedCents: 0 });
+  });
+
+  it("lets the owner remove a receipt: it stops counting but stays on record", async () => {
+    const appointment = await approvedAppointment();
+    const paid = await checkout(
+      walkIn({
+        appointmentId: appointment.id,
+        barberId: null,
+        items: [
+          { kind: "SERVICE", id: knippenId, quantity: 1, unitPriceCents: 2500 },
+          { kind: "PRODUCT", id: waxId, quantity: 2, unitPriceCents: 1495 },
+        ],
+      }),
+      { now: NOW },
+    );
+    const stock = async () => (await handle.db.select().from(products).where(eq(products.id, waxId)))[0].stock;
+    expect(await stock()).toBe(1);
+
+    expect(await deleteSale(paid.id, { reason: "Testbon", userId: null })).toEqual([paid.number]);
+    expect(await stock()).toBe(3);
+    expect(await listSales(NOW.date, NOW.date)).toEqual([]);
+    expect(await salesSummary(NOW.date, NOW.date)).toMatchObject({ receipts: 0, revenueCents: 0 });
+    expect(await listDeletedSales(NOW.date, NOW.date)).toMatchObject([{ number: paid.number, deleteReason: "Testbon" }]);
+    // The appointment can be paid again, and numbers are never reused.
+    expect((await listUnpaidAppointments(NOW.date)).map((a) => a.id)).toEqual([appointment.id]);
+    const again = await checkout(walkIn({ appointmentId: appointment.id, barberId: null }), { now: NOW });
+    expect(again.number).toBe(paid.number + 1);
+    await expect(deleteSale(paid.id, { reason: "Nog eens", userId: null })).rejects.toThrow(/al verwijderd/);
+    await expect(refundSale(paid.id, { reason: "x", userId: null }, { now: NOW })).rejects.toThrow(/verwijderd/);
+  });
+
+  it("removes a refund together with its sale, or on its own", async () => {
+    const sale = await checkout(walkIn({ items: [{ kind: "PRODUCT", id: waxId, quantity: 1, unitPriceCents: 1495 }] }), { now: NOW });
+    const refund = await refundSale(sale.id, { reason: "Fout", userId: null }, { now: NOW });
+    const stock = async () => (await handle.db.select().from(products).where(eq(products.id, waxId)))[0].stock;
+    expect(await stock()).toBe(3);
+
+    // Removing only the refund: the sale counts again and the product leaves stock again.
+    await deleteSale(refund.id, { reason: "Tegenboeking was onnodig", userId: null });
+    expect(await stock()).toBe(2);
+    expect((await getSale(sale.id))?.refundedBy).toBeNull();
+    expect(await salesSummary(NOW.date, NOW.date)).toMatchObject({ receipts: 1, refunds: 0, revenueCents: 1495 });
+
+    // A sale with a refund: both go, stock stays as it was.
+    const second = await refundSale(sale.id, { reason: "Toch terug", userId: null }, { now: NOW });
+    expect(await stock()).toBe(3);
+    expect(await deleteSale(sale.id, { reason: "Test", userId: null })).toEqual([sale.number, second.number]);
+    expect(await stock()).toBe(3);
+    expect(await salesSummary(NOW.date, NOW.date)).toMatchObject({ receipts: 0, refunds: 0, revenueCents: 0 });
   });
 
   it("summarises a day and keeps tips out of revenue", async () => {

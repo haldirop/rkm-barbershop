@@ -1,11 +1,11 @@
 "use client";
 
 import { useActionState } from "react";
-import { deleteProductAction, saveProductAction } from "@/app/admin/actions/pos";
+import { deleteProductAction, saveProductAction } from "@/app/kassa/actions";
 import { Checkbox, Field, Input, Select } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { centsToInput } from "@/lib/pos";
-import { DeleteButton, FormError, useActionFeedback } from "./form-helpers";
+import { DeleteButton, FormError, useActionFeedback } from "@/components/admin/form-helpers";
 
 export interface ProductValues {
   id: string;

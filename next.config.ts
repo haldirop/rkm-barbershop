@@ -37,9 +37,9 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },
-      // Admin pages and personal appointment links must never be cached by shared caches.
+      // Admin and till pages and personal appointment links must never be cached by shared caches.
       {
-        source: "/(admin|afspraak)/:path*",
+        source: "/(admin|kassa|afspraak)/:path*",
         headers: [{ key: "Cache-Control", value: "private, no-store" }],
       },
     ];

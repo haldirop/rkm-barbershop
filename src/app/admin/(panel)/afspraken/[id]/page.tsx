@@ -63,11 +63,11 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
         <StatusActions id={a.id} status={a.status} hasEmail={Boolean(c.email)} isPast={isPast} />
         <div className="flex flex-wrap gap-2">
           {paid ? (
-            <ButtonLink href={`/admin/kassa/bonnen/${paid.id}`} variant="secondary">
+            <ButtonLink href={`/kassa/bonnen/${paid.id}`} variant="secondary">
               <Receipt className="size-4" aria-hidden /> Afgerekend · bon {paid.number}
             </ButtonLink>
           ) : a.status === "APPROVED" || a.status === "COMPLETED" ? (
-            <ButtonLink href={`/admin/kassa?afspraak=${a.id}`}>
+            <ButtonLink href={`/kassa?afspraak=${a.id}`}>
               <Receipt className="size-4" aria-hidden /> Afrekenen
             </ButtonLink>
           ) : null}

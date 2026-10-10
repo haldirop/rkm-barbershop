@@ -3,7 +3,7 @@ import { diffInDays, isIsoDate } from "@/lib/time";
 import { getCurrentUser } from "@/server/auth/session";
 import { exportSalesCsv } from "@/server/services/pos";
 
-/** GET /admin/kassa/export?van=YYYY-MM-DD&tot=YYYY-MM-DD → all receipt lines as CSV (for the accountant). */
+/** GET /kassa/export?van=YYYY-MM-DD&tot=YYYY-MM-DD → all receipt lines as CSV (for the accountant). */
 export async function GET(request: NextRequest) {
   if (!(await getCurrentUser())) return new Response("Niet ingelogd.", { status: 401 });
   const from = request.nextUrl.searchParams.get("van") ?? "";

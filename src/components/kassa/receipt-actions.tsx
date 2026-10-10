@@ -1,9 +1,9 @@
 "use client";
 
-import { LoaderCircle, Mail, Undo2 } from "lucide-react";
+import { LoaderCircle, Mail, Trash2, Undo2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { emailReceiptAction, refundAction } from "@/app/admin/actions/pos";
+import { deleteSaleAction, emailReceiptAction, refundAction } from "@/app/kassa/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input, Label, Textarea } from "@/components/ui/form";
@@ -59,7 +59,7 @@ export function RefundButton({ saleId, number, total }: { saleId: string; number
       }
       toast.success(result.message);
       setOpen(false);
-      router.push(`/admin/kassa/bonnen/${result.refundId}`);
+      router.push(`/kassa/bonnen/${result.refundId}`);
     });
   }
 
@@ -93,6 +93,75 @@ export function RefundButton({ saleId, number, total }: { saleId: string; number
             <Button variant="danger" onClick={confirm} disabled={pending || reason.trim().length < 3}>
               {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
               Tegenboeking maken
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+    </>
+  );
+}
+
+/** Owner only: remove a receipt. It stops counting everywhere but stays on record. */
+export function DeleteReceiptButton({
+  saleId,
+  number,
+  refundNumber,
+  backHref,
+}: {
+  saleId: string;
+  number: number;
+  /** The refund that is removed along with this sale. */
+  refundNumber: number | null;
+  backHref: string;
+}) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function confirm() {
+    startTransition(async () => {
+      const result = await deleteSaleAction(saleId, reason);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.message);
+      setOpen(false);
+      router.push(backHref);
+    });
+  }
+
+  return (
+    <>
+      <Button variant="ghost" onClick={() => setOpen(true)} className="text-red-300 hover:text-red-200">
+        <Trash2 className="size-4" aria-hidden /> Bon verwijderen
+      </Button>
+      <Dialog
+        open={open}
+        onClose={() => setOpen(false)}
+        title={`Bon ${number} verwijderen?`}
+        description={`De bon${refundNumber ? ` en tegenboeking ${refundNumber}` : ""} verdwijnt uit alle overzichten, de omzet en de export. Producten gaan terug in de voorraad. Wie, wanneer en waarom wordt bewaard.`}
+      >
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor={`delete-${saleId}`}>Reden</Label>
+            <Textarea
+              id={`delete-${saleId}`}
+              value={reason}
+              maxLength={300}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Bijv. testbon, dubbel aangeslagen"
+              className="min-h-20"
+            />
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <Button variant="ghost" onClick={() => setOpen(false)} disabled={pending}>
+              Annuleren
+            </Button>
+            <Button variant="danger" onClick={confirm} disabled={pending || reason.trim().length < 3}>
+              {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
+              Verwijderen
             </Button>
           </div>
         </div>

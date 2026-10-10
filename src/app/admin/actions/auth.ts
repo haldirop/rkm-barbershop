@@ -8,6 +8,7 @@ import {
   changeOwnPassword,
   requestPasswordReset,
   requireAdmin,
+  safeReturnPath,
   setNewPassword,
   signIn,
   signOut,
@@ -45,16 +46,18 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     return { error: result.error, values: { email } };
   }
   await clearHits(`login:email:${email}`);
-  redirect("/admin");
+  redirect(safeReturnPath(formData.get("naar")) ?? "/admin");
 }
 
-export async function logout() {
+export async function logout(formData?: FormData) {
   try {
     await signOut();
   } catch (error) {
     console.error("[auth] Uitloggen mislukt:", error);
   }
-  redirect("/admin/login");
+  // From the till, the next person logs in straight back into the till.
+  const back = safeReturnPath(formData?.get("naar"));
+  redirect(back ? `/admin/login?naar=${encodeURIComponent(back)}` : "/admin/login");
 }
 
 export async function changePassword(_prev: FormState, formData: FormData): Promise<FormState> {

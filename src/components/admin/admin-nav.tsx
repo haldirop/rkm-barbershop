@@ -9,7 +9,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Package,
   Receipt,
   Scissors,
   Settings,
@@ -29,11 +28,9 @@ const NAV = [
   { href: "/admin", label: "Overzicht", Icon: LayoutDashboard, exact: true },
   { href: "/admin/afspraken", label: "Afspraken", Icon: CalendarCheck, badge: true },
   { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays },
-  { href: "/admin/kassa", label: "Kassa", Icon: Receipt },
   { href: "/admin/wachtlijst", label: "Wachtlijst", Icon: BellRing },
   { href: "/admin/klanten", label: "Klanten", Icon: Users },
   { href: "/admin/diensten", label: "Diensten", Icon: Scissors },
-  { href: "/admin/producten", label: "Producten", Icon: Package },
   { href: "/admin/barbers", label: "Barbers", Icon: UserRound },
   { href: "/admin/openingstijden", label: "Openingstijden", Icon: Clock },
   { href: "/admin/reviews", label: "Reviews", Icon: Star },
@@ -79,6 +76,12 @@ function Footer({ userName }: { userName: string }) {
       <p className="px-3 pb-2 text-xs text-ink-faint">
         Ingelogd als <span className="text-ink-muted">{userName}</span>
       </p>
+      <Link
+        href="/kassa"
+        className="mb-2 flex h-11 items-center gap-3 rounded-xl border border-gold/30 bg-gold/5 px-3 text-[15px] font-medium text-gold-bright hover:bg-gold/10"
+      >
+        <Receipt className="size-[18px]" aria-hidden /> Kassa openen
+      </Link>
       <Link
         href="/"
         target="_blank"

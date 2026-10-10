@@ -11,7 +11,7 @@ Website met online afspraaksysteem en beheerdashboard voor RKM Barbershop.
 - **Slimme beschikbaarheid** — alleen tijden waarin de hele behandeling past (incl. buffer, pauzes, blokkades en werktijden per barber), dagkleuren groen/oranje/rood en "Beste beschikbaarheid".
 - **Klant-selfservice** — beveiligde link om de afspraak te bekijken, te verplaatsen, te annuleren of in de agenda te zetten.
 - **Beheer (`/admin`)** — aanvragen goedkeuren/weigeren, agenda (dag/week/maand), klanten, diensten, barbers, openingstijden/pauzes/blokkades, reviews, instellingen en beheerders.
-- **Kassa (`/admin/kassa`)** — afspraken en binnenlopers afrekenen (contant, pin of anders) met korting, fooi en wisselgeld; doorlopende bonnummers, bon printen of mailen, tegenboeking in plaats van wijzigen, btw per tarief (behandelingen 9%, producten 21%, instelbaar), omzet per periode met CSV-export, dagafsluiting met kastelling en producten met voorraad.
+- **Kassa (`/kassa`)** — een eigen omgeving naast het beheer (zelfde inlog): afspraken en binnenlopers afrekenen (contant, pin of anders) met korting, fooi en wisselgeld; doorlopende bonnummers, bon printen of mailen, tegenboeking in plaats van wijzigen, btw per tarief (behandelingen 9%, producten 21%, instelbaar), omzet per periode met CSV-export, dagafsluiting met kastelling en producten met voorraad. Alleen de eigenaar (`ADMIN_EMAIL`) kan een bon verwijderen; die telt dan nergens meer mee maar blijft met reden bewaard.
 - **E-mails** — aanvraag ontvangen, bevestigd, geweigerd, geannuleerd, verplaatst, herinnering (dag van tevoren) en een melding voor de zaak bij elke nieuwe aanvraag.
 
 ## Technologie
@@ -29,7 +29,7 @@ Website met online afspraaksysteem en beheerdashboard voor RKM Barbershop.
 
 ```
 src/
-  app/            Pagina's en API (publieke site, /admin, /api, /auth)
+  app/            Pagina's en API (publieke site, /admin, /kassa, /api, /auth)
     admin/actions/  Server actions van het beheer
   components/     UI-componenten (ui, site, booking, admin)
   emails/         E-mailtemplates (HTML + platte tekst)

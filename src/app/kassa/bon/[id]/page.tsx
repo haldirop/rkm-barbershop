@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ReceiptView } from "@/components/admin/pos/receipt";
+import { ReceiptView } from "@/components/kassa/receipt";
 import { uuidSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
 import { getSale } from "@/server/services/pos";
@@ -10,8 +10,8 @@ export const metadata = { title: "Bon printen" };
 export const dynamic = "force-dynamic";
 
 /** The receipt on its own, for printing (80 mm receipt printer or A4). */
-export default async function PrintReceiptPage({ params, searchParams }: PageProps<"/admin/bon/[id]">) {
-  await requireAdmin();
+export default async function PrintReceiptPage({ params, searchParams }: PageProps<"/kassa/bon/[id]">) {
+  await requireAdmin("/kassa");
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) notFound();
   const [detail, settings] = await Promise.all([getSale(id), getSettings()]);
