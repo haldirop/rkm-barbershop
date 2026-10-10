@@ -38,7 +38,7 @@ export function BarberForm({ barber }: { barber?: BarberValues }) {
         <Field label="Naam" htmlFor={`name-${key}`} error={errors.name}>
           <Input id={`name-${key}`} name="name" defaultValue={barber?.name} required maxLength={40} />
         </Field>
-        <Field label="Korte omschrijving" htmlFor={`bio-${key}`} error={errors.bio} hint="Zichtbaar bij het kiezen van een barber.">
+        <Field label="Korte omschrijving" htmlFor={`bio-${key}`} error={errors.bio} hint="Zichtbaar bij het team op de homepage en bij het kiezen van een barber.">
           <Input id={`bio-${key}`} name="bio" defaultValue={barber?.bio ?? ""} maxLength={160} />
         </Field>
       </div>
