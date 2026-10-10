@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BellRing,
   CalendarCheck,
   CalendarDays,
   Clock,
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/admin", label: "Overzicht", Icon: LayoutDashboard, exact: true },
   { href: "/admin/afspraken", label: "Afspraken", Icon: CalendarCheck, badge: true },
   { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays },
+  { href: "/admin/wachtlijst", label: "Wachtlijst", Icon: BellRing },
   { href: "/admin/klanten", label: "Klanten", Icon: Users },
   { href: "/admin/diensten", label: "Diensten", Icon: Scissors },
   { href: "/admin/barbers", label: "Barbers", Icon: UserRound },

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, eq, gte, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, count, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
 import { zonedNow, type IsoDate, type ZonedNow } from "@/lib/time";
 import { getDb, type DbOrTx } from "@/server/db/client";
 import { availabilityAlerts, barbers, services, type AvailabilityAlert } from "@/server/db/schema";
@@ -189,4 +189,62 @@ export async function checkAvailabilityAlerts() {
   } catch (error) {
     console.error("[wachtlijst] Controle mislukt:", error);
   }
+}
+
+// ——— Beheer ———
+
+export interface WaitlistEntry {
+  id: string;
+  date: IsoDate;
+  email: string;
+  serviceName: string;
+  /** null = no preference */
+  barberName: string | null;
+  createdAt: Date;
+  /** Set once the "plek vrij" e-mail has gone out. */
+  notifiedAt: Date | null;
+}
+
+/** All sign-ups from `from` onwards, by date, oldest sign-up first. */
+export async function listWaitlist(from: IsoDate, db: DbOrTx = getDb()): Promise<WaitlistEntry[]> {
+  return db
+    .select({
+      id: availabilityAlerts.id,
+      date: availabilityAlerts.date,
+      email: availabilityAlerts.email,
+      serviceName: services.name,
+      barberName: barbers.name,
+      createdAt: availabilityAlerts.createdAt,
+      notifiedAt: availabilityAlerts.notifiedAt,
+    })
+    .from(availabilityAlerts)
+    .innerJoin(services, eq(services.id, availabilityAlerts.serviceId))
+    .leftJoin(barbers, eq(barbers.id, availabilityAlerts.barberId))
+    .where(gte(availabilityAlerts.date, from))
+    .orderBy(asc(availabilityAlerts.date), asc(availabilityAlerts.createdAt));
+}
+
+/** People still waiting (no e-mail sent yet) per date in a range, e.g. for the agenda. */
+export async function countWaitingByDate(
+  from: IsoDate,
+  to: IsoDate,
+  db: DbOrTx = getDb(),
+): Promise<Array<{ date: IsoDate; waiting: number }>> {
+  return db
+    .select({ date: availabilityAlerts.date, waiting: count() })
+    .from(availabilityAlerts)
+    .where(
+      and(
+        gte(availabilityAlerts.date, from),
+        lte(availabilityAlerts.date, to),
+        isNull(availabilityAlerts.notifiedAt),
+      ),
+    )
+    .groupBy(availabilityAlerts.date)
+    .orderBy(asc(availabilityAlerts.date));
+}
+
+export async function deleteAvailabilityAlert(id: string, db: DbOrTx = getDb()) {
+  const [deleted] = await db.delete(availabilityAlerts).where(eq(availabilityAlerts.id, id)).returning();
+  if (!deleted) throw new DomainError("Deze aanmelding bestaat niet meer.", "NOT_FOUND");
 }
