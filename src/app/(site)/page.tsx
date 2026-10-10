@@ -1,6 +1,7 @@
 import { LocalBusinessJsonLd } from "@/components/site/json-ld";
 import { About } from "@/components/site/sections/about";
 import { AvailabilityOverview } from "@/components/site/sections/availability";
+import { Barber } from "@/components/site/sections/barber";
 import { Contact } from "@/components/site/sections/contact";
 import { CtaBand } from "@/components/site/sections/cta-band";
 import { Hero } from "@/components/site/sections/hero";
@@ -36,6 +37,7 @@ export default async function HomePage() {
         suggestions={suggestions}
       />
       <About />
+      <Barber />
       <Services services={site.services} />
       <WhyUs />
       <AvailabilityOverview days={days} today={site.now.date} service={featuredRef} />

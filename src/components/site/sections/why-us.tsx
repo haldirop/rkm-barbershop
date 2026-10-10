@@ -6,7 +6,7 @@ const REASONS = [
   {
     Icon: Scissors,
     title: "Vakmanschap",
-    text: "Barbers die fades, klassieke cuts en baardwerk tot in de puntjes beheersen.",
+    text: "Twintig jaar ervaring in fades, klassieke cuts en baardwerk, tot in de puntjes verzorgd.",
   },
   {
     Icon: Clock,
