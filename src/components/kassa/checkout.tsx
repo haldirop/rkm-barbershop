@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { checkoutAction, type CheckoutResult } from "@/app/kassa/actions";
+import { EmailReceipt } from "@/components/kassa/receipt-actions";
 import { Alert } from "@/components/ui/alert";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/form";
@@ -93,11 +94,14 @@ export function Checkout({
   const [tipInput, setTipInput] = useState("");
   const [method, setMethod] = useState<PaymentMethodKey | null>(null);
   const [receivedInput, setReceivedInput] = useState("");
-  const [mailReceipt, setMailReceipt] = useState(Boolean(preselect?.email));
+  // Mailing is a choice per customer; the address of the appointment is filled in as soon as it's ticked.
+  const [mailReceipt, setMailReceipt] = useState(false);
   const [email, setEmail] = useState(preselect?.email ?? "");
   const [note, setNote] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<Extract<CheckoutResult, { ok: true }> & { changeCents: number | null } | null>(null);
+  const [result, setResult] = useState<
+    (Extract<CheckoutResult, { ok: true }> & { changeCents: number | null; defaultEmail: string | null }) | null
+  >(null);
   const [pending, startTransition] = useTransition();
 
   function load(a: TillAppointment) {
@@ -105,8 +109,16 @@ export function Checkout({
     setLines(linesFor(a));
     setBarberId(a.barberId ?? onlyBarber);
     setEmail(a.email ?? "");
-    setMailReceipt(Boolean(a.email));
+    setMailReceipt(false);
     setError(null);
+  }
+
+  // Back to a walk-in: the previous customer's details go too.
+  function detach() {
+    setAppointment(null);
+    setLines([]);
+    setEmail("");
+    setMailReceipt(false);
   }
 
   function reset() {
@@ -156,6 +168,13 @@ export function Checkout({
   const receivedCents = receivedInput.trim() ? parseEuroCents(receivedInput) : null;
   const changeCents = method === "CASH" && receivedCents !== null ? receivedCents - priced.totalCents : null;
   const emailValid = !mailReceipt || /^\S+@\S+\.\S+$/.test(email.trim());
+  const emailHint = !appointment
+    ? null
+    : !appointment.email
+      ? `Bij de afspraak van ${appointment.customerName} is geen e-mailadres bekend. Vul het hier in.`
+      : email.trim().toLowerCase() === appointment.email
+        ? `Ingevuld vanuit de afspraak van ${appointment.customerName}.`
+        : null;
 
   const problems = [
     !lines.length && "Voeg een behandeling of product toe.",
@@ -181,7 +200,7 @@ export function Checkout({
         note,
         receiptEmail: mailReceipt ? email : "",
       });
-      if (response.ok) setResult({ ...response, changeCents });
+      if (response.ok) setResult({ ...response, changeCents, defaultEmail: email.trim() || null });
       else setError(response.error);
     });
   }
@@ -201,6 +220,12 @@ export function Checkout({
           <Alert tone={result.email.ok ? "success" : "error"} className="mt-5 text-left">
             {result.email.ok ? `De bon is gemaild naar ${result.email.to}.` : `Mailen mislukt: ${result.email.error ?? "onbekende fout"}`}
           </Alert>
+        ) : null}
+        {!result.email?.ok ? (
+          <div className="mt-5 text-left">
+            <p className="mb-2 text-sm font-medium text-ink-muted">Bon mailen</p>
+            <EmailReceipt saleId={result.saleId} defaultEmail={result.defaultEmail} />
+          </div>
         ) : null}
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
           <ButtonLink href={`/kassa/bon/${result.saleId}?print=1`} target="_blank" variant="secondary">
@@ -340,14 +365,7 @@ export function Checkout({
               </p>
             </div>
             {appointment ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setAppointment(null);
-                  setLines([]);
-                }}
-                className="shrink-0 text-sm text-ink-muted hover:text-ink"
-              >
+              <button type="button" onClick={detach} className="shrink-0 text-sm text-ink-muted hover:text-ink">
                 Losmaken
               </button>
             ) : null}
@@ -562,6 +580,7 @@ export function Checkout({
                   className="h-11"
                 />
               ) : null}
+              {mailReceipt && emailHint ? <p className="text-xs text-ink-faint">{emailHint}</p> : null}
               {mailReceipt && !mailConfigured ? (
                 <p className="text-xs text-amber-200">E-mail is nog niet gekoppeld (Resend): de bon wordt dan alleen gelogd, niet verstuurd.</p>
               ) : null}
