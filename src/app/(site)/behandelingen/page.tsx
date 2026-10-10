@@ -30,8 +30,8 @@ export default async function TreatmentsPage() {
           </p>
           <h1 className="heading-display mt-4 text-5xl sm:text-6xl">Vakwerk, tot in de details</h1>
           <p className="mt-5 text-lg leading-relaxed text-ink-muted">
-            Elke behandeling begint met een kort gesprek over wat je wilt en wat bij je past. De tijd die erbij
-            staat, is volledig voor jou gereserveerd. Kies een behandeling om direct de beschikbare tijden te zien.
+            Bij elke behandeling staat jouw wens voorop. De tijd die erbij staat, is volledig voor jou
+            gereserveerd. Kies een behandeling om direct de beschikbare tijden te zien.
           </p>
         </header>
 

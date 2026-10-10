@@ -2,7 +2,7 @@ import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
 
 const STEPS = [
-  { title: "Even afstemmen", text: "Elke behandeling begint met een kort gesprek: wat wil je, en wat past bij je haar en je routine?" },
+  { title: "Even afstemmen", text: "Jouw wens staat voorop. Vertel wat je in gedachten hebt of laat een foto zien, dan maken wij het waar." },
   { title: "Precisiewerk", text: "Schaar, tondeuse en mes, met aandacht voor elke overgang en elke lijn." },
   { title: "Strak afgewerkt", text: "Styling, zodat je look ook thuis goed blijft zitten." },
 ];
