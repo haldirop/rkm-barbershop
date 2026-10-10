@@ -2,7 +2,9 @@ import { Printer } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ReceiptView } from "@/components/kassa/receipt";
-import { DeleteReceiptButton, EmailReceipt, PurgeReceiptButton, RefundButton } from "@/components/kassa/receipt-actions";
+import { deleteSaleAction, purgeSaleAction } from "@/app/kassa/actions";
+import { OwnerDeleteButton, OwnerPurgeButton } from "@/components/kassa/owner-delete";
+import { EmailReceipt, RefundButton } from "@/components/kassa/receipt-actions";
 import { PageHeader } from "@/components/admin/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -147,7 +149,12 @@ export default async function ReceiptPage({ params }: PageProps<"/kassa/bonnen/[
                 description="Alleen jij als eigenaar ziet dit. De bon wordt dan helemaal gewist, ook uit ‘Verwijderde bonnen’. Het bonnummer wordt niet opnieuw gebruikt."
               />
               <div className="p-5">
-                <PurgeReceiptButton saleId={sale.id} number={sale.number} backHref={backHref} />
+                <OwnerPurgeButton
+                  title={`Bon ${sale.number} definitief verwijderen?`}
+                  description="De bon wordt helemaal gewist, ook uit ‘Verwijderde bonnen’, samen met een eventuele tegenboeking. Dit kan niet ongedaan worden gemaakt."
+                  action={purgeSaleAction.bind(null, sale.id)}
+                  afterHref={backHref}
+                />
               </div>
             </Card>
           ) : null}
@@ -159,11 +166,14 @@ export default async function ReceiptPage({ params }: PageProps<"/kassa/bonnen/[
                 description="Alleen jij als eigenaar ziet dit. Bedoeld voor testbonnen of een bon die dubbel is aangeslagen; voor een echte terugbetaling gebruik je een tegenboeking."
               />
               <div className="p-5">
-                <DeleteReceiptButton
-                  saleId={sale.id}
-                  number={sale.number}
-                  refundNumber={detail.refundedBy?.number ?? null}
-                  backHref={backHref}
+                <OwnerDeleteButton
+                  label="Bon verwijderen"
+                  title={`Bon ${sale.number} verwijderen?`}
+                  description={`De bon${detail.refundedBy ? ` en tegenboeking ${detail.refundedBy.number}` : ""} verdwijnt uit alle overzichten, de omzet en de export. Producten gaan terug in de voorraad.`}
+                  keptIn="‘Verwijderde bonnen’"
+                  placeholder="Bijv. testbon, dubbel aangeslagen"
+                  action={deleteSaleAction.bind(null, sale.id)}
+                  afterHref={backHref}
                 />
               </div>
             </Card>

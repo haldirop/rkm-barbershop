@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { deleteCashCountAction, purgeCashCountAction } from "@/app/kassa/actions";
 import { CashCountForm } from "@/components/kassa/cash-count-form";
+import { OwnerDeleteButton, OwnerPurgeButton } from "@/components/kassa/owner-delete";
 import { PageHeader } from "@/components/admin/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -8,17 +10,23 @@ import { cn } from "@/lib/cn";
 import { capitalize, formatAmount, formatDateLong, formatDateShort, formatDateTime } from "@/lib/format";
 import { PAYMENT_METHODS, type PaymentMethodKey } from "@/lib/pos";
 import { addDays, isIsoDate, zonedNow } from "@/lib/time";
-import { requireAdmin } from "@/server/auth/session";
-import { getCashCount, listCashCounts, salesSummary } from "@/server/services/pos";
+import { isOwner, requireAdmin } from "@/server/auth/session";
+import { getCashCount, listCashCounts, listDeletedCashCounts, salesSummary } from "@/server/services/pos";
 
 export const metadata = { title: "Dagafsluiting" };
 
 export default async function DayClosingPage({ searchParams }: PageProps<"/kassa/dagafsluiting">) {
-  await requireAdmin("/kassa");
+  const user = await requireAdmin("/kassa");
+  const owner = isOwner(user);
   const today = zonedNow().date;
   const requested = (await searchParams).datum;
   const date = typeof requested === "string" && isIsoDate(requested) && requested <= today ? requested : today;
-  const [summary, count, history] = await Promise.all([salesSummary(date, date), getCashCount(date), listCashCounts(14)]);
+  const [summary, count, history, deleted] = await Promise.all([
+    salesSummary(date, date),
+    getCashCount(date),
+    listCashCounts(14),
+    owner ? listDeletedCashCounts() : [],
+  ]);
   const lastFloat = history.find((c) => c.date < date)?.floatCents ?? 0;
   const changedSinceCount = count !== null && count.cashSalesCents !== summary.byMethod.CASH;
 
@@ -117,6 +125,19 @@ export default async function DayClosingPage({ searchParams }: PageProps<"/kassa
               defaultCountedCents={count?.countedCents ?? null}
               defaultNote={count?.note ?? null}
             />
+            {owner && count ? (
+              <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-ink-faint">Alleen jij als eigenaar kunt een kastelling verwijderen.</p>
+                <OwnerDeleteButton
+                  label="Kastelling verwijderen"
+                  title={`Kastelling van ${formatDateLong(date)} verwijderen?`}
+                  description="De dag staat daarna weer als ‘niet geteld’ en je kunt opnieuw tellen. De bonnen en de omzet van die dag blijven gewoon staan."
+                  keptIn="‘Verwijderde kastellingen’"
+                  placeholder="Bijv. verkeerd geteld, test"
+                  action={deleteCashCountAction.bind(null, count.id)}
+                />
+              </div>
+            ) : null}
           </div>
         </Card>
       </div>
@@ -163,6 +184,40 @@ export default async function DayClosingPage({ searchParams }: PageProps<"/kassa
           <p className="text-sm text-ink-muted">Nog geen kastellingen.</p>
         )}
       </section>
+
+      {deleted.length ? (
+        <section aria-labelledby="deleted-counts-title" className="mt-8">
+          <h2 id="deleted-counts-title" className="mb-1 text-lg font-semibold text-ink">
+            Verwijderde kastellingen
+          </h2>
+          <p className="mb-3 text-sm text-ink-muted">Alleen zichtbaar voor de eigenaar. Ze tellen nergens meer mee.</p>
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
+            {deleted.map((c) => {
+              const difference = c.countedCents - (c.floatCents + c.cashSalesCents);
+              return (
+                <li key={c.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 text-sm">
+                  <span className="min-w-0">
+                    <span className="block font-medium text-ink-muted line-through">
+                      {capitalize(formatDateShort(c.date))} · geteld {formatAmount(c.countedCents)} ({difference > 0 ? "+" : ""}
+                      {formatAmount(difference)})
+                    </span>
+                    <span className="block text-ink-faint">
+                      {c.deletedAt ? formatDateTime(c.deletedAt) : ""}
+                      {c.deletedBy ? ` · ${c.deletedBy}` : ""} · {c.deleteReason}
+                    </span>
+                  </span>
+                  <OwnerPurgeButton
+                    compact
+                    title={`Kastelling van ${formatDateLong(c.date)} definitief verwijderen?`}
+                    description="De kastelling wordt helemaal gewist, ook uit ‘Verwijderde kastellingen’. Dit kan niet ongedaan worden gemaakt."
+                    action={purgeCashCountAction.bind(null, c.id)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }

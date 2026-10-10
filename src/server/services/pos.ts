@@ -539,12 +539,15 @@ async function cashSalesOn(date: IsoDate, db: DbOrTx) {
   return cents;
 }
 
+/** Cash counts that count: everything except counts the owner removed. */
+const activeCount = isNull(cashCounts.deletedAt);
+
 export async function getCashCount(date: IsoDate, db: DbOrTx = getDb()) {
   const [row] = await db
     .select({ count: cashCounts, countedBy: adminUsers.name })
     .from(cashCounts)
     .leftJoin(adminUsers, eq(adminUsers.id, cashCounts.countedByUserId))
-    .where(eq(cashCounts.date, date));
+    .where(and(eq(cashCounts.date, date), activeCount));
   return row ? { ...row.count, countedBy: row.countedBy } : null;
 }
 
@@ -553,27 +556,66 @@ export async function saveCashCount(
   date: IsoDate,
   input: { floatCents: number; countedCents: number; note: string | null; userId: string | null },
   opts: { now?: ZonedNow } = {},
-  db: DbOrTx = getDb(),
+  db: Database = getDb(),
 ) {
   const today = (opts.now ?? zonedNow()).date;
   if (date > today) throw new DomainError("Je kunt de kas niet vooruit tellen.");
-  const values = {
-    floatCents: input.floatCents,
-    cashSalesCents: await cashSalesOn(date, db),
-    countedCents: input.countedCents,
-    note: input.note,
-    countedByUserId: input.userId,
-  };
-  const [row] = await db
-    .insert(cashCounts)
-    .values({ date, ...values })
-    .onConflictDoUpdate({ target: cashCounts.date, set: { ...values, updatedAt: new Date() } })
-    .returning();
-  return row;
+  return db.transaction(async (tx) => {
+    await lockTill(tx);
+    const values = {
+      floatCents: input.floatCents,
+      cashSalesCents: await cashSalesOn(date, tx),
+      countedCents: input.countedCents,
+      note: input.note,
+      countedByUserId: input.userId,
+    };
+    const [current] = await tx.select({ id: cashCounts.id }).from(cashCounts).where(and(eq(cashCounts.date, date), activeCount));
+    const [row] = current
+      ? await tx.update(cashCounts).set(values).where(eq(cashCounts.id, current.id)).returning()
+      : await tx.insert(cashCounts).values({ date, ...values }).returning();
+    return row;
+  });
 }
 
 export async function listCashCounts(limit = 14, db: DbOrTx = getDb()) {
-  return db.select().from(cashCounts).orderBy(desc(cashCounts.date)).limit(limit);
+  return db.select().from(cashCounts).where(activeCount).orderBy(desc(cashCounts.date)).limit(limit);
+}
+
+/**
+ * Removes a cash count (owner only — checked by the caller). The day shows as not
+ * counted and can be counted again; the count is kept with who removed it, when and why.
+ */
+export async function deleteCashCount(id: string, input: { reason: string; userId: string | null }, db: DbOrTx = getDb()) {
+  const [row] = await db
+    .update(cashCounts)
+    .set({ deletedAt: new Date(), deletedByUserId: input.userId, deleteReason: input.reason })
+    .where(and(eq(cashCounts.id, id), activeCount))
+    .returning();
+  if (!row) throw new DomainError("Deze kastelling bestaat niet of is al verwijderd.", "NOT_FOUND");
+  return row;
+}
+
+/** Wipes a removed cash count for good (owner only — checked by the caller). */
+export async function purgeCashCount(id: string, db: DbOrTx = getDb()) {
+  const [row] = await db.select({ deletedAt: cashCounts.deletedAt, date: cashCounts.date }).from(cashCounts).where(eq(cashCounts.id, id));
+  if (!row) throw new DomainError("Deze kastelling bestaat niet (meer).", "NOT_FOUND");
+  if (!row.deletedAt) {
+    throw new DomainError("Verwijder de kastelling eerst; daarna kun je hem definitief verwijderen.", "NOT_ALLOWED");
+  }
+  await db.delete(cashCounts).where(eq(cashCounts.id, id));
+  return row;
+}
+
+/** Cash counts the owner removed, newest day first. */
+export async function listDeletedCashCounts(limit = 30, db: DbOrTx = getDb()) {
+  return db
+    .select({ count: cashCounts, deletedBy: adminUsers.name })
+    .from(cashCounts)
+    .leftJoin(adminUsers, eq(adminUsers.id, cashCounts.deletedByUserId))
+    .where(isNotNull(cashCounts.deletedAt))
+    .orderBy(desc(cashCounts.date), desc(cashCounts.deletedAt))
+    .limit(limit)
+    .then((rows) => rows.map((r) => ({ ...r.count, deletedBy: r.deletedBy })));
 }
 
 const csvMoney = (cents: number) => (cents / 100).toFixed(2).replace(".", ",");

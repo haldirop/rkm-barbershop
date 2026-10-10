@@ -2,11 +2,20 @@
 
 import { z } from "zod";
 import { parseEuroCents } from "@/lib/pos";
+import { formatDateLong } from "@/lib/format";
 import { cleanText, isoDateSchema, uuidSchema } from "@/lib/validation";
 import { isOwner, requireAdmin } from "@/server/auth/session";
 import { sendReceipt } from "@/server/notifications/notify";
 import { deleteProduct, saveProduct } from "@/server/services/admin-config";
-import { checkout, deleteSale, purgeSale, refundSale, saveCashCount } from "@/server/services/pos";
+import {
+  checkout,
+  deleteCashCount,
+  deleteSale,
+  purgeCashCount,
+  purgeSale,
+  refundSale,
+  saveCashCount,
+} from "@/server/services/pos";
 import { formObject, invalid, refreshAll, toFormState, toResult, type SimpleResult } from "@/app/admin/actions/helpers";
 import type { FormState } from "@/app/admin/actions/types";
 
@@ -178,6 +187,45 @@ export async function saveCashCountAction(_prev: FormState, formData: FormData):
   }
   refreshAll();
   return { ok: true, message: "Kastelling opgeslagen." };
+}
+
+/** Owner only: remove a cash count (kept under "Verwijderde kastellingen"), or wipe it with `permanent`. */
+export async function deleteCashCountAction(id: string, reason: string, permanent = false): Promise<SimpleResult> {
+  const user = await requireAdmin();
+  if (!isOwner(user)) return { ok: false, error: "Alleen de eigenaar kan kastellingen verwijderen." };
+  const parsed = z
+    .object({
+      id: uuidSchema,
+      reason: z.string().transform(cleanText).pipe(z.string().min(3, "Geef een korte reden op.").max(300)),
+      permanent: z.boolean(),
+    })
+    .safeParse({ id, reason, permanent });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Ongeldige invoer." };
+  try {
+    const count = await deleteCashCount(parsed.data.id, { reason: parsed.data.reason, userId: user.id });
+    if (parsed.data.permanent) await purgeCashCount(count.id);
+    refreshAll();
+    return {
+      ok: true,
+      message: `Kastelling van ${formatDateLong(count.date)} ${parsed.data.permanent ? "definitief " : ""}verwijderd.`,
+    };
+  } catch (error) {
+    return toResult(error);
+  }
+}
+
+/** Owner only: wipe a removed cash count for good. */
+export async function purgeCashCountAction(id: string): Promise<SimpleResult> {
+  const user = await requireAdmin();
+  if (!isOwner(user)) return { ok: false, error: "Alleen de eigenaar kan kastellingen verwijderen." };
+  if (!uuidSchema.safeParse(id).success) return { ok: false, error: "Ongeldige kastelling." };
+  try {
+    const count = await purgeCashCount(id);
+    refreshAll();
+    return { ok: true, message: `Kastelling van ${formatDateLong(count.date)} definitief verwijderd.` };
+  } catch (error) {
+    return toResult(error);
+  }
 }
 
 // ---------------------------------------------------------------------------

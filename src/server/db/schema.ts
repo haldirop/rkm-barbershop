@@ -468,21 +468,33 @@ export const saleLines = pgTable(
   (t) => [index("sale_lines_sale_idx").on(t.saleId)],
 );
 
-/** "Kas tellen" at the end of a day: what should be in the drawer and what was counted. */
-export const cashCounts = pgTable("cash_counts", {
-  date: date("date").primaryKey(),
-  /** Change in the drawer at opening ("wisselgeld"). */
-  floatCents: integer("float_cents").notNull().default(0),
-  /** Cash receipts of the day at the moment of counting. */
-  cashSalesCents: integer("cash_sales_cents").notNull(),
-  countedCents: integer("counted_cents").notNull(),
-  note: text("note"),
-  countedByUserId: uuid("counted_by_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+/**
+ * "Kas tellen" at the end of a day: what should be in the drawer and what was counted.
+ * One count per day counts; the owner can remove it (kept with who, when and why, so the
+ * day can be counted again) or wipe a removed count for good.
+ */
+export const cashCounts = pgTable(
+  "cash_counts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: date("date").notNull(),
+    /** Change in the drawer at opening ("wisselgeld"). */
+    floatCents: integer("float_cents").notNull().default(0),
+    /** Cash receipts of the day at the moment of counting. */
+    cashSalesCents: integer("cash_sales_cents").notNull(),
+    countedCents: integer("counted_cents").notNull(),
+    note: text("note"),
+    countedByUserId: uuid("counted_by_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    deletedByUserId: uuid("deleted_by_user_id").references(() => adminUsers.id, { onDelete: "set null" }),
+    deleteReason: text("delete_reason"),
+  },
+  (t) => [uniqueIndex("cash_counts_date_key").on(t.date).where(sql`${t.deletedAt} IS NULL`)],
+);
 
 /** Single-row table (id = 1) with business details and booking rules. */
 export const settings = pgTable(

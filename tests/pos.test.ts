@@ -10,13 +10,17 @@ import { changeStatus } from "@/server/services/appointments";
 import { createBookingRequest } from "@/server/services/booking";
 import {
   checkout,
+  deleteCashCount,
   deleteSale,
   exportSalesCsv,
   getCashCount,
   getSale,
+  listCashCounts,
+  listDeletedCashCounts,
   listDeletedSales,
   listSales,
   listUnpaidAppointments,
+  purgeCashCount,
   purgeSale,
   refundSale,
   salesSummary,
@@ -347,6 +351,29 @@ describe("till", () => {
     expect(text).toContain("Btw 9% over € 20,00: € 1,65");
     expect(text).toContain("Betaald met: Pin");
     expect(text).toContain("KvK 12345678 · Btw NL000099998B57");
+  });
+
+  it("lets the owner remove a cash count, count the day again, and wipe the removed one", async () => {
+    const counted = await saveCashCount(NOW.date, { floatCents: 5000, countedCents: 5000, note: null, userId: null }, { now: NOW });
+    await expect(purgeCashCount(counted.id)).rejects.toThrow(/eerst/);
+
+    await deleteCashCount(counted.id, { reason: "Verkeerd geteld", userId: null });
+    expect(await getCashCount(NOW.date)).toBeNull();
+    expect(await listCashCounts()).toEqual([]);
+    expect(await listDeletedCashCounts()).toMatchObject([{ id: counted.id, deleteReason: "Verkeerd geteld" }]);
+    await expect(deleteCashCount(counted.id, { reason: "Nog eens", userId: null })).rejects.toThrow(/al verwijderd/);
+
+    // The day can be counted again; the removed count stays on record next to it.
+    const recount = await saveCashCount(NOW.date, { floatCents: 5000, countedCents: 5200, note: null, userId: null }, { now: NOW });
+    expect(recount.id).not.toBe(counted.id);
+    expect(await getCashCount(NOW.date)).toMatchObject({ id: recount.id, countedCents: 5200 });
+    // Counting again the same day updates that count instead of adding one.
+    await saveCashCount(NOW.date, { floatCents: 5000, countedCents: 5100, note: null, userId: null }, { now: NOW });
+    expect((await listCashCounts()).map((c) => [c.id, c.countedCents])).toEqual([[recount.id, 5100]]);
+
+    await purgeCashCount(counted.id);
+    expect(await listDeletedCashCounts()).toEqual([]);
+    expect(await getCashCount(NOW.date)).toMatchObject({ id: recount.id });
   });
 
   it("exports receipt lines for the accountant", async () => {
