@@ -13,8 +13,10 @@ import {
   saleLines,
   sales,
   services,
+  settings,
   type Sale,
 } from "@/server/db/schema";
+import { loadSettings } from "./settings";
 import { DomainError, lockBookings, logEvent } from "./shared";
 
 /**
@@ -32,11 +34,18 @@ async function lockTill(tx: DbOrTx) {
   await tx.execute(sql`SELECT pg_advisory_xact_lock(7203002)`);
 }
 
+/** Never below a number that exists, also for receipts made before the counter existed. */
+const highestNumber = sql`GREATEST(${settings.lastReceiptNumber}, (SELECT COALESCE(MAX("number"), 0) FROM "sales"))`;
+
+/** The next receipt number. Kept in a counter, so a number is never handed out twice. */
 async function nextReceiptNumber(tx: DbOrTx): Promise<number> {
-  const [{ last }] = await tx
-    .select({ last: sql<number>`COALESCE(MAX(${sales.number}), 0)`.mapWith(Number) })
-    .from(sales);
-  return last + 1;
+  await loadSettings(tx); // makes sure the settings row exists
+  const [row] = await tx
+    .update(settings)
+    .set({ lastReceiptNumber: sql`${highestNumber} + 1` })
+    .where(eq(settings.id, 1))
+    .returning({ number: settings.lastReceiptNumber });
+  return row.number;
 }
 
 export interface CheckoutItem {
@@ -295,6 +304,31 @@ export async function deleteSale(saleId: string, input: { reason: string; userId
         .where(and(eq(products.id, productId), sql`${products.stock} IS NOT NULL`));
     }
     return removed.map((r) => r.number);
+  });
+}
+
+/**
+ * Wipes a removed receipt completely (owner only — checked by the caller), together with
+ * the refunds of a removed sale. Only receipts that were removed first, so the stock and
+ * appointment have already been put right. The number is never handed out again.
+ */
+export async function purgeSale(saleId: string, db: Database = getDb()): Promise<number[]> {
+  return db.transaction(async (tx) => {
+    await lockTill(tx);
+    const [sale] = await tx.select().from(sales).where(eq(sales.id, saleId)).for("update");
+    if (!sale) throw new DomainError("Deze bon bestaat niet (meer).", "NOT_FOUND");
+    if (!sale.deletedAt) {
+      throw new DomainError("Verwijder de bon eerst; daarna kun je hem definitief verwijderen.", "NOT_ALLOWED");
+    }
+    const refunds = sale.kind === "SALE" ? await tx.select().from(sales).where(eq(sales.refundOfId, sale.id)).for("update") : [];
+    // A removed sale's refunds are always removed with it; never wipe a receipt that still counts.
+    if (refunds.some((r) => !r.deletedAt)) throw new DomainError("Er hoort nog een geldige tegenboeking bij deze bon.", "NOT_ALLOWED");
+
+    await loadSettings(tx);
+    await tx.update(settings).set({ lastReceiptNumber: highestNumber }).where(eq(settings.id, 1));
+    const ids = [...refunds.map((r) => r.id), sale.id];
+    await tx.delete(sales).where(inArray(sales.id, ids)); // the lines go with them (cascade)
+    return [sale.number, ...refunds.map((r) => r.number)];
   });
 }
 

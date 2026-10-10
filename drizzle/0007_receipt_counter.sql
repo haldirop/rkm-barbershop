@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN "last_receipt_number" integer DEFAULT 0 NOT NULL;

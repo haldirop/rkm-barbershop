@@ -245,7 +245,9 @@ export default async function SalesPage({ searchParams }: PageProps<"/kassa/bonn
           <h2 id="deleted-title" className="mb-1 text-lg font-semibold text-ink">
             Verwijderde bonnen
           </h2>
-          <p className="mb-3 text-sm text-ink-muted">Alleen zichtbaar voor de eigenaar. Ze tellen nergens meer mee.</p>
+          <p className="mb-3 text-sm text-ink-muted">
+            Alleen zichtbaar voor de eigenaar. Ze tellen nergens meer mee. Open een bon om hem definitief te verwijderen.
+          </p>
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line bg-surface">
             {deleted.map((r) => (
               <li key={r.id}>

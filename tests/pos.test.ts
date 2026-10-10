@@ -17,6 +17,7 @@ import {
   listDeletedSales,
   listSales,
   listUnpaidAppointments,
+  purgeSale,
   refundSale,
   salesSummary,
   saveCashCount,
@@ -269,6 +270,27 @@ describe("till", () => {
     expect(await deleteSale(sale.id, { reason: "Test", userId: null })).toEqual([sale.number, second.number]);
     expect(await stock()).toBe(3);
     expect(await salesSummary(NOW.date, NOW.date)).toMatchObject({ receipts: 0, refunds: 0, revenueCents: 0 });
+  });
+
+  it("wipes a removed receipt for good, and never hands its number out again", async () => {
+    const first = await checkout(walkIn(), { now: NOW });
+    const last = await checkout(walkIn({ items: [{ kind: "PRODUCT", id: waxId, quantity: 1, unitPriceCents: 1495 }] }), { now: NOW });
+    const refund = await refundSale(last.id, { reason: "Fout", userId: null }, { now: NOW });
+
+    await expect(purgeSale(last.id)).rejects.toThrow(/eerst/);
+    await deleteSale(last.id, { reason: "Test", userId: null });
+    expect(await purgeSale(last.id)).toEqual([last.number, refund.number]);
+
+    expect(await getSale(last.id)).toBeNull();
+    expect(await getSale(refund.id)).toBeNull();
+    expect(await listDeletedSales(NOW.date, NOW.date)).toEqual([]);
+    expect((await listSales(NOW.date, NOW.date)).map((s) => s.number)).toEqual([first.number]);
+    // Stock was already put back when it was removed, and stays that way.
+    expect((await handle.db.select().from(products).where(eq(products.id, waxId)))[0].stock).toBe(3);
+    // The wiped numbers are gone for good: the next receipt continues after them.
+    const next = await checkout(walkIn(), { now: NOW });
+    expect(next.number).toBe(refund.number + 1);
+    await expect(purgeSale(last.id)).rejects.toThrow(/bestaat niet/);
   });
 
   it("summarises a day and keeps tips out of revenue", async () => {

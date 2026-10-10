@@ -2,7 +2,7 @@ import { Printer } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ReceiptView } from "@/components/kassa/receipt";
-import { DeleteReceiptButton, EmailReceipt, RefundButton } from "@/components/kassa/receipt-actions";
+import { DeleteReceiptButton, EmailReceipt, PurgeReceiptButton, RefundButton } from "@/components/kassa/receipt-actions";
 import { PageHeader } from "@/components/admin/page-header";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -53,7 +53,7 @@ export default async function ReceiptPage({ params }: PageProps<"/kassa/bonnen/[
         <Alert tone="warning" className="mb-6" title="Deze bon is verwijderd">
           Verwijderd op {formatDateTime(sale.deletedAt!)}
           {detail.deletedBy ? ` door ${detail.deletedBy}` : ""}. Reden: {sale.deleteReason ?? "—"}. Hij telt niet meer mee in de
-          omzet, de dagafsluiting of de export, maar blijft hier bewaard.
+          omzet, de dagafsluiting of de export, maar blijft hier bewaard tot je hem definitief verwijdert.
         </Alert>
       ) : null}
 
@@ -136,6 +136,18 @@ export default async function ReceiptPage({ params }: PageProps<"/kassa/bonnen/[
               />
               <div className="p-5">
                 <RefundButton saleId={sale.id} number={sale.number} total={formatAmount(sale.totalCents)} />
+              </div>
+            </Card>
+          ) : null}
+
+          {deleted && isOwner(user) ? (
+            <Card className="border-red-400/20">
+              <CardHeader
+                title="Definitief verwijderen"
+                description="Alleen jij als eigenaar ziet dit. De bon wordt dan helemaal gewist, ook uit ‘Verwijderde bonnen’. Het bonnummer wordt niet opnieuw gebruikt."
+              />
+              <div className="p-5">
+                <PurgeReceiptButton saleId={sale.id} number={sale.number} backHref={backHref} />
               </div>
             </Card>
           ) : null}

@@ -6,7 +6,7 @@ import { cleanText, isoDateSchema, uuidSchema } from "@/lib/validation";
 import { isOwner, requireAdmin } from "@/server/auth/session";
 import { sendReceipt } from "@/server/notifications/notify";
 import { deleteProduct, saveProduct } from "@/server/services/admin-config";
-import { checkout, deleteSale, refundSale, saveCashCount } from "@/server/services/pos";
+import { checkout, deleteSale, purgeSale, refundSale, saveCashCount } from "@/server/services/pos";
 import { formObject, invalid, refreshAll, toFormState, toResult, type SimpleResult } from "@/app/admin/actions/helpers";
 import type { FormState } from "@/app/admin/actions/types";
 
@@ -91,18 +91,42 @@ export async function refundAction(saleId: string, reason: string): Promise<Simp
   }
 }
 
-/** Only the owner (ADMIN_EMAIL) may remove a receipt; it stays on record with the reason. */
-export async function deleteSaleAction(saleId: string, reason: string): Promise<SimpleResult> {
+const receiptsLabel = (numbers: number[]) => `Bon ${numbers.join(" en ")}`;
+
+/**
+ * Only the owner (ADMIN_EMAIL) may remove a receipt. By default it stays on record with
+ * the reason ("Verwijderde bonnen"); with `permanent` it is wiped completely.
+ */
+export async function deleteSaleAction(saleId: string, reason: string, permanent = false): Promise<SimpleResult> {
   const user = await requireAdmin();
   if (!isOwner(user)) return { ok: false, error: "Alleen de eigenaar kan bonnen verwijderen." };
   const parsed = z
-    .object({ saleId: uuidSchema, reason: z.string().transform(cleanText).pipe(z.string().min(3, "Geef een korte reden op.").max(300)) })
-    .safeParse({ saleId, reason });
+    .object({
+      saleId: uuidSchema,
+      reason: z.string().transform(cleanText).pipe(z.string().min(3, "Geef een korte reden op.").max(300)),
+      permanent: z.boolean(),
+    })
+    .safeParse({ saleId, reason, permanent });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Ongeldige invoer." };
   try {
     const numbers = await deleteSale(parsed.data.saleId, { reason: parsed.data.reason, userId: user.id });
+    if (parsed.data.permanent) await purgeSale(parsed.data.saleId);
     refreshAll();
-    return { ok: true, message: numbers.length > 1 ? `Bon ${numbers.join(" en ")} verwijderd.` : `Bon ${numbers[0]} verwijderd.` };
+    return { ok: true, message: `${receiptsLabel(numbers)} ${parsed.data.permanent ? "definitief " : ""}verwijderd.` };
+  } catch (error) {
+    return toResult(error);
+  }
+}
+
+/** Owner only: wipe a receipt that was removed earlier, so it is gone everywhere. */
+export async function purgeSaleAction(saleId: string): Promise<SimpleResult> {
+  const user = await requireAdmin();
+  if (!isOwner(user)) return { ok: false, error: "Alleen de eigenaar kan bonnen verwijderen." };
+  if (!uuidSchema.safeParse(saleId).success) return { ok: false, error: "Ongeldige bon." };
+  try {
+    const numbers = await purgeSale(saleId);
+    refreshAll();
+    return { ok: true, message: `${receiptsLabel(numbers)} definitief verwijderd.` };
   } catch (error) {
     return toResult(error);
   }

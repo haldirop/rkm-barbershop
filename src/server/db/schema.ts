@@ -515,6 +515,11 @@ export const settings = pgTable(
     maxOpenAppointmentsPerCustomer: integer("max_open_appointments_per_customer")
       .notNull()
       .default(3),
+    /**
+     * Highest receipt number ever handed out. Receipts can be removed for good, so the
+     * next number can't be derived from the receipts that remain: it is never reused.
+     */
+    lastReceiptNumber: integer("last_receipt_number").notNull().default(0),
     /** Set the first time the owner saves the business details in /admin. */
     detailsConfirmedAt: timestamp("details_confirmed_at", { withTimezone: true }),
     updatedAt: timestamp("updated_at", { withTimezone: true })
