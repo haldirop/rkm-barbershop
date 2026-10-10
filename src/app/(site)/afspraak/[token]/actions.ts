@@ -7,6 +7,7 @@ import { isoDateSchema, timeSchema } from "@/lib/validation";
 import { clientIp, isRateLimited, recordHit } from "@/server/auth/rate-limit";
 import { notifyCustomerCancelled, notifyRescheduleRequested } from "@/server/notifications/notify";
 import { cancelByCustomer, rescheduleByCustomer } from "@/server/services/booking";
+import { checkAvailabilityAlerts } from "@/server/services/waitlist";
 import { DomainError } from "@/server/services/shared";
 
 export type ManageResult = { ok: true } | { ok: false; error: string; slotTaken?: boolean };
@@ -34,6 +35,7 @@ export async function cancelAppointment(token: string): Promise<ManageResult> {
   try {
     const { appointment } = await cancelByCustomer(parsed.data);
     after(() => notifyCustomerCancelled(appointment.id));
+    after(checkAvailabilityAlerts);
     return { ok: true };
   } catch (error) {
     return failure(error);
@@ -54,6 +56,7 @@ export async function rescheduleAppointment(token: string, date: string, time: s
     });
     const change = `Oorspronkelijk: ${formatDateLong(previous.date)} om ${previous.startTime.slice(0, 5)}.`;
     after(() => notifyRescheduleRequested(appointment.id, change));
+    after(checkAvailabilityAlerts);
     return { ok: true };
   } catch (error) {
     return failure(error);

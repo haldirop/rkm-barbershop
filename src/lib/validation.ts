@@ -82,6 +82,17 @@ export const bookingRequestSchema = customerDetailsSchema.extend({
 
 export type BookingRequest = z.input<typeof bookingRequestSchema>;
 
+/** "Houd me op de hoogte" on a fully booked day. */
+export const availabilityAlertSchema = z.object({
+  serviceId: uuidSchema,
+  /** null = geen voorkeur */
+  barberId: uuidSchema.nullable(),
+  date: isoDateSchema,
+  email: emailSchema,
+  /** Honeypot: must stay empty (bots fill every field). */
+  website: z.string().max(0).optional(),
+});
+
 export type FieldErrors = Partial<Record<string, string>>;
 
 /** First error message per field, for showing under form inputs. */

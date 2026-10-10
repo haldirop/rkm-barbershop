@@ -84,6 +84,15 @@ export function AvailabilityOverview({
                     >
                       {content}
                     </Link>
+                  ) : day.level === "full" ? (
+                    // Fully booked: leads to the booking page, where you can ask for an e-mail if a spot frees up.
+                    <Link
+                      href={bookingHref({ serviceId: service?.id, date: day.date })}
+                      aria-label={`${formatDateLong(day.date)}: ${meta.label}, meld je aan voor een bericht als er plek vrijkomt`}
+                      className={cn(base, "border-line/60 bg-surface/40 opacity-70 hover:border-red-300/40 hover:opacity-100")}
+                    >
+                      {content}
+                    </Link>
                   ) : (
                     <div
                       aria-label={`${formatDateLong(day.date)}: ${meta.label}`}

@@ -46,6 +46,14 @@ export default async function PrivacyPage() {
           </p>
         </section>
         <section>
+          <h2>Melding als er plek vrijkomt</h2>
+          <p>
+            Is een dag volgeboekt en vraag je om een e-mail als er toch een plek vrijkomt, dan bewaren we alleen je
+            e-mailadres en de dag, behandeling en barber waarvoor je je aanmeldt. Je krijgt daarover één e-mail; na
+            de betreffende dag verwijderen we je aanmelding automatisch.
+          </p>
+        </section>
+        <section>
           <h2>Hoe lang we gegevens bewaren</h2>
           <p>
             We bewaren je gegevens zolang je klant bij ons bent en verwijderen ze op verzoek. Gegevens die we wettelijk

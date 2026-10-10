@@ -1,8 +1,10 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import type { z } from "zod";
 import { fieldErrors } from "@/lib/validation";
 import { DomainError } from "@/server/services/shared";
+import { checkAvailabilityAlerts } from "@/server/services/waitlist";
 import type { FormState } from "./types";
 
 export function formObject(formData: FormData): Record<string, string> {
@@ -11,9 +13,14 @@ export function formObject(formData: FormData): Record<string, string> {
   return data;
 }
 
-/** Refreshes every admin page and the public pages that show prices, hours or availability. */
+/**
+ * Refreshes every admin page and the public pages that show prices, hours or availability.
+ * Any change in the admin may free up room (a cancellation, a removed block, longer hours),
+ * so the waiting list for fully booked days is checked too — after the response.
+ */
 export function refreshAll() {
   revalidatePath("/", "layout");
+  after(checkAvailabilityAlerts);
 }
 
 export function invalid(error: z.ZodError): FormState {

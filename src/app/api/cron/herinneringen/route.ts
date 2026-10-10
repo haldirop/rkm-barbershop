@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { cronSecret } from "@/server/config";
 import { runScheduledJobs } from "@/server/services/jobs";
+import { processAvailabilityAlerts } from "@/server/services/waitlist";
 
 export const maxDuration = 60;
 
@@ -20,7 +21,12 @@ export async function GET(request: Request) {
   if (!authorized(request)) return new Response("Unauthorized", { status: 401 });
   try {
     const result = await runScheduledJobs();
-    return Response.json({ ok: true, ...result }, { headers: { "Cache-Control": "no-store" } });
+    // Safety net for the waiting list (normally checked right after every change).
+    const alerts = await processAvailabilityAlerts();
+    return Response.json(
+      { ok: true, ...result, alertsSent: alerts.notified, alertsRemoved: alerts.removed },
+      { headers: { "Cache-Control": "no-store" } },
+    );
   } catch (error) {
     console.error("[cron] Herinneringen mislukt:", error);
     return Response.json({ ok: false }, { status: 500 });

@@ -271,6 +271,9 @@ export function BookingWizard({
                 value={slot}
                 onChange={onSlotChange}
                 refreshKey={refreshKey}
+                waitlist={
+                  service ? { serviceId: service.id, barberId: barberChoice && barberChoice !== "any" ? barberChoice : null } : undefined
+                }
               />
               <StepNav
                 onBack={() => back("datetime")}

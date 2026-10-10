@@ -6,7 +6,9 @@ import { createManageToken } from "@/server/security";
 import { loadSettings, siteUrl } from "@/server/services/settings";
 import { sendMail } from "./mailer";
 import { EMAIL_LOGO_PATH } from "@/emails/layout";
-import { templates, type TemplateContext, type TemplateName } from "@/emails/templates";
+import { availabilityAlertEmail, templates, type TemplateContext, type TemplateName } from "@/emails/templates";
+import { bookingHref } from "@/lib/links";
+import type { FreedUpSpot } from "@/server/services/waitlist";
 import { ownerEmail } from "@/server/config";
 
 /**
@@ -126,4 +128,27 @@ export async function sendReminder(appointmentId: string): Promise<boolean> {
   const ctx = await context(appointmentId);
   if (!ctx?.customer.email) return false;
   return toCustomer("reminder", ctx);
+}
+
+/** "Er is een plek vrijgekomen" for someone on the waiting list of a fully booked day. */
+export async function notifyAvailabilityAlert(spot: FreedUpSpot): Promise<boolean> {
+  const settings = await loadSettings();
+  const base = siteUrl();
+  const { alert } = spot;
+  const mail = availabilityAlertEmail({
+    settings,
+    date: alert.date,
+    serviceName: spot.serviceName,
+    barberName: spot.barberName,
+    times: spot.times,
+    bookUrl: `${base}${bookingHref({ serviceId: alert.serviceId, barberId: alert.barberId, date: alert.date })}`,
+    logoUrl: `${base}${EMAIL_LOGO_PATH}`,
+  });
+  const result = await sendMail({
+    ...mail,
+    to: alert.email,
+    replyTo: settings.email || undefined,
+    template: "availabilityAlert",
+  });
+  return result.ok;
 }

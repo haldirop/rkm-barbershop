@@ -19,6 +19,7 @@ export function MonthCalendar({
   maxMonth,
   onSelect,
   onMonthChange,
+  allowFull = false,
 }: {
   /** First day of the month shown, "YYYY-MM-01". */
   month: string;
@@ -30,6 +31,8 @@ export function MonthCalendar({
   maxMonth: string;
   onSelect: (date: string) => void;
   onMonthChange: (month: string) => void;
+  /** Fully booked days can be picked too (to sign up for a "plek vrij" e-mail). */
+  allowFull?: boolean;
 }) {
   const byDate = new Map(days?.map((d) => [d.date, d]));
   const dates = eachDay(month, endOfMonth(month));
@@ -76,6 +79,7 @@ export function MonthCalendar({
           const info = byDate.get(date);
           const level = info?.level;
           const bookable = level === "available" || level === "limited";
+          const selectable = bookable || (allowFull && level === "full");
           const isSelected = selected === date;
           const meta = level && level !== "unavailable" ? DAY_LEVEL_META[level] : null;
           return (
@@ -83,7 +87,7 @@ export function MonthCalendar({
               key={date}
               type="button"
               role="gridcell"
-              disabled={!bookable}
+              disabled={!selectable}
               aria-selected={isSelected}
               aria-label={`${formatDateLong(date)}${meta ? `, ${meta.label.toLowerCase()}` : ""}`}
               onClick={() => onSelect(date)}
@@ -93,7 +97,9 @@ export function MonthCalendar({
                   ? "border-gold bg-gold text-canvas"
                   : bookable
                     ? "border-line bg-surface-2 text-ink hover:border-gold/60"
-                    : "border-transparent text-ink-faint/60",
+                    : selectable
+                      ? "border-line/60 text-ink-faint hover:border-red-300/40 hover:text-ink-muted"
+                      : "border-transparent text-ink-faint/60",
                 level === "full" && !isSelected && "line-through decoration-red-400/50",
                 loading && !info && "animate-pulse",
               )}

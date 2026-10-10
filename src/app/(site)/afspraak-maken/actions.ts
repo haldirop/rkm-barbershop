@@ -2,10 +2,11 @@
 
 import { after } from "next/server";
 import { formatDateLong, formatPrice } from "@/lib/format";
-import { bookingRequestSchema, fieldErrors, type FieldErrors } from "@/lib/validation";
+import { availabilityAlertSchema, bookingRequestSchema, fieldErrors, type FieldErrors } from "@/lib/validation";
 import { clientIp, isRateLimited, recordHit } from "@/server/auth/rate-limit";
 import { notifyRequested } from "@/server/notifications/notify";
 import { createBookingRequest } from "@/server/services/booking";
+import { createAvailabilityAlert } from "@/server/services/waitlist";
 import { DomainError } from "@/server/services/shared";
 
 export type BookingResult =
@@ -76,6 +77,40 @@ export async function requestAppointment(input: unknown): Promise<BookingResult>
       return { ok: false, error: error.message, slotTaken: error.code === "SLOT_TAKEN" };
     }
     console.error("[boeking] Onverwachte fout:", error);
+    return { ok: false, error: GENERIC_ERROR };
+  }
+}
+
+export type AlertResult = { ok: true; message: string } | { ok: false; error: string; fieldErrors?: FieldErrors };
+
+/** "Houd me op de hoogte": an e-mail as soon as a fully booked day has room again. */
+export async function requestAvailabilityAlert(input: unknown): Promise<AlertResult> {
+  const parsed = availabilityAlertSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Controleer je e-mailadres.", fieldErrors: fieldErrors(parsed.error) };
+  }
+  const data = parsed.data;
+
+  const ipKey = `alert:${await clientIp()}`;
+  if (await isRateLimited(ipKey, 8, 30)) {
+    return { ok: false, error: "Je hebt je in korte tijd vaak aangemeld. Probeer het later opnieuw." };
+  }
+  await recordHit(ipKey);
+
+  try {
+    await createAvailabilityAlert({
+      serviceId: data.serviceId,
+      barberId: data.barberId,
+      date: data.date,
+      email: data.email,
+    });
+    return {
+      ok: true,
+      message: `Je staat op de lijst. Komt er op ${formatDateLong(data.date)} een plek vrij, dan sturen we direct een e-mail naar ${data.email}.`,
+    };
+  } catch (error) {
+    if (error instanceof DomainError) return { ok: false, error: error.message };
+    console.error("[wachtlijst] Onverwachte fout:", error);
     return { ok: false, error: GENERIC_ERROR };
   }
 }

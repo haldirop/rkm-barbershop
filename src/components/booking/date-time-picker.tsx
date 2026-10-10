@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AvailabilityAlert } from "./availability-alert";
 import { AvailabilityLegendCompact } from "./legend";
 import { BestTimes } from "./best-times";
 import { useJson } from "./hooks";
@@ -26,6 +27,7 @@ export function DateTimePicker({
   value,
   onChange,
   refreshKey = 0,
+  waitlist,
 }: {
   query: string;
   today: string;
@@ -33,6 +35,8 @@ export function DateTimePicker({
   value: DateTimeValue;
   onChange: (value: DateTimeValue) => void;
   refreshKey?: number;
+  /** When set, fully booked days can be picked to sign up for a "plek vrij" e-mail. */
+  waitlist?: { serviceId: string; barberId: string | null };
 }) {
   const [month, setMonth] = useState(startOfMonth(value.date ?? today));
   const slotsRef = useRef<HTMLDivElement>(null);
@@ -86,6 +90,7 @@ export function DateTimePicker({
             maxMonth={startOfMonth(lastDate)}
             onSelect={selectDate}
             onMonthChange={setMonth}
+            allowFull={Boolean(waitlist)}
           />
           <AvailabilityLegendCompact className="mt-4" />
           {calendar.error ? <p className="mt-3 text-sm text-red-300">{calendar.error}</p> : null}
@@ -95,7 +100,14 @@ export function DateTimePicker({
           <h3 className="mb-4 font-display text-2xl font-semibold text-ink">
             {value.date ? capitalize(formatDateLong(value.date)) : "Kies een dag"}
           </h3>
-          {value.date ? (
+          {value.date && waitlist && day.data?.date === value.date && day.data.level === "full" ? (
+            <AvailabilityAlert
+              key={`${value.date}|${waitlist.serviceId}|${waitlist.barberId}`}
+              date={value.date}
+              serviceId={waitlist.serviceId}
+              barberId={waitlist.barberId}
+            />
+          ) : value.date ? (
             <TimeSlots
               day={day.data?.date === value.date ? day.data : undefined}
               loading={day.loading}

@@ -13,6 +13,7 @@ import {
   text,
   time,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
@@ -314,6 +315,31 @@ export const reviews = pgTable(
   (t) => [check("reviews_rating_chk", sql`${t.rating} BETWEEN 1 AND 5`)],
 );
 
+/**
+ * "Houd me op de hoogte": a customer wants an e-mail when a spot frees up on a
+ * fully booked day. Each sign-up gets at most one e-mail (notified_at); rows are
+ * deleted once the date has passed.
+ */
+export const availabilityAlerts = pgTable(
+  "availability_alerts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    date: date("date").notNull(),
+    serviceId: uuid("service_id")
+      .notNull()
+      .references(() => services.id, { onDelete: "cascade" }),
+    /** null = any barber */
+    barberId: uuid("barber_id").references(() => barbers.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    unique("availability_alerts_unique").on(t.date, t.serviceId, t.barberId, t.email).nullsNotDistinct(),
+    index("availability_alerts_date_idx").on(t.date),
+  ],
+);
+
 export const emailLog = pgTable(
   "email_log",
   {
@@ -381,3 +407,4 @@ export type Service = typeof services.$inferSelect;
 export type Settings = typeof settings.$inferSelect;
 export type AdminUser = typeof adminUsers.$inferSelect;
 export type Review = typeof reviews.$inferSelect;
+export type AvailabilityAlert = typeof availabilityAlerts.$inferSelect;

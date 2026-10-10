@@ -193,3 +193,36 @@ export const templates = {
 } satisfies Record<string, (ctx: TemplateContext) => RenderedEmail>;
 
 export type TemplateName = keyof typeof templates;
+
+/** "Er is een plek vrijgekomen": for a customer on the waiting list of a fully booked day. */
+export function availabilityAlertEmail(input: {
+  settings: Settings;
+  date: string;
+  serviceName: string;
+  barberName: string | null;
+  times: string[];
+  bookUrl: string;
+  logoUrl?: string;
+}): RenderedEmail {
+  const day = formatDateLong(input.date);
+  return renderEmail(`Er is een plek vrijgekomen op ${day}`, {
+    preheader: `Goed nieuws: ${input.serviceName} op ${day} is weer te boeken. Wees er snel bij.`,
+    heading: "Er is een plek vrijgekomen",
+    paragraphs: [
+      `Goed nieuws! Je wilde graag weten of er op ${day} nog plek zou komen. Dat is gelukt: er is weer een moment vrij.`,
+      "Wie als eerste boekt, krijgt de plek. Wacht dus niet te lang.",
+    ],
+    details: [
+      ["Behandeling", input.serviceName],
+      ["Datum", capitalize(day)],
+      ...(input.barberName ? ([["Barber", input.barberName]] as Array<[string, string]>) : []),
+      ...(input.times.length ? ([["Vrije tijden", input.times.join(", ")]] as Array<[string, string]>) : []),
+    ],
+    button: { label: "Nu boeken", url: input.bookUrl },
+    footer: [
+      ...footer(input.settings, false),
+      "Je ontvangt deze eenmalige e-mail omdat je je op onze website hebt aangemeld voor een melding.",
+    ],
+    logoUrl: input.logoUrl,
+  });
+}

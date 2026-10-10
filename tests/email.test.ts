@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { templates, type TemplateContext } from "@/emails/templates";
+import { availabilityAlertEmail, templates, type TemplateContext } from "@/emails/templates";
 import { MailError, ResendMailProvider } from "@/server/notifications/mailer";
 import type { Appointment, Customer, Settings } from "@/server/db/schema";
 
@@ -42,6 +42,22 @@ describe("e-mail templates", () => {
     expect(withLogo.html).toContain('<img src="https://rkm.test/brand/rkm-logo-email.png"');
     expect(withLogo.html).toContain('alt="RKM"');
     expect(templates.approved(ctx).html).not.toContain("<img");
+  });
+
+  it("tells someone on the waiting list that a spot has freed up", () => {
+    const mail = availabilityAlertEmail({
+      settings: ctx.settings,
+      date: "2026-11-14",
+      serviceName: "Skin Fade",
+      barberName: null,
+      times: ["14:00", "14:30"],
+      bookUrl: "https://rkm.test/afspraak-maken?datum=2026-11-14",
+    });
+    expect(mail.subject).toBe("Er is een plek vrijgekomen op zaterdag 14 november");
+    expect(mail.text).toContain("Vrije tijden: 14:00, 14:30");
+    expect(mail.text).toContain("Wie als eerste boekt, krijgt de plek");
+    expect(mail.html).toContain('href="https://rkm.test/afspraak-maken?datum=2026-11-14"');
+    expect(mail.text).not.toContain("omdat je een afspraak hebt");
   });
 
   it("escapes customer input in the HTML", () => {
