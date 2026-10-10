@@ -121,7 +121,12 @@ export function BookingWizard({
     [pathname, searchParams],
   );
 
-  const next = (from: StepId) => goTo(steps[order(from) + 1]);
+  // A barber picked through a link (e.g. "Maak een afspraak bij Rohid") isn't asked for again.
+  const linkedBarber = initial.barberId && barberChoice === initial.barberId ? barber : null;
+  const next = (from: StepId) => {
+    const following = steps[order(from) + 1];
+    goTo(following === "barber" && linkedBarber ? steps[order(following) + 1] : following);
+  };
   const back = (from: StepId) => goTo(steps[Math.max(0, order(from) - 1)]);
 
   const query = service
@@ -189,7 +194,10 @@ export function BookingWizard({
           {error && step !== "confirm" ? <Alert tone="error" className="mb-6">{error}</Alert> : null}
 
           {step === "service" ? (
-            <StepSection title="Welke behandeling wil je?" subtitle="De tijd van de behandeling reserveren we volledig voor je.">
+            <StepSection
+              title="Welke behandeling wil je?"
+              subtitle={`${linkedBarber ? `Je afspraak is bij ${linkedBarber.name}. ` : ""}De tijd van de behandeling reserveren we volledig voor je.`}
+            >
               <ul className="grid gap-3 sm:grid-cols-2">
                 {services.map((s) => (
                   <li key={s.id}>

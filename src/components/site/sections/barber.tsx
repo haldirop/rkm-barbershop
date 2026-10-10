@@ -3,6 +3,8 @@ import { Ornament } from "@/components/site/logo";
 import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
 import { ButtonLink } from "@/components/ui/button";
+import { bookingHref } from "@/lib/links";
+import { getActiveBarbers } from "@/server/services/catalog";
 
 const FACTS = [
   { value: "20 jaar", label: "ervaring als barber" },
@@ -11,7 +13,10 @@ const FACTS = [
 ];
 
 /** "Je barber": Rohid, owner and (for now) the only barber in the shop. */
-export function Barber() {
+export async function Barber() {
+  // Book straight into Rohid's agenda when he is listed under Beheer → Barbers.
+  const rohid = (await getActiveBarbers()).find((b) => /\brohid\b/i.test(b.name));
+
   return (
     <section aria-labelledby="barber" className="border-t border-line py-24 sm:py-32">
       <div className="container-page grid items-center gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-24">
@@ -46,7 +51,7 @@ export function Barber() {
             ))}
           </ul>
 
-          <ButtonLink href="/afspraak-maken" className="mt-10">
+          <ButtonLink href={bookingHref({ barberId: rohid?.id })} className="mt-10">
             Maak een afspraak bij Rohid
             <ArrowRight className="size-4" aria-hidden />
           </ButtonLink>
