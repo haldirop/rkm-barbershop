@@ -29,6 +29,13 @@
       "when": 1791662302796,
       "tag": "0003_availability_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791665659579,
+      "tag": "0004_availability_alert_error",
+      "breakpoints": true
     }
   ]
 }

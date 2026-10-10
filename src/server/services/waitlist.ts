@@ -70,7 +70,7 @@ export async function createAvailabilityAlert(
   // Signed up before (and maybe already e-mailed while the day was briefly free): start over.
   const [renewed] = await db
     .update(availabilityAlerts)
-    .set({ notifiedAt: null, createdAt: new Date() })
+    .set({ notifiedAt: null, lastError: null, createdAt: new Date() })
     .where(sameAlert)
     .returning();
   if (renewed) return renewed;
@@ -111,14 +111,17 @@ export interface FreedUpSpot {
   times: string[];
 }
 
+export type SendOutcome = { ok: boolean; error?: string };
+
 /**
  * Sends "er is een plek vrijgekomen" for every open sign-up whose day has room again,
  * and removes sign-ups for days that have passed. Safe to run often and in parallel.
+ * A sign-up whose e-mail could not be sent stays on the list and is tried again next time.
  */
 export async function processAvailabilityAlerts(
-  opts: { now?: ZonedNow; send?: (spot: FreedUpSpot) => Promise<boolean> } = {},
+  opts: { now?: ZonedNow; send?: (spot: FreedUpSpot) => Promise<SendOutcome> } = {},
   db: DbOrTx = getDb(),
-): Promise<{ notified: number; removed: number }> {
+): Promise<{ notified: number; failed: number; removed: number }> {
   const now = opts.now ?? zonedNow();
   // Nothing to tell anymore, and the e-mail address isn't kept longer than needed.
   const removed = await db
@@ -131,7 +134,7 @@ export async function processAvailabilityAlerts(
     .from(availabilityAlerts)
     .where(isNull(availabilityAlerts.notifiedAt))
     .orderBy(asc(availabilityAlerts.createdAt));
-  if (!open.length) return { notified: 0, removed: removed.length };
+  if (!open.length) return { notified: 0, failed: 0, removed: removed.length };
 
   const send = opts.send ?? notifyAvailabilityAlert;
   const serviceRows = await db
@@ -148,6 +151,7 @@ export async function processAvailabilityAlerts(
   }
 
   let notified = 0;
+  let failed = 0;
   for (const alerts of groups.values()) {
     const { date, serviceId, barberId } = alerts[0];
     const service = serviceRows.find((s) => s.id === serviceId);
@@ -158,7 +162,7 @@ export async function processAvailabilityAlerts(
     // Claim first, then send: a parallel run can never e-mail the same person twice.
     const claimed = await db
       .update(availabilityAlerts)
-      .set({ notifiedAt: new Date() })
+      .set({ notifiedAt: new Date(), lastError: null })
       .where(
         and(
           inArray(
@@ -176,10 +180,23 @@ export async function processAvailabilityAlerts(
         barberName: barberId ? (barberRows.find((b) => b.id === barberId)?.name ?? null) : null,
         times: day.slots.slice(0, 4).map((s) => s.time),
       };
-      if (await send(spot)) notified++;
+      const outcome = await send(spot).catch((error: unknown): SendOutcome => {
+        console.error("[wachtlijst] Versturen mislukt:", error);
+        return { ok: false };
+      });
+      if (outcome.ok) {
+        notified++;
+        continue;
+      }
+      // Not sent (e.g. Resend refused it): back on the list, with the reason for the admin.
+      failed++;
+      await db
+        .update(availabilityAlerts)
+        .set({ notifiedAt: null, lastError: outcome.error ?? "Onbekende fout bij het versturen." })
+        .where(eq(availabilityAlerts.id, alert.id));
     }
   }
-  return { notified, removed: removed.length };
+  return { notified, failed, removed: removed.length };
 }
 
 /** For `after()`: checks the waiting list, and never lets a failure surface. */
@@ -203,6 +220,8 @@ export interface WaitlistEntry {
   createdAt: Date;
   /** Set once the "plek vrij" e-mail has gone out. */
   notifiedAt: Date | null;
+  /** Why the last attempt to send that e-mail failed; it is retried at the next check. */
+  lastError: string | null;
 }
 
 /** All sign-ups from `from` onwards, by date, oldest sign-up first. */
@@ -216,6 +235,7 @@ export async function listWaitlist(from: IsoDate, db: DbOrTx = getDb()): Promise
       barberName: barbers.name,
       createdAt: availabilityAlerts.createdAt,
       notifiedAt: availabilityAlerts.notifiedAt,
+      lastError: availabilityAlerts.lastError,
     })
     .from(availabilityAlerts)
     .innerJoin(services, eq(services.id, availabilityAlerts.serviceId))

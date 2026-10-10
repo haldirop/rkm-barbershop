@@ -46,12 +46,20 @@ export default async function WaitlistPage() {
                       <span className="block text-ink-muted">
                         {e.serviceName} · {e.barberName ?? "geen voorkeur"} · aangemeld {formatDateTime(e.createdAt)}
                       </span>
+                      {!e.notifiedAt && e.lastError ? (
+                        <span className="mt-1 block text-red-300">
+                          Er is plek, maar de e-mail kon niet worden verstuurd: {e.lastError} Hij wordt bij de
+                          volgende controle opnieuw geprobeerd.
+                        </span>
+                      ) : null}
                     </span>
                     <span className="flex items-center gap-3">
                       {e.notifiedAt ? (
                         <Badge className="bg-emerald-400/10 text-emerald-300 ring-emerald-400/30">
                           Bericht verstuurd {formatDateTime(e.notifiedAt)}
                         </Badge>
+                      ) : e.lastError ? (
+                        <Badge className="bg-red-400/10 text-red-300 ring-red-400/30">E-mail mislukt</Badge>
                       ) : (
                         <Badge className="bg-amber-400/10 text-amber-300 ring-amber-400/30">Wacht op plek</Badge>
                       )}

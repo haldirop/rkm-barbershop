@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     // Safety net for the waiting list (normally checked right after every change).
     const alerts = await processAvailabilityAlerts();
     return Response.json(
-      { ok: true, ...result, alertsSent: alerts.notified, alertsRemoved: alerts.removed },
+      { ok: true, ...result, alertsSent: alerts.notified, alertsFailed: alerts.failed, alertsRemoved: alerts.removed },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

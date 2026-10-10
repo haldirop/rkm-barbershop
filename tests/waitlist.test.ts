@@ -70,7 +70,7 @@ const alertFor = (email: string, barberId: string | null = rayanId) => ({
 
 function collector() {
   const sent: FreedUpSpot[] = [];
-  return { sent, send: async (spot: FreedUpSpot) => (sent.push(spot), true) };
+  return { sent, send: async (spot: FreedUpSpot) => (sent.push(spot), { ok: true }) };
 }
 
 describe("waiting list for fully booked days", () => {
@@ -107,11 +107,36 @@ describe("waiting list for fully booked days", () => {
     expect((await processAvailabilityAlerts({ now: NOW, send })).notified).toBe(0);
   });
 
+  it("keeps a sign-up on the list when the e-mail could not be sent, and tries again", async () => {
+    const booked = await fillRayansThursday();
+    await createAvailabilityAlert(alertFor("klant@example.com"), { now: NOW });
+    await changeStatus(booked.id, "CANCELLED", { userId: null });
+
+    const refused = async () => ({ ok: false, error: "Resend weigerde de e-mail." });
+    expect(await processAvailabilityAlerts({ now: NOW, send: refused })).toMatchObject({ notified: 0, failed: 1 });
+    const [waiting] = await handle.db.select().from(availabilityAlerts);
+    expect(waiting).toMatchObject({ notifiedAt: null, lastError: "Resend weigerde de e-mail." });
+
+    // A crash while sending counts as a failure too: nobody is left marked as notified without an e-mail.
+    const crashing = async (): Promise<never> => {
+      throw new Error("Database weg");
+    };
+    expect(await processAvailabilityAlerts({ now: NOW, send: crashing })).toMatchObject({ notified: 0, failed: 1 });
+    expect((await handle.db.select().from(availabilityAlerts))[0].notifiedAt).toBeNull();
+
+    const { sent, send } = collector();
+    expect(await processAvailabilityAlerts({ now: NOW, send })).toMatchObject({ notified: 1, failed: 0 });
+    expect(sent).toHaveLength(1);
+    const [done] = await handle.db.select().from(availabilityAlerts);
+    expect(done.notifiedAt).not.toBeNull();
+    expect(done.lastError).toBeNull();
+  });
+
   it("removes sign-ups once the day has passed", async () => {
     await fillRayansThursday();
     await createAvailabilityAlert(alertFor("klant@example.com"), { now: NOW });
     const result = await processAvailabilityAlerts({ now: { date: "2026-10-09", minutes: 600 }, send: collector().send });
-    expect(result).toEqual({ notified: 0, removed: 1 });
+    expect(result).toEqual({ notified: 0, failed: 0, removed: 1 });
     expect(await handle.db.select().from(availabilityAlerts)).toHaveLength(0);
   });
 

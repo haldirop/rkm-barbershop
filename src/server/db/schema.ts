@@ -332,6 +332,8 @@ export const availabilityAlerts = pgTable(
     barberId: uuid("barber_id").references(() => barbers.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     notifiedAt: timestamp("notified_at", { withTimezone: true }),
+    /** Why the last "plek vrij" e-mail could not be sent (retried at the next check). */
+    lastError: text("last_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

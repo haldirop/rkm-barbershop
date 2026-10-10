@@ -8,7 +8,7 @@ import { sendMail } from "./mailer";
 import { EMAIL_LOGO_PATH } from "@/emails/layout";
 import { availabilityAlertEmail, templates, type TemplateContext, type TemplateName } from "@/emails/templates";
 import { bookingHref } from "@/lib/links";
-import type { FreedUpSpot } from "@/server/services/waitlist";
+import type { FreedUpSpot, SendOutcome } from "@/server/services/waitlist";
 import { ownerEmail } from "@/server/config";
 
 /**
@@ -131,7 +131,7 @@ export async function sendReminder(appointmentId: string): Promise<boolean> {
 }
 
 /** "Er is een plek vrijgekomen" for someone on the waiting list of a fully booked day. */
-export async function notifyAvailabilityAlert(spot: FreedUpSpot): Promise<boolean> {
+export async function notifyAvailabilityAlert(spot: FreedUpSpot): Promise<SendOutcome> {
   const settings = await loadSettings();
   const base = siteUrl();
   const { alert } = spot;
@@ -144,11 +144,10 @@ export async function notifyAvailabilityAlert(spot: FreedUpSpot): Promise<boolea
     bookUrl: `${base}${bookingHref({ serviceId: alert.serviceId, barberId: alert.barberId, date: alert.date })}`,
     logoUrl: `${base}${EMAIL_LOGO_PATH}`,
   });
-  const result = await sendMail({
+  return sendMail({
     ...mail,
     to: alert.email,
     replyTo: settings.email || undefined,
     template: "availabilityAlert",
   });
-  return result.ok;
 }
