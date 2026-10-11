@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { allocateDiscount, discountAmount, parseEuroCents, priceSale, summarizeVat, vatIncluded } from "@/lib/pos";
+import { allocateDiscount, discountAmount, parseEuroCents, priceSale, stockStatus, summarizeVat, vatIncluded } from "@/lib/pos";
 import type { ZonedNow } from "@/lib/time";
 import { openDatabase, setDb, type DatabaseHandle } from "@/server/db/client";
 import { appointments, appointmentEvents, barbers, cashCounts, customers, emailLog, products, sales, services } from "@/server/db/schema";
@@ -66,6 +66,14 @@ describe("till calculations", () => {
       { rate: 21, grossCents: 2178, vatCents: 378, netCents: 1800 },
       { rate: 9, grossCents: 2250, vatCents: 186, netCents: 2064 },
     ]);
+  });
+
+  it("flags products that are sold out or nearly sold out", () => {
+    expect(stockStatus({ stock: null, lowStockAt: 3 })).toBeNull();
+    expect(stockStatus({ stock: 0, lowStockAt: null })).toBe("out");
+    expect(stockStatus({ stock: 3, lowStockAt: 3 })).toBe("low");
+    expect(stockStatus({ stock: 4, lowStockAt: 3 })).toBeNull();
+    expect(stockStatus({ stock: 2, lowStockAt: null })).toBeNull();
   });
 
   it("reads amounts the way people type them", () => {

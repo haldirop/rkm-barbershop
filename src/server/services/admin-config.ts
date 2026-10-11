@@ -256,6 +256,8 @@ export interface ProductInput {
   vatRate: number;
   /** null = stock is not tracked */
   stock: number | null;
+  /** Warn at or below this stock (null = no warning). */
+  lowStockAt: number | null;
   isActive: boolean;
   sortOrder: number;
 }

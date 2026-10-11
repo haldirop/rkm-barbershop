@@ -40,6 +40,7 @@ export type EventType =
   | "REJECTED"
   | "CANCELLED"
   | "COMPLETED"
+  | "NO_SHOW"
   | "RESCHEDULED"
   | "UPDATED"
   | "REOPENED";

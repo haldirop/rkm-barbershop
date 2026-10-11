@@ -116,6 +116,14 @@ export function summarizeVat(lines: Array<{ vatRate: number; totalCents: number;
   return [...byRate.values()].sort((a, b) => b.rate - a.rate);
 }
 
+/** Stock that needs attention: sold out, or at/below the product's warning level. */
+export function stockStatus(product: { stock: number | null; lowStockAt: number | null }): "out" | "low" | null {
+  if (product.stock === null) return null;
+  if (product.stock <= 0) return "out";
+  if (product.lowStockAt !== null && product.stock <= product.lowStockAt) return "low";
+  return null;
+}
+
 /** "12,50" / "12.5" / "€ 12" → 1250. null when it isn't a valid amount. */
 export function parseEuroCents(input: string): number | null {
   const cleaned = input.replace(/[€\s]/g, "").replace(",", ".");

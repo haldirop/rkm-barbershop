@@ -46,6 +46,11 @@ const STATUS_COPY = {
     title: "Bedankt voor je bezoek!",
     text: "Tot de volgende keer. Je vorige behandeling plan je hieronder met één klik opnieuw in.",
   },
+  NO_SHOW: {
+    tone: "info" as const,
+    title: "We hebben je bij deze afspraak gemist",
+    text: "Kun je een keer niet? Laat het ons dan graag van tevoren weten. Een nieuwe afspraak plan je hieronder eenvoudig in.",
+  },
 };
 
 export default async function ManageAppointmentPage({ params }: PageProps<"/afspraak/[token]">) {

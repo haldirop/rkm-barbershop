@@ -11,7 +11,15 @@ import { Button, ButtonLink } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/form";
 import { cn } from "@/lib/cn";
 import { formatAmount } from "@/lib/format";
-import { centsToInput, PAYMENT_METHODS, parseEuroCents, priceSale, type Discount, type PaymentMethodKey } from "@/lib/pos";
+import {
+  centsToInput,
+  PAYMENT_METHODS,
+  parseEuroCents,
+  priceSale,
+  stockStatus,
+  type Discount,
+  type PaymentMethodKey,
+} from "@/lib/pos";
 
 export interface TillItem {
   id: string;
@@ -23,6 +31,7 @@ export interface TillItem {
 export interface TillProduct extends TillItem {
   /** null = stock not tracked */
   stock: number | null;
+  lowStockAt: number | null;
 }
 
 export interface TillAppointment {
@@ -307,7 +316,8 @@ export function Checkout({
           {products.length ? (
             <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {products.map((p) => {
-                const soldOut = p.stock !== null && p.stock <= 0;
+                const status = stockStatus(p);
+                const soldOut = status === "out";
                 return (
                   <li key={p.id}>
                     <button
@@ -320,7 +330,9 @@ export function Checkout({
                       <span className="flex items-baseline justify-between gap-2">
                         <span className="text-sm font-semibold text-gold-bright tabular-nums">{formatAmount(p.priceCents)}</span>
                         {p.stock !== null ? (
-                          <span className="text-xs text-ink-faint">{soldOut ? "Op" : `${p.stock} op voorraad`}</span>
+                          <span className={cn("text-xs", status === "low" ? "text-amber-300" : "text-ink-faint")}>
+                            {soldOut ? "Op" : status === "low" ? `Bijna op · ${p.stock}` : `${p.stock} op voorraad`}
+                          </span>
                         ) : null}
                       </span>
                     </button>

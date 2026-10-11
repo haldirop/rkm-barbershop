@@ -242,6 +242,11 @@ const productSchema = z.object({
     .trim()
     .refine((v) => v === "" || /^\d{1,5}$/.test(v), "Vul een heel aantal in, of laat leeg.")
     .transform((v) => (v === "" ? null : Number(v))),
+  lowStockAt: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || /^\d{1,5}$/.test(v), "Vul een heel aantal in, of laat leeg.")
+    .transform((v) => (v === "" ? null : Number(v))),
   sortOrder: z.coerce.number().int().min(0).max(999).default(0),
 });
 

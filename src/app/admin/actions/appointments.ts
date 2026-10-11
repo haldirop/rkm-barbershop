@@ -47,11 +47,12 @@ const STATUS_MESSAGES: Partial<Record<AppointmentStatus, string>> = {
   REJECTED: "Aanvraag geweigerd.",
   CANCELLED: "Afspraak geannuleerd.",
   COMPLETED: "Afspraak afgerond.",
+  NO_SHOW: "Gemarkeerd als niet verschenen.",
 };
 
 export async function setAppointmentStatus(
   id: string,
-  status: "APPROVED" | "REJECTED" | "CANCELLED" | "COMPLETED",
+  status: "APPROVED" | "REJECTED" | "CANCELLED" | "COMPLETED" | "NO_SHOW",
   options: { reason?: string; notify?: boolean } = {},
 ): Promise<ActionResult> {
   const user = await requireAdmin();
@@ -64,7 +65,8 @@ export async function setAppointmentStatus(
       reason: reason.data ?? null,
     });
     const notify = status === "APPROVED" || (options.notify ?? true);
-    if (notify && status !== "COMPLETED") {
+    // Completing or marking a no-show is bookkeeping for the shop: no e-mail to the customer.
+    if (notify && (status === "APPROVED" || status === "REJECTED" || status === "CANCELLED")) {
       after(() => notifyStatusChanged(appointment.id, status, reason.data));
     }
     refresh();

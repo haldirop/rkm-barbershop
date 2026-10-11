@@ -312,7 +312,7 @@ export function AgendaMonthView({
 export function AgendaLegend() {
   return (
     <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-ink-muted">
-      {(["PENDING", "APPROVED", "COMPLETED", "REJECTED", "CANCELLED"] as const).map((s) => (
+      {(["PENDING", "APPROVED", "COMPLETED", "NO_SHOW", "REJECTED", "CANCELLED"] as const).map((s) => (
         <li key={s} className="flex items-center gap-1.5">
           <span className={cn("size-2 rounded-full", STATUS_META[s].dot)} aria-hidden />
           {capitalize(STATUS_META[s].label)}

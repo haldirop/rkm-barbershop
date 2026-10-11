@@ -1,4 +1,5 @@
 import { Mail, MessageSquare, Pencil, Phone, Receipt, StickyNote, UserRound } from "lucide-react";
+import { NoShowNote } from "@/components/admin/no-show-note";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/admin/page-header";
@@ -21,6 +22,7 @@ const EVENT_LABELS: Record<string, string> = {
   REJECTED: "Geweigerd",
   CANCELLED: "Geannuleerd",
   COMPLETED: "Afgerond",
+  NO_SHOW: "Niet verschenen",
   RESCHEDULED: "Verplaatst door klant",
   UPDATED: "Gewijzigd",
   REOPENED: "Opnieuw bevestigd",
@@ -44,6 +46,7 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
   const { appointment: a, customer: c } = detail;
   const now = zonedNow();
   const isPast = a.date < now.date || (a.date === now.date && timeToMinutes(a.endTime) <= now.minutes);
+  const hasStarted = a.date < now.date || (a.date === now.date && timeToMinutes(a.startTime) <= now.minutes);
 
   return (
     <div>
@@ -60,7 +63,7 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
       />
 
       <div className="mb-8 flex flex-col gap-3 rounded-2xl border border-line bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
-        <StatusActions id={a.id} status={a.status} hasEmail={Boolean(c.email)} isPast={isPast} />
+        <StatusActions id={a.id} status={a.status} hasEmail={Boolean(c.email)} isPast={isPast} hasStarted={hasStarted} />
         <div className="flex flex-wrap gap-2">
           {paid ? (
             <ButtonLink href={`/kassa/bonnen/${paid.id}`} variant="secondary">
@@ -174,6 +177,7 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
                 <Phone className="size-4 text-gold" aria-hidden />
                 {c.phone}
               </a>
+              {detail.customerNoShows ? <NoShowNote count={detail.customerNoShows} /> : null}
               {c.email ? (
                 <a href={`mailto:${c.email}`} className="flex items-center gap-3 break-all text-ink hover:text-gold-bright">
                   <Mail className="size-4 shrink-0 text-gold" aria-hidden />

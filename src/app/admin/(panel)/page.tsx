@@ -1,20 +1,22 @@
-import { ArrowRight, BellRing, CalendarCheck, CheckCheck, CircleCheck, Clock, Euro, Hourglass, ListChecks } from "lucide-react";
+import { ArrowRight, BellRing, CalendarCheck, CheckCheck, CircleCheck, Clock, Hourglass, ListChecks, Package } from "lucide-react";
 import Link from "next/link";
 import { AutoRefresh } from "@/components/admin/auto-refresh";
+import { Delta, StatTile } from "@/components/admin/insight-ui";
 import { RequestCard } from "@/components/admin/request-card";
 import { Alert } from "@/components/ui/alert";
 import { StatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
-import { capitalize, formatDateLong, formatPrice } from "@/lib/format";
-import { zonedNow } from "@/lib/time";
+import { capitalize, formatAmount, formatDateLong, weekdayName } from "@/lib/format";
+import { isoWeekday, zonedNow } from "@/lib/time";
 import { requireAdmin } from "@/server/auth/session";
 import { getDb } from "@/server/db/client";
 import { hasDemoData } from "@/server/db/seed";
 import { isMailConfigured } from "@/server/notifications/mailer";
 import { listAppointmentsInRange, listPendingRequests } from "@/server/services/appointments";
 import { getSettings } from "@/server/services/settings";
+import { lowStockProducts, revenueOverview } from "@/server/services/insights";
 import { getDashboardStats } from "@/server/services/stats";
 
 export const metadata = { title: "Overzicht" };
@@ -29,12 +31,14 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
   const user = await requireAdmin();
   const passwordChanged = (await searchParams).wachtwoord === "gewijzigd";
   const now = zonedNow();
-  const [stats, pending, today, settings, demo] = await Promise.all([
+  const [stats, pending, today, settings, demo, revenue, lowStock] = await Promise.all([
     getDashboardStats(),
     listPendingRequests(6),
-    listAppointmentsInRange(now.date, now.date, { statuses: ["PENDING", "APPROVED", "COMPLETED"] }),
+    listAppointmentsInRange(now.date, now.date, { statuses: ["PENDING", "APPROVED", "COMPLETED", "NO_SHOW"] }),
     getSettings(),
     hasDemoData(getDb()),
+    revenueOverview(now),
+    lowStockProducts(),
   ]);
 
   const checklist = [
@@ -48,8 +52,13 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
     { label: "Nieuwe aanvragen", value: String(stats.pending), hint: "wachten op jou", Icon: Hourglass, highlight: stats.pending > 0 },
     { label: "Komende bevestigd", value: String(stats.approvedUpcoming), hint: "vanaf vandaag", Icon: CheckCheck },
     { label: "Vrije tijd vandaag", value: `${Math.floor(stats.freeMinutesToday / 60)}u ${stats.freeMinutesToday % 60}m`, hint: "alle barbers samen", Icon: Clock },
-    { label: "Omzet deze week", value: formatPrice(stats.weekRevenueCents), hint: "bevestigd + afgerond", Icon: Euro },
-    { label: "Omzet deze maand", value: formatPrice(stats.monthRevenueCents), hint: "bevestigd + afgerond", Icon: Euro },
+  ];
+
+  const revenueTiles = [
+    { label: "Omzet vandaag", value: revenue.today.current.revenueCents, change: revenue.today.change, versus: `vorige ${weekdayName(isoWeekday(now.date))}` },
+    { label: "Omzet deze week", value: revenue.week.current.revenueCents, change: revenue.week.change, versus: "vorige week" },
+    { label: "Omzet deze maand", value: revenue.month.current.revenueCents, change: revenue.month.change, versus: "vorige maand" },
+    { label: "Gemiddeld per bon", value: revenue.averageReceipt.current, change: revenue.averageReceipt.change, versus: "vorige maand" },
   ];
 
   return (
@@ -98,7 +107,22 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
         </section>
       ) : null}
 
-      <section aria-label="Kerncijfers" className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      {lowStock.length ? (
+        <Link
+          href="/kassa/producten"
+          className="flex items-center gap-4 rounded-2xl border border-amber-400/30 bg-amber-400/[0.06] p-4 hover:border-amber-400/50"
+        >
+          <Package className="size-6 shrink-0 text-amber-300" aria-hidden />
+          <span className="text-sm text-ink">
+            <span className="font-semibold">
+              {lowStock.length === 1 ? "1 product is bijna op" : `${lowStock.length} producten zijn bijna op`}:
+            </span>{" "}
+            {lowStock.map((p) => `${p.name} (${p.stock})`).join(", ")}
+          </span>
+        </Link>
+      ) : null}
+
+      <section aria-label="Kerncijfers" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {statCards.map(({ label, value, hint, Icon, highlight }) => (
           <div
             key={label}
@@ -115,6 +139,22 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
             <p className="mt-0.5 text-xs text-ink-faint">{hint}</p>
           </div>
         ))}
+      </section>
+
+      <section aria-labelledby="omzet-title">
+        <div className="mb-3 flex items-end justify-between gap-3">
+          <h2 id="omzet-title" className="text-sm font-semibold tracking-wide text-ink-muted uppercase">
+            Omzet uit de kassa
+          </h2>
+          <Link href="/admin/inzichten" className="text-sm font-medium text-gold hover:text-gold-bright">
+            Meer inzichten
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {revenueTiles.map((tile) => (
+            <StatTile key={tile.label} label={tile.label} value={formatAmount(tile.value)} footer={<Delta change={tile.change} versus={tile.versus} />} />
+          ))}
+        </div>
       </section>
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">

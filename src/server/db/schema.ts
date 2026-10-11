@@ -45,6 +45,8 @@ export const appointmentStatus = pgEnum("appointment_status", [
   "REJECTED",
   "CANCELLED",
   "COMPLETED",
+  /** The customer didn't show up. Frees the slot like a cancellation; counted per customer. */
+  "NO_SHOW",
 ]);
 
 export const userRole = pgEnum("user_role", ["OWNER", "ADMIN"]);
@@ -383,6 +385,8 @@ export const products = pgTable(
     priceCents: integer("price_cents").notNull(),
     vatRate: smallint("vat_rate").notNull().default(21),
     stock: integer("stock"),
+    /** Warn when the stock is at or below this number (null = no warning). */
+    lowStockAt: integer("low_stock_at"),
     isActive: boolean("is_active").notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     ...timestamps,

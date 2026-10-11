@@ -13,6 +13,7 @@ export interface ProductValues {
   priceCents: number;
   vatRate: number;
   stock: number | null;
+  lowStockAt: number | null;
   isActive: boolean;
   sortOrder: number;
 }
@@ -27,7 +28,7 @@ export function ProductForm({ product }: { product?: ProductValues }) {
     <form ref={formRef} action={action} className="space-y-4">
       <input type="hidden" name="id" value={product?.id ?? ""} />
       <FormError state={state} />
-      <div className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr_1fr]">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr]">
         <Field label="Naam" htmlFor={`name-${key}`} error={errors.name}>
           <Input id={`name-${key}`} name="name" defaultValue={product?.name} required maxLength={60} placeholder="Bijv. Matte wax 100 ml" />
         </Field>
@@ -56,6 +57,17 @@ export function ProductForm({ product }: { product?: ProductValues }) {
             min={0}
             max={99999}
             defaultValue={product?.stock ?? ""}
+            placeholder="—"
+          />
+        </Field>
+        <Field label="Melding bij" htmlFor={`low-${key}`} error={errors.lowStockAt} hint="Waarschuw bij deze voorraad. Leeg = nooit.">
+          <Input
+            id={`low-${key}`}
+            name="lowStockAt"
+            type="number"
+            min={0}
+            max={99999}
+            defaultValue={product ? (product.lowStockAt ?? "") : 3}
             placeholder="—"
           />
         </Field>

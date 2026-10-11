@@ -50,7 +50,7 @@ export default async function AgendaPage({ searchParams }: PageProps<"/admin/age
   const barberFilter = one(params.barber);
   const showAll = one(params.alles) === "1";
   const statuses: AppointmentStatus[] = showAll
-    ? ["PENDING", "APPROVED", "COMPLETED", "REJECTED", "CANCELLED"]
+    ? ["PENDING", "APPROVED", "COMPLETED", "NO_SHOW", "REJECTED", "CANCELLED"]
     : ["PENDING", "APPROVED", "COMPLETED"];
 
   const from = view === "dag" ? date : view === "week" ? startOfWeek(date) : startOfWeek(startOfMonth(date));

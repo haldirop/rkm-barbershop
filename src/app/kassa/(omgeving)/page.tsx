@@ -57,7 +57,14 @@ export default async function KassaPage({ searchParams }: PageProps<"/kassa">) {
       <Checkout
         key={preselect?.id ?? "walk-in"}
         services={services.map((s) => ({ id: s.id, name: s.name, priceCents: s.priceCents, vatRate: s.vatRate }))}
-        products={products.map((p) => ({ id: p.id, name: p.name, priceCents: p.priceCents, vatRate: p.vatRate, stock: p.stock }))}
+        products={products.map((p) => ({
+          id: p.id,
+          name: p.name,
+          priceCents: p.priceCents,
+          vatRate: p.vatRate,
+          stock: p.stock,
+          lowStockAt: p.lowStockAt,
+        }))}
         barbers={barbers.map((b) => ({ id: b.id, name: b.name }))}
         unpaid={list}
         preselect={preselect}

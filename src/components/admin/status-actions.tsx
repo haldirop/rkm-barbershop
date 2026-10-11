@@ -1,6 +1,6 @@
 "use client";
 
-import { Ban, Check, CheckCheck, LoaderCircle, RotateCcw, Trash2, X } from "lucide-react";
+import { Ban, Check, CheckCheck, LoaderCircle, RotateCcw, Trash2, UserX, X } from "lucide-react";
 import { useState, useTransition } from "react";
 import { removeAppointment, setAppointmentStatus, type ActionResult } from "@/app/admin/actions/appointments";
 import { Button } from "@/components/ui/button";
@@ -38,12 +38,15 @@ export function StatusActions({
   status,
   hasEmail,
   isPast = false,
+  hasStarted = isPast,
   variant = "full",
 }: {
   id: string;
   status: AppointmentStatus;
   hasEmail: boolean;
   isPast?: boolean;
+  /** The start time has passed: "Niet verschenen" becomes possible. */
+  hasStarted?: boolean;
   variant?: "quick" | "full";
 }) {
   const [pending, startTransition] = useTransition();
@@ -97,6 +100,7 @@ export function StatusActions({
                 {spinner ?? <CheckCheck className="size-4" aria-hidden />} Markeer als afgerond
               </Button>
             ) : null}
+            {hasStarted ? <NoShowButton disabled={pending} onClick={() => run(() => setAppointmentStatus(id, "NO_SHOW"))} /> : null}
             <Button variant="danger" disabled={pending} onClick={() => setIntent("CANCELLED")}>
               <Ban className="size-4" aria-hidden /> Annuleren
             </Button>
@@ -113,6 +117,16 @@ export function StatusActions({
           <Button variant="secondary" disabled={pending} onClick={() => run(() => setAppointmentStatus(id, "APPROVED"))}>
             {spinner ?? <RotateCcw className="size-4" aria-hidden />}
             {status === "COMPLETED" ? "Terug naar bevestigd" : "Toch bevestigen"}
+          </Button>
+        ) : null}
+
+        {variant === "full" && status === "COMPLETED" ? (
+          <NoShowButton disabled={pending} onClick={() => run(() => setAppointmentStatus(id, "NO_SHOW"))} />
+        ) : null}
+
+        {variant === "full" && status === "NO_SHOW" ? (
+          <Button variant="secondary" disabled={pending} onClick={() => run(() => setAppointmentStatus(id, "COMPLETED"))}>
+            {spinner ?? <RotateCcw className="size-4" aria-hidden />} Toch verschenen
           </Button>
         ) : null}
 
@@ -158,5 +172,13 @@ export function StatusActions({
         </div>
       </Dialog>
     </>
+  );
+}
+
+function NoShowButton({ disabled, onClick }: { disabled: boolean; onClick: () => void }) {
+  return (
+    <Button variant="ghost" disabled={disabled} onClick={onClick} className="text-orange-300 hover:text-orange-200">
+      <UserX className="size-4" aria-hidden /> Niet verschenen
+    </Button>
   );
 }

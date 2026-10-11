@@ -76,6 +76,7 @@ export async function getCustomerDetail(id: string, db: DbOrTx = getDb()) {
       .filter((a) => a.status === "COMPLETED")
       .reduce((sum, a) => sum + a.priceCents, 0),
     visits: completedOrApproved.length,
+    noShows: history.filter((a) => a.status === "NO_SHOW").length,
   };
 }
 

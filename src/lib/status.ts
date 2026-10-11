@@ -6,6 +6,7 @@ export const APPOINTMENT_STATUSES = [
   "REJECTED",
   "CANCELLED",
   "COMPLETED",
+  "NO_SHOW",
 ] as const;
 
 export type AppointmentStatus = (typeof APPOINTMENT_STATUSES)[number];
@@ -55,6 +56,13 @@ export const STATUS_META: Record<
     badge: "bg-sky-400/12 text-sky-300 ring-sky-400/30",
     block: "border-sky-400/60 bg-sky-400/10 text-sky-100",
     dot: "bg-sky-400",
+  },
+  NO_SHOW: {
+    label: "Niet verschenen",
+    plural: "Niet verschenen",
+    badge: "bg-orange-400/12 text-orange-300 ring-orange-400/30",
+    block: "border-orange-400/60 bg-orange-400/10 text-orange-200 line-through",
+    dot: "bg-orange-400",
   },
 };
 

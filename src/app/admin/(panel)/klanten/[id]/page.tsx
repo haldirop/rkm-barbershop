@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/admin/page-header";
 import { DemoBadge, StatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 import { capitalize, formatDateShort, formatDateTime, formatPrice, telHref } from "@/lib/format";
 import { uuidSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
@@ -38,14 +39,21 @@ export default async function CustomerDetailPage({ params }: PageProps<"/admin/k
         }
       />
 
-      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {[
           ["Afspraken", String(customer.history.length)],
           ["Bezoeken", String(customer.visits)],
+          ["Niet verschenen", String(customer.noShows)],
           ["Besteed", formatPrice(customer.totalSpentCents)],
           ["Favoriete barber", customer.preferredBarberName ?? "—"],
         ].map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-line bg-surface p-4">
+          <div
+            key={label}
+            className={cn(
+              "rounded-2xl border bg-surface p-4",
+              label === "Niet verschenen" && customer.noShows ? "border-orange-400/40" : "border-line",
+            )}
+          >
             <p className="text-xs text-ink-faint">{label}</p>
             <p className="mt-1 truncate text-xl font-semibold text-ink">{value}</p>
           </div>

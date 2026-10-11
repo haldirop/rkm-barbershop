@@ -23,6 +23,10 @@
   --color-gold-deep: #a8722f;
   --color-gold-light: #ffeac2;
 
+  /* Charts (admin, dark surface): validated as a pair for colour-blind readers. */
+  --color-chart-1: #b8843a;
+  --color-chart-2: #3987e5;
+
   --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
   /* Roman capitals like the logo, for headings. */
   --font-display: var(--font-cinzel), ui-serif, Georgia, serif;

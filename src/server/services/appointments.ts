@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, gte, ilike, inArray, lt, lte, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lt, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { isActiveStatus, type AppointmentStatus } from "@/lib/status";
 import { minutesToTime, timeToMinutes, zonedNow, type IsoDate } from "@/lib/time";
 import { getDb, type Database, type DbOrTx } from "@/server/db/client";
@@ -9,6 +9,7 @@ import {
   barbers,
   customers,
   emailLog,
+  sales,
   services,
   adminUsers,
 } from "@/server/db/schema";
@@ -34,6 +35,8 @@ const listColumns = {
   lastName: customers.lastName,
   phone: customers.phone,
   email: customers.email,
+  /** How often this customer didn't show up before (for a warning on new requests). */
+  noShows: sql<number>`(SELECT COUNT(*) FROM "appointments" ns WHERE ns."customer_id" = ${customers.id} AND ns."status" = 'NO_SHOW')`.mapWith(Number),
 };
 
 export type AppointmentListItem = Awaited<ReturnType<typeof listAppointments>>["items"][number];
@@ -103,6 +106,7 @@ export async function countByStatus(db: DbOrTx = getDb()) {
     REJECTED: 0,
     CANCELLED: 0,
     COMPLETED: 0,
+    NO_SHOW: 0,
   };
   for (const row of rows) result[row.status] = row.total;
   return result;
@@ -163,7 +167,11 @@ export async function getAppointmentDetail(id: string, db: DbOrTx = getDb()) {
       .orderBy(desc(appointmentEvents.createdAt)),
     db.select().from(emailLog).where(eq(emailLog.appointmentId, id)).orderBy(desc(emailLog.createdAt)),
   ]);
-  return { ...row, events, emails };
+  const [{ noShows }] = await db
+    .select({ noShows: count() })
+    .from(appointments)
+    .where(and(eq(appointments.customerId, row.customer.id), eq(appointments.status, "NO_SHOW")));
+  return { ...row, events, emails, customerNoShows: noShows };
 }
 
 export type AppointmentDetail = NonNullable<Awaited<ReturnType<typeof getAppointmentDetail>>>;
@@ -174,10 +182,12 @@ export type AppointmentDetail = NonNullable<Awaited<ReturnType<typeof getAppoint
 
 export const STATUS_TRANSITIONS: Record<AppointmentStatus, AppointmentStatus[]> = {
   PENDING: ["APPROVED", "REJECTED", "CANCELLED"],
-  APPROVED: ["COMPLETED", "CANCELLED"],
+  APPROVED: ["COMPLETED", "CANCELLED", "NO_SHOW"],
   REJECTED: ["APPROVED"],
   CANCELLED: ["APPROVED"],
-  COMPLETED: ["APPROVED"],
+  // The nightly job completes past appointments, so a no-show is often marked afterwards.
+  COMPLETED: ["APPROVED", "NO_SHOW"],
+  NO_SHOW: ["APPROVED", "COMPLETED"],
 };
 
 const EVENT_FOR_STATUS: Record<AppointmentStatus, EventType> = {
@@ -186,7 +196,21 @@ const EVENT_FOR_STATUS: Record<AppointmentStatus, EventType> = {
   REJECTED: "REJECTED",
   CANCELLED: "CANCELLED",
   COMPLETED: "COMPLETED",
+  NO_SHOW: "NO_SHOW",
 };
+
+/** "Niet verschenen" only once the appointment has started, and never for one that has been paid. */
+async function assertCanMarkNoShow(tx: DbOrTx, appointment: typeof appointments.$inferSelect) {
+  const now = zonedNow();
+  const started =
+    appointment.date < now.date || (appointment.date === now.date && timeToMinutes(appointment.startTime) <= now.minutes);
+  if (!started) throw new DomainError("Een afspraak kan pas als ‘niet verschenen’ worden gemarkeerd als hij begonnen is.", "NOT_ALLOWED");
+  const [paid] = await tx
+    .select({ number: sales.number })
+    .from(sales)
+    .where(and(eq(sales.appointmentId, appointment.id), eq(sales.kind, "SALE"), isNull(sales.deletedAt)));
+  if (paid) throw new DomainError(`Deze afspraak is afgerekend (bon ${paid.number}), dus de klant is wel verschenen.`, "NOT_ALLOWED");
+}
 
 export async function changeStatus(
   id: string,
@@ -202,6 +226,7 @@ export async function changeStatus(
       if (!STATUS_TRANSITIONS[current.status].includes(to)) {
         throw new DomainError("Deze statuswijziging is niet mogelijk.", "NOT_ALLOWED");
       }
+      if (to === "NO_SHOW") await assertCanMarkNoShow(tx, current);
       if (to === "APPROVED" && !isActiveStatus(current.status)) {
         await assertNoConflict(tx, {
           barberId: current.barberId,

@@ -1,6 +1,7 @@
 import { CalendarX, ChevronLeft, ChevronRight, Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { AutoRefresh } from "@/components/admin/auto-refresh";
+import { NoShowNote } from "@/components/admin/no-show-note";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { StatusActions } from "@/components/admin/status-actions";
 import { DemoBadge, StatusBadge } from "@/components/ui/badge";
@@ -23,6 +24,10 @@ const SCOPES: Array<[Scope, string]> = [
 function one(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
+
+/** Warn while there is still a decision to make about the appointment. */
+const showNoShows = (a: { status: AppointmentStatus; noShows: number }) =>
+  a.noShows > 0 && (a.status === "PENDING" || a.status === "APPROVED");
 
 export default async function AppointmentsPage({ searchParams }: PageProps<"/admin/afspraken">) {
   await requireAdmin();
@@ -162,6 +167,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps<"/adm
                           {a.isDemo ? <DemoBadge /> : null}
                         </Link>
                         <span className="text-ink-muted">{a.phone}</span>
+                        {showNoShows(a) ? <NoShowNote count={a.noShows} className="mt-1 text-xs" /> : null}
                       </td>
                       <td className="px-5 py-4 align-top">
                         <span className="block text-ink">{a.serviceName}</span>
@@ -209,6 +215,7 @@ export default async function AppointmentsPage({ searchParams }: PageProps<"/adm
                         {a.startTime.slice(0, 5)} – {a.endTime.slice(0, 5)}
                       </span>
                     </p>
+                    {showNoShows(a) ? <NoShowNote count={a.noShows} className="mt-2" /> : null}
                   </Link>
                   {a.status === "PENDING" ? (
                     <div className="mt-4 border-t border-line pt-4">

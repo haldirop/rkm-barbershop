@@ -4,6 +4,7 @@ import {
   BellRing,
   CalendarCheck,
   CalendarDays,
+  ChartColumn,
   Clock,
   ExternalLink,
   LayoutDashboard,
@@ -26,6 +27,7 @@ import { cn } from "@/lib/cn";
 
 const NAV = [
   { href: "/admin", label: "Overzicht", Icon: LayoutDashboard, exact: true },
+  { href: "/admin/inzichten", label: "Inzichten", Icon: ChartColumn },
   { href: "/admin/afspraken", label: "Afspraken", Icon: CalendarCheck, badge: true },
   { href: "/admin/agenda", label: "Agenda", Icon: CalendarDays },
   { href: "/admin/wachtlijst", label: "Wachtlijst", Icon: BellRing },

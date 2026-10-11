@@ -64,6 +64,20 @@
       "when": 1791672161457,
       "tag": "0008_cash_count_deletion",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791682019928,
+      "tag": "0009_no_show",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791682181201,
+      "tag": "0010_low_stock",
+      "breakpoints": true
     }
   ]
 }

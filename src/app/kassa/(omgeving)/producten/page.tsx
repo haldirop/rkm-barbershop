@@ -3,6 +3,7 @@ import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { ProductForm } from "@/components/kassa/product-form";
 import { Badge } from "@/components/ui/badge";
 import { formatAmount } from "@/lib/format";
+import { stockStatus } from "@/lib/pos";
 import { requireAdmin } from "@/server/auth/session";
 import { listProducts } from "@/server/services/catalog";
 
@@ -25,8 +26,10 @@ export default async function ProductsPage() {
                 <span className="flex flex-wrap items-center gap-3">
                   <span className="font-semibold text-ink">{product.name}</span>
                   {!product.isActive ? <Badge className="bg-zinc-400/10 text-zinc-300 ring-zinc-400/30">Niet te koop</Badge> : null}
-                  {product.stock !== null && product.stock <= 0 ? (
+                  {stockStatus(product) === "out" ? (
                     <Badge className="bg-red-400/10 text-red-300 ring-red-400/30">Op</Badge>
+                  ) : stockStatus(product) === "low" ? (
+                    <Badge className="bg-amber-400/10 text-amber-300 ring-amber-400/30">Bijna op</Badge>
                   ) : null}
                 </span>
                 <span className="flex items-center gap-4 text-sm text-ink-muted">

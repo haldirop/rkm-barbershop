@@ -3,6 +3,7 @@ import Link from "next/link";
 import { DemoBadge } from "@/components/ui/badge";
 import { capitalize, formatDateLong, formatDateTime, formatPrice, telHref } from "@/lib/format";
 import type { AppointmentListItem } from "@/server/services/appointments";
+import { NoShowNote } from "./no-show-note";
 import { StatusActions } from "./status-actions";
 
 /** A pending request, laid out as: name · treatment · day · time · [GOEDKEUREN] [WEIGEREN]. */
@@ -34,6 +35,8 @@ export function RequestCard({ item }: { item: AppointmentListItem }) {
           {item.startTime.slice(0, 5)} – {item.endTime.slice(0, 5)}
         </p>
       </div>
+
+      {item.noShows ? <NoShowNote count={item.noShows} className="mt-3" /> : null}
 
       {item.notes ? (
         <p className="mt-4 flex gap-2 rounded-xl bg-surface-2 px-3 py-2.5 text-sm text-ink-muted">
