@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="nl" class="mode-final">
+<head>
+<meta charset="utf-8">
+<title>RKM Barbershop – visitekaartje</title>
+<!--
+  Visitekaartje 85 x 55 mm, met 3 mm afloop rondom (pagina 91 x 61 mm).
+  Alle maten in mm; de inhoud staat in .trim (het snijformaat), minstens 4 mm van de snijrand.
+  mode-bg: alleen de achtergrond (marmer, gouden banen, lijst), wordt op 600 dpi vastgelegd.
+  mode-final: vastgelegde achtergrond + logo + tekst als vector.
+-->
+<style>
+  /* Vaste gewichten (geen variabel lettertype), zodat de PDF gewone TrueType-letters bevat. */
+  @font-face { font-family: Cinzel; src: url(fonts/cinzel-500.ttf); font-weight: 500; }
+  @font-face { font-family: Cinzel; src: url(fonts/cinzel-600.ttf); font-weight: 600; }
+  @font-face { font-family: Cinzel; src: url(fonts/cinzel-700.ttf); font-weight: 700; }
+  @font-face { font-family: Manrope; src: url(fonts/manrope-500.ttf); font-weight: 500; }
+  @font-face { font-family: Manrope; src: url(fonts/manrope-800.ttf); font-weight: 800; }
+
+  @page { size: 91mm 61mm; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #000; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  :root {
+    --gold-text: linear-gradient(180deg, #fff1b5 0%, #f4cf72 38%, #d9a13a 62%, #b97d22 100%);
+    --white: #f4f1ea;
+  }
+
+  .card { position: relative; width: 91mm; height: 61mm; overflow: hidden; background: #050505; break-after: page; }
+  .card:last-child { break-after: auto; }
+  .layer { position: absolute; inset: 0; width: 91mm; height: 61mm; }
+  .trim { position: absolute; left: 3mm; top: 3mm; width: 85mm; height: 55mm; }
+
+  .mode-bg .content, .mode-bg .bg-img, .mode-bg .fx, .mode-bg .fx-img { display: none; }
+  .mode-final .deco, .mode-final .fx { display: none; }
+  /* mode-fx: only the light glints on the logo, on a transparent background */
+  .mode-fx, .mode-fx body, .mode-fx .card { background: transparent; }
+  .mode-fx .content, .mode-fx .bg-img, .mode-fx .deco, .mode-fx .fx-img { display: none; }
+  .guides { display: none; }
+  .mode-guides .guides { display: block; }
+
+  .gold { background: var(--gold-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .abs { position: absolute; }
+
+  /* ---------- Logo ---------- */
+  .logo { position: absolute; display: block; height: auto; }
+  .wordmark { position: absolute; display: flex; align-items: center; gap: 1.4mm; }
+  .wordmark .line { flex: 1; height: 0.24mm; }
+  .wordmark .line.l { background: linear-gradient(90deg, rgba(214,160,62,0), #e7b75a 70%, #f7dc8f); }
+  .wordmark .line.r { background: linear-gradient(90deg, #f7dc8f, #e7b75a 30%, rgba(214,160,62,0)); }
+  .wordmark span.text { font-family: Cinzel; font-weight: 600; color: var(--white); letter-spacing: 0.38em; margin-right: -0.38em; white-space: nowrap; line-height: 1; }
+  .scissors { position: absolute; }
+
+  /* ---------- Voorkant ---------- */
+  .hours { position: absolute; left: 4.6mm; top: 18.4mm; width: 35mm; }
+  .hours .title { display: flex; align-items: center; gap: 1.7mm; }
+  .hours .title h2 { margin: 0; font: 800 7.1pt/1 Manrope; letter-spacing: 0.03em; }
+  .hours .rule { height: 0.22mm; margin: 1.5mm 0 1.6mm; background: linear-gradient(90deg, #f2cf78, #c8902e 60%, rgba(200,144,46,0)); }
+  .hours table { border-collapse: collapse; font: 500 6pt/1 Manrope; color: var(--white); }
+  .hours td { padding: 0.66mm 0; white-space: nowrap; }
+  .hours td + td { padding-left: 2.1mm; font-variant-numeric: tabular-nums; }
+
+  .vline { position: absolute; width: 0.24mm; background: linear-gradient(180deg, rgba(214,160,62,0), #e9bb5e 22%, #f7dc8f 50%, #e9bb5e 78%, rgba(214,160,62,0)); }
+
+  .pill { position: absolute; display: flex; align-items: center; gap: 1.5mm; height: 6.2mm; padding: 0 2.6mm 0 2mm;
+          border: 0.26mm solid #e3b257; border-radius: 1.5mm; background: rgba(4,4,4,0.72);
+          font: 500 6.2pt/1 Manrope; color: var(--white); white-space: nowrap; }
+
+  /* ---------- Achterkant ---------- */
+  .contacts { position: absolute; left: 4.6mm; top: 25.4mm; margin: 0; padding: 0; list-style: none; }
+  .contacts li { display: flex; align-items: center; gap: 1.7mm; height: 4.75mm; font: 500 6pt/1 Manrope; color: var(--white); white-space: nowrap; }
+  .badge { width: 3.7mm; height: 3.7mm; flex: none; border-radius: 50%; display: grid; place-items: center;
+           background: radial-gradient(circle at 35% 30%, #fff0b8 0%, #f2cd73 35%, #d29a3a 70%, #a8701e 100%);
+           box-shadow: 0 0 0 0.12mm rgba(120,78,18,0.9); }
+  .badge svg { width: 2.15mm; height: 2.15mm; }
+
+  .stamps { position: absolute; left: 43.4mm; top: 5mm; width: 37.6mm; display: grid; grid-template-columns: repeat(5, 6.2mm); gap: 1.65mm 1.65mm; }
+  .stamp { width: 6.2mm; height: 6.2mm; overflow: visible; display: block; }
+  .reward { position: absolute; left: 43mm; top: 22.6mm; width: 38mm; display: flex; align-items: center; gap: 1.1mm; }
+  .reward .gift { width: 5.4mm; flex: none; }
+  .reward .sep { width: 0.26mm; min-width: 0.26mm; align-self: stretch; margin: 0.6mm 0; background: linear-gradient(180deg, rgba(214,160,62,0), #e7b75a 25%, #e7b75a 75%, rgba(214,160,62,0)); flex: none; }
+  .reward .lines { font-family: Cinzel; color: var(--white); line-height: 1; white-space: nowrap; }
+  .reward .lines div { margin: 0.55mm 0; }
+  .reward .l1 { font-weight: 500; font-size: 5.3pt; letter-spacing: 0.14em; }
+  .reward .l2 { font-weight: 700; font-size: 6.9pt; letter-spacing: 0.01em; }
+  .reward .l3 { font-weight: 500; font-size: 4.8pt; letter-spacing: 0.02em; }
+  .reward .l4 { font-weight: 500; font-size: 4.8pt; letter-spacing: 0.02em; }
+  .reward .l4 b { font-weight: 700; font-size: 6.6pt; letter-spacing: 0.01em; }
+  .reward .l5 { font-weight: 500; font-size: 4.8pt; letter-spacing: 0.02em; }
+
+  .footnote { position: absolute; left: 43mm; width: 38mm; top: 39.8mm; padding-top: 1.5mm; border-top: 0.2mm solid transparent;
+              border-image: linear-gradient(90deg, rgba(214,160,62,0), #e7b75a 15%, #e7b75a 85%, rgba(214,160,62,0)) 1;
+              font: 500 4.8pt/1.5 Manrope; letter-spacing: 0.04em; color: #e9e4da; text-align: center; }
+  .footnote .dot { color: #e3b257; }
+
+  /* Hulplijnen (alleen controle): snijrand en veilige zone */
+  .guides .cut { position: absolute; left: 3mm; top: 3mm; width: 85mm; height: 55mm; outline: 0.1mm solid #ff2d55; }
+  .guides .safe { position: absolute; left: 6.5mm; top: 6.5mm; width: 78mm; height: 48mm; outline: 0.1mm dashed #00e5ff; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <!-- Metallic gold across a band (applied with gradientTransform per band). -->
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4a2e08"/>
+      <stop offset="0.16" stop-color="#9c6a1c"/>
+      <stop offset="0.38" stop-color="#f3d27f"/>
+      <stop offset="0.5" stop-color="#fff6d2"/>
+      <stop offset="0.62" stop-color="#e8b85a"/>
+      <stop offset="0.84" stop-color="#94621a"/>
+      <stop offset="1" stop-color="#4a2e08"/>
+    </linearGradient>
+    <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff1b5"/>
+      <stop offset="0.45" stop-color="#efc76a"/>
+      <stop offset="1" stop-color="#b47a22"/>
+    </linearGradient>
+    <linearGradient id="goldStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1b5"/>
+      <stop offset="0.5" stop-color="#e2ad4c"/>
+      <stop offset="1" stop-color="#a8701e"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="0.9"/></filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="0.25"/></filter>
+    <radialGradient id="logoGlow">
+      <stop offset="0" stop-color="#f0b24a" stop-opacity="0.34"/>
+      <stop offset="0.45" stop-color="#c47a1c" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#7a4a0c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="stampWhite" cx="0.45" cy="0.4" r="0.6">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.6" stop-color="#fbfaf8"/>
+      <stop offset="1" stop-color="#e4e0d8"/>
+    </radialGradient>
+    <linearGradient id="ringGold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1b5"/>
+      <stop offset="0.3" stop-color="#c8902e"/>
+      <stop offset="0.55" stop-color="#f6d68a"/>
+      <stop offset="0.8" stop-color="#9b6519"/>
+      <stop offset="1" stop-color="#e2ad4c"/>
+    </linearGradient>
+    <radialGradient id="stampGlow">
+      <stop offset="0.82" stop-color="#f0b24a" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#f0b24a" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Stamp circle: white field (r 3.1) with a gold ring, a dark rim and a soft glow; drawn past the 6.2 mm box. -->
+    <symbol id="i-stamp" viewBox="-3.1 -3.1 6.2 6.2" overflow="visible">
+      <circle r="4" fill="url(#stampGlow)"/>
+      <circle r="3.6" fill="#6b4310"/>
+      <circle r="3.28" fill="none" stroke="url(#ringGold)" stroke-width="0.36"/>
+      <circle r="3.1" fill="url(#stampWhite)"/>
+    </symbol>
+    <radialGradient id="flareCore">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="0.18" stop-color="#fff4cf" stop-opacity="0.9"/>
+      <stop offset="0.5" stop-color="#f3c463" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#e09a2c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="flareStreak">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.35" stop-color="#ffe7a8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#f0b24a" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Light glint: soft core with a long horizontal and a short vertical streak (size 1 = 1 mm core radius). -->
+    <symbol id="i-flare" viewBox="-6 -6 12 12" overflow="visible">
+      <ellipse rx="6" ry="0.16" fill="url(#flareStreak)"/>
+      <ellipse rx="0.14" ry="3.4" fill="url(#flareStreak)"/>
+      <ellipse rx="2.2" ry="0.07" fill="url(#flareStreak)" transform="rotate(45)" opacity="0.5"/>
+      <ellipse rx="2.2" ry="0.07" fill="url(#flareStreak)" transform="rotate(-45)" opacity="0.5"/>
+      <circle r="1.2" fill="url(#flareCore)"/>
+    </symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24">
+      <path d="M5.2 2.5 15.6 16.4M18.8 2.5 8.4 16.4" fill="none" stroke="url(#goldStroke)" stroke-width="1.35" stroke-linecap="round"/>
+      <circle cx="7" cy="18.9" r="2.6" fill="none" stroke="url(#goldStroke)" stroke-width="1.35"/>
+      <circle cx="17" cy="18.9" r="2.6" fill="none" stroke="url(#goldStroke)" stroke-width="1.35"/>
+      <circle cx="12" cy="11.8" r="0.9" fill="url(#goldStroke)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ======================= VOORKANT ======================= -->
+<section class="card" id="front">
+  <img class="layer bg-img" src="bg-front.png" alt="">
+  <svg class="layer deco" viewBox="0 0 91 61" preserveAspectRatio="none">
+    <image href="marble-front.png" x="0" y="0" width="91" height="61" preserveAspectRatio="none"/>
+    <!-- warm light behind the logo -->
+    <ellipse cx="65.5" cy="18" rx="30" ry="19" fill="url(#logoGlow)"/>
+    <g transform="translate(3 3)">
+      <g class="bands" data-bands="tl:line 8.4 8.7|tl:glow 9.5 19.5|tl:band 10.6 14.6|tl:band 16.2 18.2|tl:line 19.6 19.9|bl:line 5.6 5.9|bl:line 7.4 7.65 0.75|br:line 3.6 3.9|br:glow 5.5 16|br:band 6.4 11|br:band 12.6 14.8|br:line 16.4 16.7 0.85"></g>
+      <!-- frame -->
+      <rect x="2.3" y="2.3" width="80.4" height="50.4" rx="0.3" fill="none" stroke="url(#goldStroke)" stroke-width="0.24"/>
+    </g>
+  </svg>
+
+  <div class="trim content">
+    <img class="logo" src="rkm-mark.png" alt="RKM" style="left:44mm; top:5.6mm; width:37mm">
+    <div class="wordmark" style="left:44mm; top:24.4mm; width:37mm; font-size:6.6pt"><span class="line l"></span><span class="text">BARBERSHOP</span><span class="line r"></span></div>
+    <svg class="scissors" style="left:60.2mm; top:28.6mm; width:4.6mm; height:4.6mm"><use href="#i-scissors"/></svg>
+
+    <div class="vline" style="left:41.4mm; top:13mm; height:34mm"></div>
+
+    <div class="hours">
+      <div class="title">
+        <span class="badge" style="width:4.3mm;height:4.3mm"><svg viewBox="0 0 24 24" style="width:2.7mm;height:2.7mm" fill="none" stroke="#1a1206" stroke-width="2.6" stroke-linecap="round"><circle cx="12" cy="12" r="9.2"/><path d="M12 6.6V12l3.6 2"/></svg></span>
+        <h2 class="gold">OPENINGSTIJDEN</h2>
+      </div>
+      <div class="rule"></div>
+      <table>
+        <tr><td>Maandag</td><td>12:00 – 18:00</td></tr>
+        <tr><td>Dinsdag t/m Vrijdag</td><td>09:00 – 18:00</td></tr>
+        <tr><td>Zaterdag</td><td>09:00 – 17:00</td></tr>
+        <tr><td>Zondag</td><td>Gesloten</td></tr>
+      </table>
+    </div>
+
+    <div class="pill" style="right:4mm; bottom:5.4mm">
+      <svg viewBox="0 0 24 24" style="width:3.2mm;height:3.2mm;flex:none"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" fill="url(#goldFill)"/><circle cx="12" cy="10" r="3.1" fill="#0b0904"/></svg>
+      De Brink 18, 7581 JA Losser
+    </div>
+  </div>
+  <svg class="layer fx" viewBox="0 0 91 61" preserveAspectRatio="none"><g transform="translate(3 3)"><use href="#i-flare" x="58.1" y="1.0" width="10.2" height="10.2" opacity="1"/><use href="#i-flare" x="41.2" y="8.4" width="8.399999999999999" height="8.399999999999999" opacity="0.9"/><use href="#i-flare" x="75.4" y="8.0" width="9.0" height="9.0" opacity="0.95"/></g></svg>
+  <img class="layer fx-img" src="fx-front.png" alt="">
+  <div class="guides"><div class="cut"></div><div class="safe"></div></div>
+</section>
+
+<!-- ======================= ACHTERKANT ======================= -->
+<section class="card" id="back">
+  <img class="layer bg-img" src="bg-back.png" alt="">
+  <svg class="layer deco" viewBox="0 0 91 61" preserveAspectRatio="none">
+    <image href="marble-back.png" x="0" y="0" width="91" height="61" preserveAspectRatio="none"/>
+    <ellipse cx="24" cy="13" rx="19" ry="11" fill="url(#logoGlow)"/>
+    <g transform="translate(3 3)">
+      <g class="bands" data-bands="bl:line 3.4 3.65|bl:glow 4.5 10.5|bl:band 5 8|bl:band 8.9 9.9|bl:line 10.6 10.85 0.8|tr:line 3.4 3.65|tr:glow 4 9|tr:band 4.6 7|tr:band 7.7 8.6|tr:line 9.1 9.3 0.8|br:line 5.2 5.45|br:line 6.6 6.8 0.7"></g>
+      <rect x="2.3" y="2.3" width="80.4" height="50.4" rx="0.3" fill="none" stroke="url(#goldStroke)" stroke-width="0.24"/>
+    </g>
+  </svg>
+
+  <div class="trim content">
+    <img class="logo" src="rkm-mark.png" alt="RKM" style="left:9.2mm; top:4.8mm; width:25mm">
+    <div class="wordmark" style="left:7mm; top:17.6mm; width:29.4mm; font-size:4.6pt; gap:1mm"><span class="line l"></span><span class="text">BARBERSHOP</span><span class="line r"></span></div>
+    <svg class="scissors" style="left:20.2mm; top:20.3mm; width:3mm; height:3mm"><use href="#i-scissors"/></svg>
+
+    <ul class="contacts">
+      <li><span class="badge"><svg viewBox="0 0 24 24"><path d="M13.832 16.568a1 1 0 0 0 1.213-.303l.355-.465A2 2 0 0 1 17 15h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2A18 18 0 0 1 2 4a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3a2 2 0 0 1-.8 1.6l-.468.351a1 1 0 0 0-.292 1.233 14 14 0 0 0 6.392 6.384" fill="#1a1206"/></svg></span>06 10 62 11 00</li>
+      <li><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1206" stroke-width="2.4" stroke-linejoin="round"><rect x="2.5" y="4.5" width="19" height="15" rx="1.6"/><path d="m3 6.5 9 6.5 9-6.5"/></svg></span>rkm-barbershop@hotmail.com</li>
+      <li><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1206" stroke-width="2.4"><rect x="3" y="3" width="18" height="18" rx="5.2"/><circle cx="12" cy="12" r="4.1"/><circle cx="17.4" cy="6.6" r="0.6" fill="#1a1206"/></svg></span>@rohiidrkm</li>
+      <li><span class="badge"><svg viewBox="0 0 24 24"><path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z" fill="#1a1206" transform="translate(2.2 2.2) scale(0.82)"/></svg></span>@rkmbarbershop7</li>
+      <li><span class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1206" stroke-width="2.2"><circle cx="12" cy="12" r="9.5"/><path d="M12 2.5a14 14 0 0 0 0 19 14 14 0 0 0 0-19M2.5 12h19M4 7.2h16M4 16.8h16"/></svg></span>rkmbarbershop.nl</li>
+    </ul>
+
+    <div class="vline" style="left:41.2mm; top:5mm; height:45mm"></div>
+
+    <div class="stamps">
+      <svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg><svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg><svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg><svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg><svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg>
+      <svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg><svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg><svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg><svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg><svg class="stamp" viewBox="0 0 6.2 6.2"><use href="#i-stamp"/></svg>
+    </div>
+
+    <div class="reward">
+      <svg class="gift" viewBox="0 0 24 24" fill="none" stroke="url(#goldStroke)" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="7" width="18" height="4" rx="0.6"/>
+        <path d="M20 11v8.6a1.4 1.4 0 0 1-1.4 1.4H5.4A1.4 1.4 0 0 1 4 19.6V11"/>
+        <path d="M12 7v14"/>
+        <path d="M7.5 7a1 1 0 0 1 0-5A4.8 8 0 0 1 12 7a4.8 8 0 0 1 4.5-5 1 1 0 0 1 0 5"/>
+      </svg>
+      <span class="sep"></span>
+      <div class="lines">
+        <div class="l1">BIJ VOLLE KAART</div>
+        <div class="l2 gold">EEN GRATIS PRODUCT</div>
+        <div class="l3">UIT GESELECTEERDE PRODUCTEN</div>
+        <div class="l4">OF <b class="gold">20% KORTING</b></div>
+        <div class="l5">BIJ EEN BEHANDELING</div>
+      </div>
+    </div>
+
+    <div class="footnote">KEUZE UIT GESELECTEERDE PRODUCTEN <span class="dot">•</span><br>GELDIG VOOR ÉÉN PERSOON.</div>
+  </div>
+  <svg class="layer fx" viewBox="0 0 91 61" preserveAspectRatio="none"><g transform="translate(3 3)"><use href="#i-flare" x="18.4" y="1.6999999999999997" width="6.6000000000000005" height="6.6000000000000005" opacity="0.95"/><use href="#i-flare" x="30.4" y="6.4" width="6.0" height="6.0" opacity="0.85"/></g></svg>
+  <img class="layer fx-img" src="fx-back.png" alt="">
+  <div class="guides"><div class="cut"></div><div class="safe"></div></div>
+</section>
+
+<script>
+// Gold bands across a corner. c = distance sum from the corner, e.g. x + y for the top left.
+// Coordinates are trim coordinates (85 x 55 mm); the group is shifted by the 3 mm bleed.
+const NS = "http://www.w3.org/2000/svg";
+const defs = document.querySelector("svg defs");
+let n = 0;
+for (const group of document.querySelectorAll("g.bands")) {
+  for (const spec of group.dataset.bands.split("|")) {
+    const [corner, rest] = spec.split(":");
+    const [type, a, b, opacity = "1"] = rest.split(" ");
+    const c1 = Number(a), c2 = Number(b);
+    // Each corner as: a point on the line for a given c, and the line direction.
+    const geo = {
+      tl: (c) => [[c, 0], [1, -1]],
+      br: (c) => [[85 - c, 55], [1, -1]],
+      bl: (c) => [[c, 55], [1, 1]],
+      tr: (c) => [[85 - c, 0], [1, 1]],
+    }[corner];
+    const L = 120;
+    const pts = [];
+    for (const [c, sign] of [[c1, 1], [c2, -1]]) {
+      const [[px, py], [dx, dy]] = geo(c);
+      const ends = [[px - dx * L, py - dy * L], [px + dx * L, py + dy * L]];
+      pts.push(...(sign === 1 ? ends : ends.reverse()));
+    }
+    const poly = document.createElementNS(NS, "polygon");
+    poly.setAttribute("points", pts.map((p) => p.join(",")).join(" "));
+    poly.setAttribute("opacity", opacity);
+    if (type === "band") {
+      // Gradient vector perpendicular to the band, from its first edge to its second edge.
+      const [p1, [dx, dy]] = geo(c1), [q] = geo(c2);
+      const len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+      const vx = q[0] - p1[0], vy = q[1] - p1[1], along = vx * ux + vy * uy;
+      const p2 = [p1[0] + vx - along * ux, p1[1] + vy - along * uy];
+      const g = document.createElementNS(NS, "linearGradient");
+      g.id = "b" + n++;
+      g.setAttribute("href", "#band");
+      g.setAttribute("gradientUnits", "userSpaceOnUse");
+      g.setAttribute("x1", p1[0]); g.setAttribute("y1", p1[1]);
+      g.setAttribute("x2", p2[0]); g.setAttribute("y2", p2[1]);
+      defs.appendChild(g);
+      poly.setAttribute("fill", `url(#${g.id})`);
+    } else if (type === "glow") {
+      poly.setAttribute("fill", "#f0b24a");
+      poly.setAttribute("opacity", "0.3");
+      poly.setAttribute("filter", "url(#glow)");
+    } else {
+      poly.setAttribute("fill", "#e3b257");
+    }
+    group.appendChild(poly);
+  }
+}
+</script>
+</body>
+</html>

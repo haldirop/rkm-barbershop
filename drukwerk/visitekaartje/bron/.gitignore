@@ -1,0 +1,8 @@
+# Tussenbestanden van render.mjs en marble.py
+marble-*.png
+bg-*.png
+fx-*.png
+out-*.png
+guides-*.png
+tmp-shot.png
+out.pdf
