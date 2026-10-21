@@ -23,23 +23,13 @@ export function Hero({
   suggestions: Suggestion[];
 }) {
   return (
-    <section aria-labelledby="hero-title" className="grain relative overflow-hidden">
-      {/* Background as on the business card: black marble in the corners, diagonal gold beams and a warm glow. */}
-      <div aria-hidden className="pointer-events-none absolute inset-0 -z-10">
-        <div className="marble-corners">
-          <span className="marble" />
-        </div>
-        <div className="absolute -top-40 right-[-10%] size-[46rem] rounded-full bg-gold/10 blur-[140px]" />
-        <div className="absolute top-[18%] left-[8%] size-[30rem] rounded-full bg-gold/[0.07] blur-[120px]" />
-        <span className="gold-beam right-[-7rem] bottom-[7rem] w-[30rem] -rotate-[52deg] opacity-80" />
-        <span className="gold-beam right-[-8rem] bottom-[4rem] w-[34rem] -rotate-[52deg] opacity-45" />
-      </div>
-
+    // Plain black behind the logo: no marble, beams or glow.
+    <section aria-labelledby="hero-title" className="relative overflow-hidden bg-canvas">
       <div className="container-page grid min-h-[100svh] items-center gap-14 pt-28 pb-20 lg:grid-cols-[1.2fr_1fr] lg:pt-24">
         <div className="flex animate-fade-up flex-col items-center text-center lg:items-start lg:text-left">
-          <h1 id="hero-title" className="w-full max-w-[26rem] sm:max-w-[30rem]">
+          <h1 id="hero-title" className="w-full max-w-[22rem] sm:max-w-[27rem]">
             <span className="sr-only">RKM Barbershop</span>
-            <BrandLockup priority sizes="(min-width: 640px) 26rem, 80vw" />
+            <BrandLockup priority sizes="(min-width: 640px) 27rem, 22rem" />
           </h1>
           <p className="mt-8 font-serif text-2xl text-gold-bright italic sm:text-3xl">{tagline}</p>
           <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-muted sm:text-lg">

@@ -132,10 +132,10 @@ export function renderEmail(subject: string, content: EmailContent): { subject: 
 <tr><td align="center" style="padding:0 0 28px;">
 ${
   content.logoUrl
-    ? `<img src="${escapeHtml(content.logoUrl)}" width="180" height="88" alt="RKM" style="display:block;width:180px;height:auto;margin:0 auto 6px;border:0;outline:none;text-decoration:none;font-family:${SERIF};font-size:30px;letter-spacing:8px;color:${C.gold};">`
+    ? `<img src="${escapeHtml(content.logoUrl)}" width="180" height="97" alt="RKM" style="display:block;width:180px;height:auto;margin:0 auto 6px;border:0;outline:none;text-decoration:none;font-family:${SERIF};font-size:30px;letter-spacing:8px;color:${C.gold};">`
     : `<div style="font-family:${SERIF};font-size:30px;line-height:34px;letter-spacing:8px;color:${C.text};">RKM</div>`
 }
-<div style="font-family:${SERIF};font-size:12px;line-height:16px;letter-spacing:7px;color:${C.text};">BARBERSHOP</div>
+<div style="font-family:${SERIF};font-size:12px;line-height:16px;letter-spacing:7px;color:${C.gold};">BARBERSHOP</div>
 </td></tr>
 <tr><td bgcolor="${C.card}" style="background-color:${C.card};border:1px solid ${C.line};border-radius:16px;padding:36px 32px;">
 ${body}

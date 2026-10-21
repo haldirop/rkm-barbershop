@@ -49,20 +49,25 @@ export function Ornament({ className }: { className?: string }) {
   );
 }
 
-/** "——— B A R B E R S H O P ———" */
+/** "B A R B E R S H O P" in satin gold, as under the crown and RKM. */
 function Wordmark({ className }: { className?: string }) {
   return (
-    <span className={cn("flex w-full items-center gap-[0.9em]", className)} aria-hidden>
-      <span className="gold-line flex-1" />
-      <span className="font-display font-semibold tracking-[0.42em] text-ink/95 [margin-right:-0.42em]">
-        BARBERSHOP
-      </span>
-      <span className="gold-line flex-1" />
+    <span
+      className={cn(
+        "text-gold-satin font-display font-medium whitespace-nowrap tracking-[0.62em] [margin-right:-0.62em]",
+        className,
+      )}
+      aria-hidden
+    >
+      BARBERSHOP
     </span>
   );
 }
 
-/** The complete logo as on the business card: crown, RKM, BARBERSHOP and scissors. */
+/**
+ * The complete logo: crown and RKM in brushed gold, BARBERSHOP underneath and a line
+ * with the scissors in the middle. Meant for a plain dark background.
+ */
 export function BrandLockup({
   className,
   sizes,
@@ -75,9 +80,13 @@ export function BrandLockup({
   return (
     // A size container, so the lettering scales with the width of the logo.
     <span className={cn("@container flex flex-col items-center", className)}>
-      <LogoMark sizes={sizes} priority={priority} className="w-[86%]" />
-      <Wordmark className="mt-[4%] text-[4.4cqi]" />
-      <Ornament className="mt-[3%] w-[62%] text-[4.4cqi]" />
+      <LogoMark sizes={sizes} priority={priority} className="w-full" />
+      <Wordmark className="mt-[6%] text-[6.7cqi] leading-none font-semibold" />
+      <span className="mt-[4.5%] flex w-[70%] items-center gap-[0.8em] text-[6cqi] text-gold" aria-hidden>
+        <span className="h-px flex-1 bg-gradient-to-r from-transparent via-gold/80 via-30% to-gold" />
+        <ScissorsMark className="size-[1.45em] shrink-0" />
+        <span className="h-px flex-1 bg-gradient-to-l from-transparent via-gold/80 via-30% to-gold" />
+      </span>
     </span>
   );
 }
@@ -87,9 +96,7 @@ export function Logo({ className, href = "/" }: { className?: string; href?: str
   return (
     <Link href={href} className={cn("group flex flex-col items-center", className)} aria-label="RKM Barbershop — home">
       <LogoMark sizes="86px" priority className="w-[86px] transition-transform duration-500 group-hover:scale-[1.03]" />
-      <span className="mt-1 font-display text-[0.5rem] font-semibold tracking-[0.42em] text-ink/85 [margin-right:-0.42em]">
-        BARBERSHOP
-      </span>
+      <Wordmark className="mt-1.5 text-[0.5rem] tracking-[0.5em] [margin-right:-0.5em]" />
     </Link>
   );
 }

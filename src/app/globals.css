@@ -152,6 +152,20 @@
     -webkit-text-fill-color: transparent;
   }
 
+  /* Satin gold for the lettering under the logo: softer than the polished gold above. */
+  .text-gold-satin {
+    background: linear-gradient(
+      180deg,
+      var(--color-gold-light) 0%,
+      var(--color-gold-bright) 30%,
+      var(--color-gold) 68%,
+      var(--color-gold-deep) 100%
+    );
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
   /* Polished gold surface for primary buttons. */
   .bg-gold-metal {
     background: var(--gold-metal-surface);
