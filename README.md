@@ -38,29 +38,30 @@ src/
   proxy.ts        Sessiecontrole vóór /admin
 drizzle/          SQL-migraties (worden automatisch toegepast)
 supabase/         Supabase-instellingen en het e-mailsjabloon voor wachtwoordherstel
-scripts/          setup, demodata, beheerder aanmaken
+scripts/          setup, lokale instellingen, demodata, beheerder aanmaken
 tests/            Automatische tests
 docs/             Handleiding online zetten + architectuur
+drukwerk/         Visitekaartje (drukklare PDF + bron) en de bron van het logo
 ```
 
 ## Installatie (lokaal)
 
-Vereist: Node.js 20.9 of nieuwer. Lokaal heb je **geen** accounts nodig: de site gebruikt dan een
-ingebouwde database, een ingebouwde login en toont e-mails in de terminal.
+Vereist: [Node.js](https://nodejs.org) 20.9 of nieuwer (de LTS-versie) en [Git](https://git-scm.com).
+Lokaal heb je **geen** accounts nodig: de site gebruikt dan een ingebouwde database (los van de echte
+site), een ingebouwde login en toont e-mails in de terminal.
 
 ```bash
+git clone https://github.com/haldirop/rkm-barbershop.git
+cd rkm-barbershop
 npm install
-```
-
-```bash
-cp .env.example .env.local
-```
-
-Vul in `.env.local` minimaal `APP_SECRET`, `ADMIN_EMAIL` en `ADMIN_PASSWORD` in en start:
-
-```bash
+npm run setup:local -- jouw@email.nl
 npm run dev
 ```
+
+`npm run setup:local` maakt `.env.local` aan met de ingebouwde database en nieuwe geheime sleutels, en
+toont het wachtwoord voor de lokale beheerlogin. Een bestaande `.env.local` blijft altijd ongemoeid.
+Liever met de hand? Kopieer `.env.example` naar `.env.local`, zet `DATABASE_URL=pglite:./.data/pglite`
+en vul `APP_SECRET`, `ADMIN_EMAIL` en `ADMIN_PASSWORD` in.
 
 - Website: http://localhost:3000
 - Beheer: http://localhost:3000/admin
@@ -113,6 +114,7 @@ Elke verzonden of mislukte e-mail is terug te zien bij de afspraak in het beheer
 
 | Script | Doel |
 | --- | --- |
+| `npm run setup:local -- e-mail` | Lokale instellingen (`.env.local`) aanmaken op een nieuwe computer |
 | `npm run dev` | Ontwikkelserver (draait eerst `db:setup`) |
 | `npm test` | Alle tests |
 | `npm run typecheck` / `npm run lint` | Controles |
