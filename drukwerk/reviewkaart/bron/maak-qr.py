@@ -1,6 +1,9 @@
-"""Puts the QR code for the review link into card.html (as vector paths, between the qr markers).
+"""Puts the QR code for the review link into an HTML file (as vector paths, between the qr markers).
 
-Usage: python3 maak-qr.py [url]   (default: https://www.rkmbarbershop.nl/review)
+Usage: python3 maak-qr.py [url] [html-file]
+  url:       default https://www.rkmbarbershop.nl/review
+  html-file: default card.html next to this script (the review card); the counter sign uses
+             ../../kassabordje/bron/bordje.html
 Needs: pip install segno
 """
 import re
@@ -34,10 +37,10 @@ svg = (
     f'<path d="{"".join(parts)}" fill="#0d0a05"/></svg>'
 )
 
-card = Path(__file__).with_name("card.html")
+card = Path(sys.argv[2]) if len(sys.argv) > 2 else Path(__file__).with_name("card.html")
 html = card.read_text()
 html, count = re.subn(r"(<!-- qr:start -->).*?(<!-- qr:end -->)", lambda m: m.group(1) + svg + m.group(2), html, flags=re.S)
 if not count:
-    sys.exit("Geen <!-- qr:start --> … <!-- qr:end --> gevonden in card.html")
+    sys.exit(f"Geen <!-- qr:start --> … <!-- qr:end --> gevonden in {card}")
 card.write_text(html)
-print(f"QR-code versie {qr.version}-{qr.error} ({n}×{n} modules) voor {URL}: {count}× in card.html gezet")
+print(f"QR-code versie {qr.version}-{qr.error} ({n}×{n} modules) voor {URL}: {count}× in {card.name} gezet")

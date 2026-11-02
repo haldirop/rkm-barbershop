@@ -1,10 +1,15 @@
-"""Black marble with gold crackle veins, for print: 91 x 61 mm (85 x 55 + 3 mm bleed) at 600 dpi."""
+"""Black marble with gold crackle veins, for print.
+
+Default: 91 x 61 mm (85 x 55 + 3 mm bleed) at 600 dpi. Other sizes: marble.py seed out.png width height dpi
+(the veins keep their size in pixels, so at 300 dpi they come out twice as large in mm).
+"""
 import sys
 
 import numpy as np
 from PIL import Image, ImageFilter
 
 W, H = 2150, 1441  # 91 x 61 mm at 600 dpi
+DPI = 600
 
 
 def fbm(rng, w, h, base, octaves=5, persistence=0.55):
@@ -96,9 +101,12 @@ def marble(seed, out_path):
     rgb += core[..., None] ** 1.2 * gold_hot * 1.25
 
     rgb = np.clip(rgb, 0, 1)
-    Image.fromarray((rgb * 255 + 0.5).astype(np.uint8)).save(out_path, dpi=(600, 600))
+    Image.fromarray((rgb * 255 + 0.5).astype(np.uint8)).save(out_path, dpi=(DPI, DPI))
     print("saved", out_path)
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 4:
+        W, H = int(sys.argv[3]), int(sys.argv[4])
+        DPI = int(sys.argv[5]) if len(sys.argv) > 5 else DPI
     marble(int(sys.argv[1]), sys.argv[2])
