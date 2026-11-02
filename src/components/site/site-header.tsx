@@ -10,7 +10,7 @@ import { localizePath } from "@/i18n/config";
 import { common } from "@/i18n/messages/common";
 import { cn } from "@/lib/cn";
 import { telHref } from "@/lib/format";
-import { LanguageSwitch } from "./language-switch";
+import { LANGUAGE_LABEL, LanguageList, LanguageMenu } from "./language-switch";
 import { Logo } from "./logo";
 
 const NAV = [
@@ -83,7 +83,7 @@ export function SiteHeader({ phone }: { phone: string }) {
               {phone}
             </a>
           ) : null}
-          <LanguageSwitch className="hidden lg:flex" />
+          <LanguageMenu />
           <ButtonLink href={localizePath("/afspraak-maken", locale)} size="sm" className="hidden px-5 sm:inline-flex">
             {t.book}
           </ButtonLink>
@@ -121,7 +121,12 @@ export function SiteHeader({ phone }: { phone: string }) {
                 <Phone className="size-4 text-gold" aria-hidden /> {t.call(phone)}
               </a>
             ) : null}
-            <LanguageSwitch size="lg" className="mt-4 justify-center" />
+            <div className="mt-6 border-t border-line pt-6">
+              <p className="mb-3 text-center text-xs font-semibold tracking-wider text-ink-faint uppercase">
+                {LANGUAGE_LABEL}
+              </p>
+              <LanguageList size="lg" className="flex justify-center" />
+            </div>
           </nav>
         </div>
       ) : null}

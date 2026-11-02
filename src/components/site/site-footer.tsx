@@ -6,6 +6,7 @@ import { capitalize, telHref, weekdayShort } from "@/lib/format";
 import { groupOpeningDays } from "@/lib/opening-hours";
 import type { SiteData } from "@/server/services/site";
 import { formatAddress, mapsUrl } from "@/server/services/settings";
+import { LANGUAGE_LABEL, LanguageList } from "./language-switch";
 import { BrandLockup } from "./logo";
 import { FacebookIcon, InstagramIcon } from "./social-icons";
 
@@ -44,6 +45,10 @@ export function SiteFooter({ site }: { site: SiteData }) {
                 <FacebookIcon className="size-4" />
               </a>
             ) : null}
+          </div>
+          <div>
+            <h2 className="eyebrow mb-3">{LANGUAGE_LABEL}</h2>
+            <LanguageList />
           </div>
         </div>
 

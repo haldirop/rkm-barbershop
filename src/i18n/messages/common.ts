@@ -33,7 +33,6 @@ const nl = {
   today: "Vandaag",
   closed: "Gesloten",
   openNow: "Nu open",
-  language: "Taal",
   /** Shown to visitors whose browser prefers this language, on a page in another language. */
   hint: {
     text: "Deze website is ook in het Nederlands te lezen.",
@@ -103,7 +102,6 @@ const en: CommonMessages = {
   today: "Today",
   closed: "Closed",
   openNow: "Open now",
-  language: "Language",
   hint: {
     text: "This website is also available in English.",
     action: "Switch to English",
@@ -170,7 +168,6 @@ const de: CommonMessages = {
   today: "Heute",
   closed: "Geschlossen",
   openNow: "Jetzt geöffnet",
-  language: "Sprache",
   hint: {
     text: "Diese Website gibt es auch auf Deutsch.",
     action: "Auf Deutsch lesen",
