@@ -532,6 +532,11 @@ export const settings = pgTable(
     instagramUrl: text("instagram_url"),
     facebookUrl: text("facebook_url"),
     googleReviewsUrl: text("google_reviews_url"),
+    /**
+     * Google's "write a review" link (Business Profile → Ask for reviews). The review card's
+     * QR code leads to /review on the website, which forwards here.
+     */
+    googleReviewWriteUrl: text("google_review_write_url"),
     kvkNumber: text("kvk_number"),
     /** Btw-identificatienummer, printed on receipts. */
     vatNumber: text("vat_number"),

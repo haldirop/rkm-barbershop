@@ -1,4 +1,4 @@
-import { ExternalLink, Star } from "lucide-react";
+import { ExternalLink, PenLine, Star } from "lucide-react";
 import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
 import { ButtonLink } from "@/components/ui/button";
@@ -24,13 +24,16 @@ function Stars({ rating, label }: { rating: number; label: string }) {
 export function Reviews({
   reviews,
   googleReviewsUrl,
+  googleReviewWriteUrl,
   locale,
 }: {
   reviews: Review[];
   googleReviewsUrl: string | null;
+  /** Google's "write a review" link; shows a button to leave one. */
+  googleReviewWriteUrl: string | null;
   locale: Locale;
 }) {
-  if (!reviews.length && !googleReviewsUrl) return null;
+  if (!reviews.length && !googleReviewsUrl && !googleReviewWriteUrl) return null;
   const t = home[locale].reviews;
   return (
     <section aria-labelledby="reviews" className="py-24 sm:py-32">
@@ -39,11 +42,21 @@ export function Reviews({
           <Reveal>
             <SectionHeading id="reviews" eyebrow={t.eyebrow} title={t.title} />
           </Reveal>
-          {googleReviewsUrl ? (
-            <ButtonLink href={googleReviewsUrl} variant="secondary" target="_blank" rel="noopener noreferrer">
-              {t.allOnGoogle}
-              <ExternalLink className="size-4" aria-hidden />
-            </ButtonLink>
+          {googleReviewsUrl || googleReviewWriteUrl ? (
+            <div className="flex flex-wrap gap-3">
+              {googleReviewWriteUrl ? (
+                <ButtonLink href={googleReviewWriteUrl} variant="secondary" target="_blank" rel="noopener noreferrer">
+                  <PenLine className="size-4" aria-hidden />
+                  {t.write}
+                </ButtonLink>
+              ) : null}
+              {googleReviewsUrl ? (
+                <ButtonLink href={googleReviewsUrl} variant="secondary" target="_blank" rel="noopener noreferrer">
+                  {t.allOnGoogle}
+                  <ExternalLink className="size-4" aria-hidden />
+                </ButtonLink>
+              ) : null}
+            </div>
           ) : null}
         </div>
         {reviews.length ? (
@@ -70,6 +83,8 @@ export function Reviews({
               </Reveal>
             ))}
           </ul>
+        ) : googleReviewWriteUrl ? (
+          <p className="mt-6 max-w-xl text-ink-muted">{t.invite}</p>
         ) : null}
       </div>
     </section>

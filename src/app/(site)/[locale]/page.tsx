@@ -45,7 +45,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       <WhyUs locale={locale} />
       <AvailabilityOverview days={days} today={site.now.date} service={featuredRef} locale={locale} />
       <Prices services={site.services} locale={locale} />
-      <Reviews reviews={site.reviews} googleReviewsUrl={site.settings.googleReviewsUrl} locale={locale} />
+      <Reviews
+        reviews={site.reviews}
+        googleReviewsUrl={site.settings.googleReviewsUrl}
+        googleReviewWriteUrl={site.settings.googleReviewWriteUrl}
+        locale={locale}
+      />
       <Contact site={site} />
       <CtaBand locale={locale} />
     </>

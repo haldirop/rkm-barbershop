@@ -106,6 +106,7 @@ const businessSchema = z.object({
   instagramUrl: optionalUrl,
   facebookUrl: optionalUrl,
   googleReviewsUrl: optionalUrl,
+  googleReviewWriteUrl: optionalUrl,
 });
 
 export async function saveBusinessAction(_prev: FormState, formData: FormData): Promise<FormState> {

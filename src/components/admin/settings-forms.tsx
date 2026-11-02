@@ -58,6 +58,12 @@ export function BusinessForm({ settings }: { settings: Settings }) {
         {field("facebookUrl", "Facebook-link", { placeholder: "https://facebook.com/…" })}
         {field("googleReviewsUrl", "Google-reviewlink", { placeholder: "https://g.page/…" })}
       </div>
+      {field(
+        "googleReviewWriteUrl",
+        "Link om een review te schrijven",
+        { placeholder: "https://g.page/r/…/review" },
+        "Google Bedrijfsprofiel → ‘Vraag om reviews’ → kopieer de link. De QR-code op de reviewkaart (…/review) stuurt klanten hierheen. Leeg = Google-reviewlink, of anders zoeken op Google.",
+      )}
       <div className="flex justify-end">
         <SubmitButton pendingText="Opslaan…">Bedrijfsgegevens opslaan</SubmitButton>
       </div>

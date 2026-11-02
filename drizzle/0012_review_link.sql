@@ -1,0 +1,1 @@
+ALTER TABLE "settings" ADD COLUMN "google_review_write_url" text;

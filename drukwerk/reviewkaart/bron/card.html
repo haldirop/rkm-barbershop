@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="nl" class="mode-final">
+<head>
+<meta charset="utf-8">
+<title>RKM Barbershop – reviewkaart</title>
+<!--
+  Reviewkaart 85 x 55 mm (zelfde formaat en stijl als het visitekaartje), met 3 mm afloop rondom
+  (pagina 91 x 61 mm). Voorkant Nederlands, achterkant Engels en Duits; op beide kanten dezelfde
+  QR-code naar rkmbarbershop.nl/review, die doorstuurt naar Google (in te stellen in Beheer).
+  Alle maten in mm; de inhoud staat in .trim (het snijformaat), minstens 4 mm van de snijrand.
+  mode-bg: alleen de achtergrond (marmer, gouden banen, lijst, gloed), op 600 dpi vastgelegd.
+  mode-final: vastgelegde achtergrond + logo + tekst + QR-code als vector.
+  Lettertypen en logo komen uit ../../visitekaartje/bron.
+-->
+<style>
+  @font-face { font-family: Cinzel; src: url(../../visitekaartje/bron/fonts/cinzel-500.ttf); font-weight: 500; }
+  @font-face { font-family: Cinzel; src: url(../../visitekaartje/bron/fonts/cinzel-600.ttf); font-weight: 600; }
+  @font-face { font-family: Cinzel; src: url(../../visitekaartje/bron/fonts/cinzel-700.ttf); font-weight: 700; }
+  @font-face { font-family: Manrope; src: url(../../visitekaartje/bron/fonts/manrope-500.ttf); font-weight: 500; }
+  @font-face { font-family: Manrope; src: url(../../visitekaartje/bron/fonts/manrope-800.ttf); font-weight: 800; }
+
+  @page { size: 91mm 61mm; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #000; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  :root {
+    --gold-text: linear-gradient(180deg, #fff1b5 0%, #f4cf72 38%, #d9a13a 62%, #b97d22 100%);
+    --white: #f4f1ea;
+    --muted: #cfc8bb;
+  }
+
+  .card { position: relative; width: 91mm; height: 61mm; overflow: hidden; background: #050505; break-after: page; }
+  .card:last-child { break-after: auto; }
+  .layer { position: absolute; inset: 0; width: 91mm; height: 61mm; }
+  .trim { position: absolute; left: 3mm; top: 3mm; width: 85mm; height: 55mm; }
+
+  .mode-bg .content, .mode-bg .bg-img, .mode-bg .fx, .mode-bg .fx-img { display: none; }
+  .mode-final .deco, .mode-final .fx { display: none; }
+  .mode-fx, .mode-fx body, .mode-fx .card { background: transparent; }
+  .mode-fx .content, .mode-fx .bg-img, .mode-fx .deco, .mode-fx .fx-img { display: none; }
+  .guides { display: none; }
+  .mode-guides .guides { display: block; }
+
+  .gold { background: var(--gold-text); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+  /* ---------- Logo ---------- */
+  .logo { position: absolute; display: block; height: auto; }
+  .wordmark { position: absolute; display: flex; align-items: center; gap: 1mm; }
+  .wordmark .line { flex: 1; height: 0.22mm; }
+  .wordmark .line.l { background: linear-gradient(90deg, rgba(214,160,62,0), #e7b75a 70%, #f7dc8f); }
+  .wordmark .line.r { background: linear-gradient(90deg, #f7dc8f, #e7b75a 30%, rgba(214,160,62,0)); }
+  .wordmark span.text { font-family: Cinzel; font-weight: 600; color: var(--white); letter-spacing: 0.38em; margin-right: -0.38em; white-space: nowrap; line-height: 1; }
+
+  .vline { position: absolute; width: 0.24mm; background: linear-gradient(180deg, rgba(214,160,62,0), #e9bb5e 22%, #f7dc8f 50%, #e9bb5e 78%, rgba(214,160,62,0)); }
+
+  /* ---------- QR-code ---------- */
+  /* White tile with a gold rim; the code itself keeps 4 modules of white around it. */
+  .qr { position: absolute; width: 27mm; height: 27mm; padding: 0.55mm; border-radius: 1.7mm;
+        background: linear-gradient(135deg, #fff1b5, #c8902e 30%, #f6d68a 55%, #9b6519 80%, #e2ad4c); }
+  .qr .tile { width: 100%; height: 100%; border-radius: 1.2mm; background: #ffffff; overflow: hidden; }
+  .qr .qr-code { display: block; width: 100%; height: 100%; }
+  .url { position: absolute; width: 33mm; text-align: center; font: 500 5.5pt/1 Manrope; color: var(--white); letter-spacing: 0.01em; white-space: nowrap; }
+  .url .dim { color: var(--muted); }
+
+  /* ---------- Tekst ---------- */
+  .block { position: absolute; text-align: center; }
+  .block h2 { margin: 0; font-family: Cinzel; font-weight: 700; line-height: 1; letter-spacing: 0.04em; white-space: nowrap; }
+  .block p { margin: 0; font: 500 6.3pt/1.32 Manrope; color: var(--white); }
+  .block .sub { font-size: 5pt; color: var(--muted); letter-spacing: 0.01em; }
+  .stars { display: flex; justify-content: center; gap: 0.9mm; }
+  .stars svg { display: block; }
+
+  .pill { position: absolute; display: flex; align-items: center; justify-content: center; gap: 1.4mm; height: 6mm;
+          border: 0.26mm solid #e3b257; border-radius: 1.5mm; background: rgba(4,4,4,0.72);
+          font: 500 5.9pt/1 Manrope; color: var(--white); white-space: nowrap; }
+
+  .thanks { position: absolute; text-align: center; font: 600 5pt/1 Cinzel; letter-spacing: 0.22em; margin-right: -0.22em; white-space: nowrap; }
+  .divider { position: absolute; height: 0.2mm; background: linear-gradient(90deg, rgba(214,160,62,0), #e7b75a 18%, #e7b75a 82%, rgba(214,160,62,0)); }
+
+  /* Hulplijnen (alleen controle): snijrand en veilige zone */
+  .guides .cut { position: absolute; left: 3mm; top: 3mm; width: 85mm; height: 55mm; outline: 0.1mm solid #ff2d55; }
+  .guides .safe { position: absolute; left: 7mm; top: 7mm; width: 77mm; height: 47mm; outline: 0.1mm dashed #00e5ff; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4a2e08"/>
+      <stop offset="0.16" stop-color="#9c6a1c"/>
+      <stop offset="0.38" stop-color="#f3d27f"/>
+      <stop offset="0.5" stop-color="#fff6d2"/>
+      <stop offset="0.62" stop-color="#e8b85a"/>
+      <stop offset="0.84" stop-color="#94621a"/>
+      <stop offset="1" stop-color="#4a2e08"/>
+    </linearGradient>
+    <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff1b5"/>
+      <stop offset="0.45" stop-color="#efc76a"/>
+      <stop offset="1" stop-color="#b47a22"/>
+    </linearGradient>
+    <linearGradient id="goldStroke" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff1b5"/>
+      <stop offset="0.5" stop-color="#e2ad4c"/>
+      <stop offset="1" stop-color="#a8701e"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="0.9"/></filter>
+    <filter id="tileGlow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <radialGradient id="logoGlow">
+      <stop offset="0" stop-color="#f0b24a" stop-opacity="0.34"/>
+      <stop offset="0.45" stop-color="#c47a1c" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#7a4a0c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="flareCore">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="0.18" stop-color="#fff4cf" stop-opacity="0.9"/>
+      <stop offset="0.5" stop-color="#f3c463" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#e09a2c" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="flareStreak">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.35" stop-color="#ffe7a8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#f0b24a" stop-opacity="0"/>
+    </radialGradient>
+    <symbol id="i-flare" viewBox="-6 -6 12 12" overflow="visible">
+      <ellipse rx="6" ry="0.16" fill="url(#flareStreak)"/>
+      <ellipse rx="0.14" ry="3.4" fill="url(#flareStreak)"/>
+      <ellipse rx="2.2" ry="0.07" fill="url(#flareStreak)" transform="rotate(45)" opacity="0.5"/>
+      <ellipse rx="2.2" ry="0.07" fill="url(#flareStreak)" transform="rotate(-45)" opacity="0.5"/>
+      <circle r="1.2" fill="url(#flareCore)"/>
+    </symbol>
+    <!-- Five-pointed star (lucide "star"), gold. -->
+    <symbol id="i-star" viewBox="0 0 24 24">
+      <path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z" fill="url(#goldFill)" stroke="#f7dc8f" stroke-width="0.6" stroke-linejoin="round"/>
+    </symbol>
+    <!-- Scan icon: four corners around a small code. -->
+    <symbol id="i-scan" viewBox="0 0 24 24">
+      <path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" fill="none" stroke="url(#goldStroke)" stroke-width="2.2" stroke-linecap="round"/>
+      <rect x="7.6" y="7.6" width="3.4" height="3.4" fill="url(#goldFill)"/><rect x="13" y="7.6" width="3.4" height="3.4" fill="url(#goldFill)"/>
+      <rect x="7.6" y="13" width="3.4" height="3.4" fill="url(#goldFill)"/><rect x="13.6" y="13.6" width="2.2" height="2.2" fill="url(#goldFill)"/>
+    </symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24">
+      <path d="M4 12h15M13 6l6 6-6 6" fill="none" stroke="url(#goldStroke)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-scissors" viewBox="0 0 24 24">
+      <path d="M5.2 2.5 15.6 16.4M18.8 2.5 8.4 16.4" fill="none" stroke="url(#goldStroke)" stroke-width="1.35" stroke-linecap="round"/>
+      <circle cx="7" cy="18.9" r="2.6" fill="none" stroke="url(#goldStroke)" stroke-width="1.35"/>
+      <circle cx="17" cy="18.9" r="2.6" fill="none" stroke="url(#goldStroke)" stroke-width="1.35"/>
+      <circle cx="12" cy="11.8" r="0.9" fill="url(#goldStroke)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- ======================= VOORKANT (Nederlands) ======================= -->
+<section class="card" id="front">
+  <img class="layer bg-img" src="bg-front.png" alt="">
+  <svg class="layer deco" viewBox="0 0 91 61" preserveAspectRatio="none">
+    <image href="marble-front.png" x="0" y="0" width="91" height="61" preserveAspectRatio="none"/>
+    <ellipse cx="27.5" cy="13" rx="19" ry="11" fill="url(#logoGlow)"/>
+    <g transform="translate(3 3)">
+      <!-- soft gold light around the QR tile -->
+      <rect x="49.5" y="6.5" width="27" height="27" rx="1.7" fill="#f0b24a" opacity="0.38" filter="url(#tileGlow)"/>
+      <g class="bands" data-bands="bl:line 3.4 3.65|bl:glow 4.5 10.5|bl:band 5 8|bl:band 8.9 9.9|bl:line 10.6 10.85 0.8|tr:line 3.4 3.65|tr:glow 4 9|tr:band 4.6 7|tr:band 7.7 8.6|tr:line 9.1 9.3 0.8|br:line 5.2 5.45|br:line 6.6 6.8 0.7"></g>
+      <rect x="2.3" y="2.3" width="80.4" height="50.4" rx="0.3" fill="none" stroke="url(#goldStroke)" stroke-width="0.24"/>
+    </g>
+  </svg>
+
+  <div class="trim content">
+    <img class="logo" src="../../visitekaartje/bron/rkm-mark.png" alt="RKM" style="left:13.5mm; top:4.6mm; width:22mm">
+    <div class="wordmark" style="left:10mm; top:15.5mm; width:29mm; font-size:4.4pt"><span class="line l"></span><span class="text">BARBERSHOP</span><span class="line r"></span></div>
+
+    <div class="block" style="left:5mm; top:20.6mm; width:39mm">
+      <h2 class="gold" style="font-size:11.5pt">TEVREDEN?</h2>
+      <div class="stars" style="margin-top:2mm"><svg style="width:3.5mm;height:3.5mm"><use href="#i-star"/></svg><svg style="width:3.5mm;height:3.5mm"><use href="#i-star"/></svg><svg style="width:3.5mm;height:3.5mm"><use href="#i-star"/></svg><svg style="width:3.5mm;height:3.5mm"><use href="#i-star"/></svg><svg style="width:3.5mm;height:3.5mm"><use href="#i-star"/></svg></div>
+      <p style="margin-top:2mm">Laat een review achter<br>op Google</p>
+    </div>
+
+    <div class="pill" style="left:9.5mm; width:30mm; top:41.6mm">
+      <svg style="width:3.4mm;height:3.4mm;flex:none"><use href="#i-scan"/></svg>
+      Scan de QR-code
+      <svg style="width:2.8mm;height:2.8mm;flex:none"><use href="#i-arrow"/></svg>
+    </div>
+
+    <div class="vline" style="left:45.6mm; top:6mm; height:43mm"></div>
+
+    <div class="qr" style="left:49.5mm; top:6.5mm"><div class="tile"><!-- qr:start --><svg class="qr-code" viewBox="0 0 37 37" shape-rendering="crispEdges" role="img" aria-label="QR-code: https://www.rkmbarbershop.nl/review"><path d="M4 4h7v1h-7zM13 4h4v1h-4zM18 4h3v1h-3zM22 4h1v1h-1zM26 4h7v1h-7zM4 5h1v1h-1zM10 5h1v1h-1zM12 5h7v1h-7zM22 5h1v1h-1zM24 5h1v1h-1zM26 5h1v1h-1zM32 5h1v1h-1zM4 6h1v1h-1zM6 6h3v1h-3zM10 6h1v1h-1zM12 6h2v1h-2zM15 6h3v1h-3zM19 6h1v1h-1zM22 6h2v1h-2zM26 6h1v1h-1zM28 6h3v1h-3zM32 6h1v1h-1zM4 7h1v1h-1zM6 7h3v1h-3zM10 7h1v1h-1zM12 7h2v1h-2zM15 7h1v1h-1zM20 7h2v1h-2zM26 7h1v1h-1zM28 7h3v1h-3zM32 7h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h1v1h-1zM15 8h2v1h-2zM19 8h1v1h-1zM21 8h4v1h-4zM26 8h1v1h-1zM28 8h3v1h-3zM32 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM16 9h1v1h-1zM20 9h2v1h-2zM26 9h1v1h-1zM32 9h1v1h-1zM4 10h7v1h-7zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h7v1h-7zM12 11h3v1h-3zM16 11h1v1h-1zM18 11h3v1h-3zM23 11h1v1h-1zM4 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM16 12h1v1h-1zM19 12h3v1h-3zM24 12h3v1h-3zM29 12h3v1h-3zM5 13h1v1h-1zM13 13h2v1h-2zM16 13h2v1h-2zM19 13h1v1h-1zM23 13h1v1h-1zM25 13h1v1h-1zM27 13h2v1h-2zM30 13h2v1h-2zM6 14h1v1h-1zM8 14h3v1h-3zM13 14h8v1h-8zM22 14h1v1h-1zM24 14h2v1h-2zM7 15h2v1h-2zM12 15h2v1h-2zM16 15h2v1h-2zM20 15h1v1h-1zM22 15h1v1h-1zM24 15h1v1h-1zM26 15h2v1h-2zM29 15h1v1h-1zM4 16h1v1h-1zM7 16h5v1h-5zM13 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h2v1h-2zM22 16h3v1h-3zM26 16h2v1h-2zM32 16h1v1h-1zM5 17h3v1h-3zM9 17h1v1h-1zM12 17h1v1h-1zM16 17h1v1h-1zM19 17h6v1h-6zM26 17h1v1h-1zM28 17h1v1h-1zM31 17h2v1h-2zM5 18h2v1h-2zM9 18h3v1h-3zM13 18h2v1h-2zM16 18h1v1h-1zM19 18h3v1h-3zM25 18h3v1h-3zM29 18h2v1h-2zM6 19h4v1h-4zM11 19h5v1h-5zM20 19h1v1h-1zM22 19h4v1h-4zM27 19h2v1h-2zM30 19h1v1h-1zM32 19h1v1h-1zM4 20h3v1h-3zM8 20h4v1h-4zM14 20h1v1h-1zM16 20h1v1h-1zM21 20h1v1h-1zM27 20h1v1h-1zM29 20h2v1h-2zM4 21h6v1h-6zM12 21h1v1h-1zM14 21h2v1h-2zM17 21h8v1h-8zM26 21h3v1h-3zM30 21h3v1h-3zM4 22h2v1h-2zM7 22h1v1h-1zM9 22h4v1h-4zM19 22h2v1h-2zM23 22h2v1h-2zM29 22h1v1h-1zM32 22h1v1h-1zM4 23h1v1h-1zM8 23h1v1h-1zM13 23h2v1h-2zM16 23h2v1h-2zM19 23h2v1h-2zM22 23h2v1h-2zM25 23h1v1h-1zM27 23h2v1h-2zM4 24h1v1h-1zM6 24h5v1h-5zM18 24h4v1h-4zM24 24h5v1h-5zM30 24h3v1h-3zM12 25h3v1h-3zM18 25h2v1h-2zM21 25h4v1h-4zM28 25h2v1h-2zM4 26h7v1h-7zM13 26h1v1h-1zM19 26h2v1h-2zM23 26h2v1h-2zM26 26h1v1h-1zM28 26h3v1h-3zM4 27h1v1h-1zM10 27h1v1h-1zM15 27h2v1h-2zM18 27h1v1h-1zM20 27h1v1h-1zM22 27h3v1h-3zM28 27h1v1h-1zM31 27h2v1h-2zM4 28h1v1h-1zM6 28h3v1h-3zM10 28h1v1h-1zM13 28h1v1h-1zM17 28h4v1h-4zM22 28h8v1h-8zM31 28h2v1h-2zM4 29h1v1h-1zM6 29h3v1h-3zM10 29h1v1h-1zM14 29h1v1h-1zM16 29h1v1h-1zM18 29h6v1h-6zM25 29h1v1h-1zM27 29h1v1h-1zM29 29h2v1h-2zM32 29h1v1h-1zM4 30h1v1h-1zM6 30h3v1h-3zM10 30h1v1h-1zM13 30h2v1h-2zM16 30h2v1h-2zM19 30h1v1h-1zM21 30h1v1h-1zM25 30h7v1h-7zM4 31h1v1h-1zM10 31h1v1h-1zM13 31h3v1h-3zM17 31h4v1h-4zM26 31h2v1h-2zM29 31h2v1h-2zM32 31h1v1h-1zM4 32h7v1h-7zM12 32h1v1h-1zM16 32h1v1h-1zM18 32h4v1h-4zM23 32h1v1h-1zM25 32h6v1h-6z" fill="#0d0a05"/></svg><!-- qr:end --></div></div>
+    <div class="url" style="left:46.5mm; top:36.2mm">rkmbarbershop.nl<span class="dim">/review</span></div>
+    <div class="divider" style="left:52mm; width:22mm; top:40.6mm"></div>
+    <div class="thanks gold" style="left:46.5mm; width:33mm; top:42.6mm">BEDANKT!</div>
+  </div>
+  <svg class="layer fx" viewBox="0 0 91 61" preserveAspectRatio="none"><g transform="translate(3 3)"><use href="#i-flare" x="20.4" y="1.4" width="6.6" height="6.6" opacity="0.95"/><use href="#i-flare" x="31.6" y="5.6" width="6" height="6" opacity="0.85"/></g></svg>
+  <img class="layer fx-img" src="fx-front.png" alt="">
+  <div class="guides"><div class="cut"></div><div class="safe"></div></div>
+</section>
+
+<!-- ======================= ACHTERKANT (Engels en Duits) ======================= -->
+<section class="card" id="back" lang="en">
+  <img class="layer bg-img" src="bg-back.png" alt="">
+  <svg class="layer deco" viewBox="0 0 91 61" preserveAspectRatio="none">
+    <image href="marble-back.png" x="0" y="0" width="91" height="61" preserveAspectRatio="none"/>
+    <g transform="translate(3 3)">
+      <rect x="8.5" y="6.5" width="27" height="27" rx="1.7" fill="#f0b24a" opacity="0.38" filter="url(#tileGlow)"/>
+      <ellipse cx="22" cy="43.5" rx="13" ry="6" fill="url(#logoGlow)"/>
+      <g class="bands" data-bands="br:line 3.4 3.65|br:glow 4.5 10.5|br:band 5 8|br:band 8.9 9.9|br:line 10.6 10.85 0.8|tl:line 3.4 3.65|tl:glow 4 9|tl:band 4.6 7|tl:band 7.7 8.6|tl:line 9.1 9.3 0.8|bl:line 5.2 5.45|bl:line 6.6 6.8 0.7"></g>
+      <rect x="2.3" y="2.3" width="80.4" height="50.4" rx="0.3" fill="none" stroke="url(#goldStroke)" stroke-width="0.24"/>
+    </g>
+  </svg>
+
+  <div class="trim content">
+    <div class="qr" style="left:8.5mm; top:6.5mm"><div class="tile"><!-- qr:start --><svg class="qr-code" viewBox="0 0 37 37" shape-rendering="crispEdges" role="img" aria-label="QR-code: https://www.rkmbarbershop.nl/review"><path d="M4 4h7v1h-7zM13 4h4v1h-4zM18 4h3v1h-3zM22 4h1v1h-1zM26 4h7v1h-7zM4 5h1v1h-1zM10 5h1v1h-1zM12 5h7v1h-7zM22 5h1v1h-1zM24 5h1v1h-1zM26 5h1v1h-1zM32 5h1v1h-1zM4 6h1v1h-1zM6 6h3v1h-3zM10 6h1v1h-1zM12 6h2v1h-2zM15 6h3v1h-3zM19 6h1v1h-1zM22 6h2v1h-2zM26 6h1v1h-1zM28 6h3v1h-3zM32 6h1v1h-1zM4 7h1v1h-1zM6 7h3v1h-3zM10 7h1v1h-1zM12 7h2v1h-2zM15 7h1v1h-1zM20 7h2v1h-2zM26 7h1v1h-1zM28 7h3v1h-3zM32 7h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h1v1h-1zM15 8h2v1h-2zM19 8h1v1h-1zM21 8h4v1h-4zM26 8h1v1h-1zM28 8h3v1h-3zM32 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM16 9h1v1h-1zM20 9h2v1h-2zM26 9h1v1h-1zM32 9h1v1h-1zM4 10h7v1h-7zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h7v1h-7zM12 11h3v1h-3zM16 11h1v1h-1zM18 11h3v1h-3zM23 11h1v1h-1zM4 12h1v1h-1zM10 12h1v1h-1zM12 12h1v1h-1zM16 12h1v1h-1zM19 12h3v1h-3zM24 12h3v1h-3zM29 12h3v1h-3zM5 13h1v1h-1zM13 13h2v1h-2zM16 13h2v1h-2zM19 13h1v1h-1zM23 13h1v1h-1zM25 13h1v1h-1zM27 13h2v1h-2zM30 13h2v1h-2zM6 14h1v1h-1zM8 14h3v1h-3zM13 14h8v1h-8zM22 14h1v1h-1zM24 14h2v1h-2zM7 15h2v1h-2zM12 15h2v1h-2zM16 15h2v1h-2zM20 15h1v1h-1zM22 15h1v1h-1zM24 15h1v1h-1zM26 15h2v1h-2zM29 15h1v1h-1zM4 16h1v1h-1zM7 16h5v1h-5zM13 16h1v1h-1zM15 16h1v1h-1zM17 16h1v1h-1zM19 16h2v1h-2zM22 16h3v1h-3zM26 16h2v1h-2zM32 16h1v1h-1zM5 17h3v1h-3zM9 17h1v1h-1zM12 17h1v1h-1zM16 17h1v1h-1zM19 17h6v1h-6zM26 17h1v1h-1zM28 17h1v1h-1zM31 17h2v1h-2zM5 18h2v1h-2zM9 18h3v1h-3zM13 18h2v1h-2zM16 18h1v1h-1zM19 18h3v1h-3zM25 18h3v1h-3zM29 18h2v1h-2zM6 19h4v1h-4zM11 19h5v1h-5zM20 19h1v1h-1zM22 19h4v1h-4zM27 19h2v1h-2zM30 19h1v1h-1zM32 19h1v1h-1zM4 20h3v1h-3zM8 20h4v1h-4zM14 20h1v1h-1zM16 20h1v1h-1zM21 20h1v1h-1zM27 20h1v1h-1zM29 20h2v1h-2zM4 21h6v1h-6zM12 21h1v1h-1zM14 21h2v1h-2zM17 21h8v1h-8zM26 21h3v1h-3zM30 21h3v1h-3zM4 22h2v1h-2zM7 22h1v1h-1zM9 22h4v1h-4zM19 22h2v1h-2zM23 22h2v1h-2zM29 22h1v1h-1zM32 22h1v1h-1zM4 23h1v1h-1zM8 23h1v1h-1zM13 23h2v1h-2zM16 23h2v1h-2zM19 23h2v1h-2zM22 23h2v1h-2zM25 23h1v1h-1zM27 23h2v1h-2zM4 24h1v1h-1zM6 24h5v1h-5zM18 24h4v1h-4zM24 24h5v1h-5zM30 24h3v1h-3zM12 25h3v1h-3zM18 25h2v1h-2zM21 25h4v1h-4zM28 25h2v1h-2zM4 26h7v1h-7zM13 26h1v1h-1zM19 26h2v1h-2zM23 26h2v1h-2zM26 26h1v1h-1zM28 26h3v1h-3zM4 27h1v1h-1zM10 27h1v1h-1zM15 27h2v1h-2zM18 27h1v1h-1zM20 27h1v1h-1zM22 27h3v1h-3zM28 27h1v1h-1zM31 27h2v1h-2zM4 28h1v1h-1zM6 28h3v1h-3zM10 28h1v1h-1zM13 28h1v1h-1zM17 28h4v1h-4zM22 28h8v1h-8zM31 28h2v1h-2zM4 29h1v1h-1zM6 29h3v1h-3zM10 29h1v1h-1zM14 29h1v1h-1zM16 29h1v1h-1zM18 29h6v1h-6zM25 29h1v1h-1zM27 29h1v1h-1zM29 29h2v1h-2zM32 29h1v1h-1zM4 30h1v1h-1zM6 30h3v1h-3zM10 30h1v1h-1zM13 30h2v1h-2zM16 30h2v1h-2zM19 30h1v1h-1zM21 30h1v1h-1zM25 30h7v1h-7zM4 31h1v1h-1zM10 31h1v1h-1zM13 31h3v1h-3zM17 31h4v1h-4zM26 31h2v1h-2zM29 31h2v1h-2zM32 31h1v1h-1zM4 32h7v1h-7zM12 32h1v1h-1zM16 32h1v1h-1zM18 32h4v1h-4zM23 32h1v1h-1zM25 32h6v1h-6z" fill="#0d0a05"/></svg><!-- qr:end --></div></div>
+    <div class="url" style="left:5.5mm; top:36.2mm">rkmbarbershop.nl<span class="dim">/review</span></div>
+    <img class="logo" src="../../visitekaartje/bron/rkm-mark.png" alt="RKM" style="left:13.5mm; top:39.6mm; width:17mm">
+
+    <div class="vline" style="left:39.4mm; top:6mm; height:43mm"></div>
+
+    <div class="block" style="left:42mm; top:7.4mm; width:38mm">
+      <h2 class="gold" style="font-size:7.4pt">ENJOYED YOUR VISIT?</h2>
+      <p style="margin-top:1.6mm">Leave us a review on Google</p>
+      <p class="sub" style="margin-top:0.7mm">Scan the QR code with your camera</p>
+    </div>
+
+    <div class="stars" style="position:absolute; left:42mm; width:38mm; top:22.4mm; gap:0.8mm"><svg style="width:2.7mm;height:2.7mm"><use href="#i-star"/></svg><svg style="width:2.7mm;height:2.7mm"><use href="#i-star"/></svg><svg style="width:2.7mm;height:2.7mm"><use href="#i-star"/></svg><svg style="width:2.7mm;height:2.7mm"><use href="#i-star"/></svg><svg style="width:2.7mm;height:2.7mm"><use href="#i-star"/></svg></div>
+
+    <div class="block" lang="de" style="left:42mm; top:29.4mm; width:38mm">
+      <h2 class="gold" style="font-size:7.4pt">ZUFRIEDEN?</h2>
+      <p style="margin-top:1.6mm">Bewerte uns auf Google</p>
+      <p class="sub" style="margin-top:0.7mm">QR-Code mit der Kamera scannen</p>
+    </div>
+
+    <div class="thanks gold" style="left:42mm; width:38mm; top:44.2mm">THANK YOU · DANKE</div>
+  </div>
+  <svg class="layer fx" viewBox="0 0 91 61" preserveAspectRatio="none"><g transform="translate(3 3)"><use href="#i-flare" x="17.4" y="37.4" width="5" height="5" opacity="0.9"/><use href="#i-flare" x="25.4" y="40.6" width="4.4" height="4.4" opacity="0.8"/></g></svg>
+  <img class="layer fx-img" src="fx-back.png" alt="">
+  <div class="guides"><div class="cut"></div><div class="safe"></div></div>
+</section>
+
+<script>
+// Gold bands across a corner (same as the business card). c = distance sum from the corner.
+const NS = "http://www.w3.org/2000/svg";
+const defs = document.querySelector("svg defs");
+let n = 0;
+for (const group of document.querySelectorAll("g.bands")) {
+  for (const spec of group.dataset.bands.split("|")) {
+    const [corner, rest] = spec.split(":");
+    const [type, a, b, opacity = "1"] = rest.split(" ");
+    const c1 = Number(a), c2 = Number(b);
+    const geo = {
+      tl: (c) => [[c, 0], [1, -1]],
+      br: (c) => [[85 - c, 55], [1, -1]],
+      bl: (c) => [[c, 55], [1, 1]],
+      tr: (c) => [[85 - c, 0], [1, 1]],
+    }[corner];
+    const L = 120;
+    const pts = [];
+    for (const [c, sign] of [[c1, 1], [c2, -1]]) {
+      const [[px, py], [dx, dy]] = geo(c);
+      const ends = [[px - dx * L, py - dy * L], [px + dx * L, py + dy * L]];
+      pts.push(...(sign === 1 ? ends : ends.reverse()));
+    }
+    const poly = document.createElementNS(NS, "polygon");
+    poly.setAttribute("points", pts.map((p) => p.join(",")).join(" "));
+    poly.setAttribute("opacity", opacity);
+    if (type === "band") {
+      const [p1, [dx, dy]] = geo(c1), [q] = geo(c2);
+      const len = Math.hypot(dx, dy), ux = dx / len, uy = dy / len;
+      const vx = q[0] - p1[0], vy = q[1] - p1[1], along = vx * ux + vy * uy;
+      const p2 = [p1[0] + vx - along * ux, p1[1] + vy - along * uy];
+      const g = document.createElementNS(NS, "linearGradient");
+      g.id = "b" + n++;
+      g.setAttribute("href", "#band");
+      g.setAttribute("gradientUnits", "userSpaceOnUse");
+      g.setAttribute("x1", p1[0]); g.setAttribute("y1", p1[1]);
+      g.setAttribute("x2", p2[0]); g.setAttribute("y2", p2[1]);
+      defs.appendChild(g);
+      poly.setAttribute("fill", `url(#${g.id})`);
+    } else if (type === "glow") {
+      poly.setAttribute("fill", "#f0b24a");
+      poly.setAttribute("opacity", "0.3");
+      poly.setAttribute("filter", "url(#glow)");
+    } else {
+      poly.setAttribute("fill", "#e3b257");
+    }
+    group.appendChild(poly);
+  }
+}
+</script>
+</body>
+</html>
