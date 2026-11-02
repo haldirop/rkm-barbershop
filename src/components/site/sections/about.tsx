@@ -1,43 +1,34 @@
 import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
+import type { Locale } from "@/i18n/config";
+import { home } from "@/i18n/messages/home";
 
-const STEPS = [
-  { title: "Even afstemmen", text: "Jouw wens staat voorop. Vertel wat je in gedachten hebt of laat een foto zien, dan maken wij het waar." },
-  { title: "Precisiewerk", text: "Schaar, tondeuse en mes, met aandacht voor elke overgang en elke lijn." },
-  { title: "Strak afgewerkt", text: "Styling, zodat je look ook thuis goed blijft zitten." },
-];
-
-export function About() {
+export function About({ locale }: { locale: Locale }) {
+  const t = home[locale].about;
   return (
     <section aria-labelledby="over-ons" className="border-t border-line py-24 sm:py-32">
       <div className="container-page grid gap-16 lg:grid-cols-2 lg:gap-24">
         <Reveal>
           <SectionHeading
             id="over-ons"
-            eyebrow="Over RKM Barbershop"
+            eyebrow={t.eyebrow}
             title={
               <>
-                Vakmanschap,
+                {t.titleLine}
                 <br />
-                <em className="text-gold-bright">zonder haast.</em>
+                <em className="text-gold-bright">{t.titleAccent}</em>
               </>
             }
           />
           <div className="mt-8 space-y-5 text-base leading-relaxed text-ink-muted sm:text-lg">
-            <p>
-              RKM Barbershop is een plek waar je even tot rust komt. We nemen de tijd om te luisteren,
-              adviseren eerlijk en werken met oog voor detail — van de eerste knip tot de laatste lijn met
-              het mes.
-            </p>
-            <p>
-              Of je nu komt voor je vaste knipbeurt, een strakke skin fade of een verzorgde baard: je
-              afspraak staat vast en je wordt op tijd geholpen.
-            </p>
+            {t.paragraphs.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
           </div>
         </Reveal>
 
         <ol className="relative space-y-4 self-center">
-          {STEPS.map((step, i) => (
+          {t.steps.map((step, i) => (
             <Reveal as="li" key={step.title} delay={i * 120}>
               <div className="flex gap-6 rounded-2xl border border-line bg-surface p-6 transition-colors hover:border-line-strong sm:p-7">
                 <span className="font-display text-4xl leading-none text-gold/80 tabular-nums">0{i + 1}</span>

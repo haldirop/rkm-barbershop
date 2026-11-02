@@ -5,11 +5,16 @@ import { deleteServiceAction, saveServiceAction } from "@/app/admin/actions/cata
 import { Checkbox, Field, Input, Select, Textarea } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { DeleteButton, FormError, useActionFeedback } from "./form-helpers";
+import { TranslationFields } from "./translation-fields";
 
 export interface ServiceValues {
   id: string;
   name: string;
   description: string | null;
+  nameEn: string | null;
+  nameDe: string | null;
+  descriptionEn: string | null;
+  descriptionDe: string | null;
   priceCents: number;
   durationMinutes: number;
   vatRate: number;
@@ -64,6 +69,20 @@ export function ServiceForm({ service }: { service?: ServiceValues }) {
       <Field label="Omschrijving" htmlFor={`description-${key}`} error={errors.description} hint="Wordt getoond op de website en bij het boeken.">
         <Textarea id={`description-${key}`} name="description" maxLength={300} defaultValue={service?.description ?? ""} className="min-h-20" />
       </Field>
+      <TranslationFields filled={Boolean(service?.nameEn || service?.nameDe)}>
+        <Field label="Naam (Engels)" htmlFor={`nameEn-${key}`} error={errors.nameEn}>
+          <Input id={`nameEn-${key}`} name="nameEn" defaultValue={service?.nameEn ?? ""} maxLength={60} placeholder="Haircut" />
+        </Field>
+        <Field label="Naam (Duits)" htmlFor={`nameDe-${key}`} error={errors.nameDe}>
+          <Input id={`nameDe-${key}`} name="nameDe" defaultValue={service?.nameDe ?? ""} maxLength={60} placeholder="Haarschnitt" />
+        </Field>
+        <Field label="Omschrijving (Engels)" htmlFor={`descriptionEn-${key}`} error={errors.descriptionEn}>
+          <Textarea id={`descriptionEn-${key}`} name="descriptionEn" maxLength={300} defaultValue={service?.descriptionEn ?? ""} className="min-h-20" />
+        </Field>
+        <Field label="Omschrijving (Duits)" htmlFor={`descriptionDe-${key}`} error={errors.descriptionDe}>
+          <Textarea id={`descriptionDe-${key}`} name="descriptionDe" maxLength={300} defaultValue={service?.descriptionDe ?? ""} className="min-h-20" />
+        </Field>
+      </TranslationFields>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-end gap-6">
           <Field label="Volgorde" htmlFor={`sort-${key}`} className="w-24">

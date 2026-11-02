@@ -2,12 +2,16 @@ import { ArrowRight, MapPin, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { BrandLockup } from "@/components/site/logo";
 import { ButtonLink } from "@/components/ui/button";
+import { localizePath, type Locale } from "@/i18n/config";
+import { common } from "@/i18n/messages/common";
+import { home } from "@/i18n/messages/home";
 import { cn } from "@/lib/cn";
 import { relativeDayLabel } from "@/lib/format";
 import { bookingHref } from "@/lib/links";
 import type { Suggestion } from "@/server/services/availability";
 
 export function Hero({
+  locale,
   city,
   tagline,
   status,
@@ -15,6 +19,7 @@ export function Hero({
   featuredService,
   suggestions,
 }: {
+  locale: Locale;
   city: string;
   tagline: string;
   status: { isOpen: boolean; label: string };
@@ -22,6 +27,7 @@ export function Hero({
   featuredService: { id: string; name: string } | null;
   suggestions: Suggestion[];
 }) {
+  const t = home[locale].hero;
   return (
     // Plain black behind the logo: no marble, beams or glow.
     <section aria-labelledby="hero-title" className="relative overflow-hidden bg-canvas">
@@ -32,17 +38,14 @@ export function Hero({
             <BrandLockup priority sizes="(min-width: 640px) 27rem, 22rem" />
           </h1>
           <p className="mt-8 font-serif text-2xl text-gold-bright italic sm:text-3xl">{tagline}</p>
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-muted sm:text-lg">
-            Vakmanschap in knippen, fades en baardverzorging. Neem plaats, ontspan, en laat het detailwerk aan
-            ons over. Je afspraak regel je in een minuut online.
-          </p>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-muted sm:text-lg">{t.intro}</p>
           <div className="mt-9 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <ButtonLink href="/afspraak-maken" size="lg">
-              Afspraak maken
+            <ButtonLink href={localizePath("/afspraak-maken", locale)} size="lg">
+              {common[locale].book}
               <ArrowRight className="size-4" aria-hidden />
             </ButtonLink>
-            <ButtonLink href="/#beschikbaarheid" size="lg" variant="secondary">
-              Beschikbaarheid bekijken
+            <ButtonLink href={localizePath("/#beschikbaarheid", locale)} size="lg" variant="secondary">
+              {t.seeAvailability}
             </ButtonLink>
           </div>
           <p className="mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-ink-muted lg:justify-start">
@@ -56,7 +59,7 @@ export function Hero({
             {city ? (
               <span className="flex items-center gap-1.5">
                 <MapPin className="size-4 text-gold" aria-hidden />
-                Barbershop in {city}
+                {t.location(city)}
               </span>
             ) : null}
           </p>
@@ -67,21 +70,22 @@ export function Hero({
             <div className="absolute inset-x-8 -top-px h-px bg-gradient-to-r from-transparent via-gold/60 to-transparent" aria-hidden />
             <p className="flex items-center gap-2 text-sm font-semibold text-gold">
               <Sparkles className="size-4" aria-hidden />
-              Beste beschikbaarheid
+              {t.bestTitle}
             </p>
             <p className="mt-1 text-sm text-ink-faint">
-              {featuredService ? `${featuredService.name} · ` : ""}eerstvolgende goede momenten
+              {featuredService ? `${featuredService.name} · ` : ""}
+              {t.bestSubtitle}
             </p>
             {suggestions.length ? (
               <ul className="mt-6 space-y-5">
                 {suggestions.map((s) => (
                   <li key={s.date}>
-                    <p className="text-sm font-medium text-ink">{relativeDayLabel(s.date, today)}</p>
+                    <p className="text-sm font-medium text-ink">{relativeDayLabel(s.date, today, locale)}</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       {s.times.map((time) => (
                         <Link
                           key={time}
-                          href={bookingHref({ serviceId: featuredService?.id, date: s.date, time })}
+                          href={localizePath(bookingHref({ serviceId: featuredService?.id, date: s.date, time }), locale)}
                           className="rounded-full border border-line-strong px-4 py-2 text-sm font-medium text-ink tabular-nums transition-colors hover:border-gold hover:bg-gold/10 hover:text-gold-bright"
                         >
                           {time}
@@ -92,13 +96,9 @@ export function Hero({
                 ))}
               </ul>
             ) : (
-              <p className="mt-6 text-sm text-ink-muted">
-                Er zijn op dit moment geen vrije plekken online. Bel ons gerust, dan kijken we samen.
-              </p>
+              <p className="mt-6 text-sm text-ink-muted">{t.bestEmpty}</p>
             )}
-            <p className="mt-7 border-t border-line pt-4 text-xs leading-relaxed text-ink-faint">
-              Op basis van de huidige agenda zijn deze tijden het meest waarschijnlijk beschikbaar.
-            </p>
+            <p className="mt-7 border-t border-line pt-4 text-xs leading-relaxed text-ink-faint">{t.bestNote}</p>
           </div>
         </div>
       </div>

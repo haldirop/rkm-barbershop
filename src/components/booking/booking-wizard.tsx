@@ -3,10 +3,13 @@
 import { ArrowLeft, ArrowRight, Check, Clock, LoaderCircle, Lock, Scissors, Star, UserRound, Users } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { requestAppointment, type BookingResult } from "@/app/(site)/afspraak-maken/actions";
+import { requestAppointment, type BookingResult } from "@/app/(site)/[locale]/afspraak-maken/actions";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Textarea } from "@/components/ui/form";
+import { useLocale } from "@/i18n/client";
+import { localizePath, type Locale } from "@/i18n/config";
+import { booking, localizeFieldErrors, type BookingMessages } from "@/i18n/messages/booking";
 import { cn } from "@/lib/cn";
 import { capitalize, formatDateLong, formatDuration, formatPrice } from "@/lib/format";
 import { timeToMinutes, minutesToTime } from "@/lib/time";
@@ -32,12 +35,13 @@ export interface BarberOption {
 type StepId = "service" | "barber" | "datetime" | "details" | "confirm";
 type BarberChoice = string | "any";
 
-const STEP_META: Record<StepId, { slug: string; label: string }> = {
-  service: { slug: "behandeling", label: "Behandeling" },
-  barber: { slug: "barber", label: "Barber" },
-  datetime: { slug: "moment", label: "Datum & tijd" },
-  details: { slug: "gegevens", label: "Gegevens" },
-  confirm: { slug: "bevestigen", label: "Bevestigen" },
+/** Step names in the address (?stap=…); the labels come from the messages. */
+const STEP_SLUGS: Record<StepId, string> = {
+  service: "behandeling",
+  barber: "barber",
+  datetime: "moment",
+  details: "gegevens",
+  confirm: "bevestigen",
 };
 
 interface Details {
@@ -63,6 +67,8 @@ export function BookingWizard({
   lastDate: string;
   initial: { serviceId?: string; barberId?: BarberChoice; date?: string; time?: string };
 }) {
+  const locale = useLocale();
+  const t = booking[locale];
   const steps = useMemo<StepId[]>(
     () => (barbers.length > 1 ? ["service", "barber", "datetime", "details", "confirm"] : ["service", "datetime", "details", "confirm"]),
     [barbers.length],
@@ -104,7 +110,7 @@ export function BookingWizard({
   const [landingStep] = useState<StepId>(() =>
     !initial.serviceId ? "service" : steps.includes("barber") && !initialBarber ? "barber" : "datetime",
   );
-  const requested = Object.entries(STEP_META).find(([, m]) => m.slug === searchParams.get("stap"))?.[0] as
+  const requested = Object.entries(STEP_SLUGS).find(([, slug]) => slug === searchParams.get("stap"))?.[0] as
     | StepId
     | undefined;
   const order = (s: StepId) => steps.indexOf(s);
@@ -114,7 +120,7 @@ export function BookingWizard({
   const goTo = useCallback(
     (next: StepId) => {
       const params = new URLSearchParams(searchParams.toString());
-      params.set("stap", STEP_META[next].slug);
+      params.set("stap", STEP_SLUGS[next]);
       window.history.pushState(null, "", `${pathname}?${params.toString()}`);
       requestAnimationFrame(() => topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
     },
@@ -142,22 +148,26 @@ export function BookingWizard({
     if (!service || !slot.date || !slot.time || !details) return;
     setError(null);
     startTransition(async () => {
-      const response = await requestAppointment({
-        ...details,
-        serviceId: service.id,
-        barberId: barberChoice === "any" || !barberChoice ? null : barberChoice,
-        date: slot.date,
-        startTime: slot.time,
-        privacyAccepted: privacy,
-        website: (document.getElementById("website") as HTMLInputElement | null)?.value ?? "",
-      });
+      const response = await requestAppointment(
+        {
+          ...details,
+          serviceId: service.id,
+          barberId: barberChoice === "any" || !barberChoice ? null : barberChoice,
+          date: slot.date,
+          startTime: slot.time,
+          privacyAccepted: privacy,
+          website: (document.getElementById("website") as HTMLInputElement | null)?.value ?? "",
+        },
+        locale,
+      );
       if (response.ok) {
         writeStoredValue(STORAGE_KEYS.favoriteBarber, barber ? barber.id : favoriteBarber);
         writeStoredValue(
           STORAGE_KEYS.customer,
           remember ? JSON.stringify({ ...details, notes: "" }) : null,
         );
-        setResult(response);
+        // The confirmation shows the treatment as it was chosen, in the page language.
+        setResult({ ...response, summary: { ...response.summary, serviceName: service.name } });
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
@@ -178,7 +188,7 @@ export function BookingWizard({
   const summary = (
     <BookingSummary
       service={service}
-      barberLabel={barberChoice === "any" ? "Eerst beschikbare barber" : (barber?.name ?? null)}
+      barberLabel={barberChoice === "any" ? t.anyBarber : (barber?.name ?? null)}
       showBarber={steps.includes("barber")}
       date={slot.date}
       time={slot.time}
@@ -187,17 +197,14 @@ export function BookingWizard({
 
   return (
     <div ref={topRef} className="scroll-mt-24">
-      <StepIndicator steps={steps} current={step} />
+      <StepIndicator steps={steps} current={step} t={t} />
 
       <div className="mt-8 grid gap-10 lg:grid-cols-[1fr_20rem] lg:gap-12">
         <div className="min-w-0">
           {error && step !== "confirm" ? <Alert tone="error" className="mb-6">{error}</Alert> : null}
 
           {step === "service" ? (
-            <StepSection
-              title="Welke behandeling wil je?"
-              subtitle={`${linkedBarber ? `Je afspraak is bij ${linkedBarber.name}. ` : ""}De tijd van de behandeling reserveren we volledig voor je.`}
-            >
+            <StepSection title={t.serviceTitle} subtitle={t.serviceSubtitle(linkedBarber?.name ?? null)}>
               <ul className="grid gap-3 sm:grid-cols-2">
                 {services.map((s) => (
                   <li key={s.id}>
@@ -214,9 +221,9 @@ export function BookingWizard({
                         <>
                           <span className="flex items-center gap-1.5">
                             <Clock className="size-3.5 text-gold" aria-hidden />
-                            {formatDuration(s.durationMinutes)}
+                            {formatDuration(s.durationMinutes, locale)}
                           </span>
-                          <span className="font-display text-2xl font-semibold text-gold-bright">{formatPrice(s.priceCents)}</span>
+                          <span className="font-display text-2xl font-semibold text-gold-bright">{formatPrice(s.priceCents, locale)}</span>
                         </>
                       }
                     />
@@ -227,7 +234,7 @@ export function BookingWizard({
           ) : null}
 
           {step === "barber" ? (
-            <StepSection title="Bij wie wil je zitten?" subtitle="Geen voorkeur? Dan zie je de meeste beschikbare tijden.">
+            <StepSection title={t.barberTitle} subtitle={t.barberSubtitle}>
               <ul className="grid gap-3 sm:grid-cols-2">
                 <li>
                   <OptionCard
@@ -237,8 +244,8 @@ export function BookingWizard({
                       next("barber");
                     }}
                     icon={<Users className="size-5" aria-hidden />}
-                    title="Geen voorkeur"
-                    description="We plannen je in bij de barber die op jouw moment vrij is."
+                    title={t.noPreference}
+                    description={t.noPreferenceText}
                   />
                 </li>
                 {[...barbers]
@@ -258,7 +265,7 @@ export function BookingWizard({
                         badge={
                           b.id === favoriteBarber ? (
                             <span className="flex items-center gap-1 rounded-full bg-gold/15 px-2 py-0.5 text-[11px] font-semibold text-gold">
-                              <Star className="size-3 fill-gold" aria-hidden /> Je vorige barber
+                              <Star className="size-3 fill-gold" aria-hidden /> {t.previousBarber}
                             </span>
                           ) : null
                         }
@@ -266,12 +273,12 @@ export function BookingWizard({
                     </li>
                   ))}
               </ul>
-              <StepNav onBack={() => back("barber")} />
+              <StepNav onBack={() => back("barber")} t={t} />
             </StepSection>
           ) : null}
 
           {step === "datetime" && service ? (
-            <StepSection title="Kies een dag en tijd" subtitle={`${service.name} · ${formatDuration(service.durationMinutes)}`}>
+            <StepSection title={t.datetimeTitle} subtitle={`${service.name} · ${formatDuration(service.durationMinutes, locale)}`}>
               <DateTimePicker
                 query={query}
                 today={today}
@@ -287,13 +294,15 @@ export function BookingWizard({
                 onBack={() => back("datetime")}
                 onNext={() => next("datetime")}
                 nextDisabled={!slot.date || !slot.time}
-                hint={slot.date && slot.time ? `${capitalize(formatDateLong(slot.date))} · ${slot.time}` : "Kies een tijd om verder te gaan"}
+                hint={slot.date && slot.time ? `${capitalize(formatDateLong(slot.date, false, locale))} · ${slot.time}` : t.pickTimeHint}
+                t={t}
               />
             </StepSection>
           ) : null}
 
           {step === "details" ? (
             <DetailsStep
+              locale={locale}
               initial={details}
               serverErrors={serverErrors}
               remember={remember}
@@ -308,25 +317,24 @@ export function BookingWizard({
           ) : null}
 
           {step === "confirm" && service && details && slot.date && slot.time ? (
-            <StepSection title="Controleer en verstuur" subtitle="Je afspraak is pas definitief nadat wij hem hebben bevestigd.">
+            <StepSection title={t.confirmTitle} subtitle={t.confirmSubtitle}>
               <div className="lg:hidden">{summary}</div>
               <dl className="mt-6 grid gap-x-8 gap-y-4 rounded-2xl border border-line bg-surface p-6 text-sm sm:grid-cols-2">
-                <SummaryRow label="Naam" value={`${details.firstName} ${details.lastName}`} />
-                <SummaryRow label="Telefoon" value={details.phone} />
-                <SummaryRow label="E-mail" value={details.email} />
-                {details.notes ? <SummaryRow label="Opmerking" value={details.notes} /> : null}
+                <SummaryRow label={t.name} value={`${details.firstName} ${details.lastName}`} />
+                <SummaryRow label={t.phone} value={details.phone} />
+                <SummaryRow label={t.email} value={details.email} />
+                {details.notes ? <SummaryRow label={t.note} value={details.notes} /> : null}
                 <button type="button" onClick={() => goTo("details")} className="text-left text-sm font-medium text-gold hover:text-gold-bright sm:col-span-2">
-                  Gegevens wijzigen
+                  {t.editDetails}
                 </button>
               </dl>
 
               <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-2xl border border-line bg-surface p-5 text-sm leading-relaxed text-ink-muted">
                 <Checkbox checked={privacy} onChange={(e) => setPrivacy(e.target.checked)} className="mt-0.5" />
                 <span>
-                  Ik ga akkoord dat RKM Barbershop mijn gegevens gebruikt om deze afspraak te plannen en mij
-                  hierover te informeren. Lees de{" "}
-                  <a href="/privacy" target="_blank" className="text-gold underline-offset-2 hover:underline">
-                    privacyverklaring
+                  {t.consentBefore}{" "}
+                  <a href={localizePath("/privacy", locale)} target="_blank" className="text-gold underline-offset-2 hover:underline">
+                    {t.privacyLink}
                   </a>
                   .
                 </span>
@@ -343,11 +351,11 @@ export function BookingWizard({
               <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-line bg-canvas/95 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
                 <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                   <Button variant="ghost" onClick={() => back("confirm")} disabled={pending}>
-                    <ArrowLeft className="size-4" aria-hidden /> Terug
+                    <ArrowLeft className="size-4" aria-hidden /> {t.back}
                   </Button>
                   <Button size="lg" onClick={submit} disabled={!privacy || pending} className="w-full sm:w-auto">
                     {pending ? <LoaderCircle className="size-5 animate-spin" aria-hidden /> : <Lock className="size-4" aria-hidden />}
-                    {pending ? "Bezig met versturen…" : "Afspraak aanvragen"}
+                    {pending ? t.sending : t.submit}
                   </Button>
                 </div>
               </div>
@@ -365,12 +373,12 @@ export function BookingWizard({
 
 // ---------------------------------------------------------------------------
 
-function StepIndicator({ steps, current }: { steps: StepId[]; current: StepId }) {
+function StepIndicator({ steps, current, t }: { steps: StepId[]; current: StepId; t: BookingMessages }) {
   const index = steps.indexOf(current);
   return (
-    <nav aria-label="Voortgang">
+    <nav aria-label={t.progress}>
       <p className="text-sm text-ink-muted sm:hidden">
-        Stap {index + 1} van {steps.length} · <span className="text-ink">{STEP_META[current].label}</span>
+        {t.stepOf(index + 1, steps.length)} · <span className="text-ink">{t.steps[current]}</span>
       </p>
       <div className="mt-3 flex gap-1.5 sm:hidden" aria-hidden>
         {steps.map((s, i) => (
@@ -391,7 +399,7 @@ function StepIndicator({ steps, current }: { steps: StepId[]; current: StepId })
               {i < index ? <Check className="size-4" aria-hidden /> : i + 1}
             </span>
             <span className={cn("text-sm font-medium", i === index ? "text-ink" : "text-ink-faint")}>
-              {STEP_META[s].label}
+              {t.steps[s]}
             </span>
             {i < steps.length - 1 ? <span className="h-px w-8 bg-line-strong" aria-hidden /> : null}
           </li>
@@ -461,22 +469,24 @@ function StepNav({
   onNext,
   nextDisabled,
   hint,
+  t,
 }: {
   onBack: () => void;
   onNext?: () => void;
   nextDisabled?: boolean;
   hint?: string;
+  t: BookingMessages;
 }) {
   return (
     <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-line bg-canvas/95 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
       {hint ? <p className="mb-3 text-center text-sm text-ink-muted sm:hidden">{hint}</p> : null}
       <div className="flex items-center justify-between gap-3">
         <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="size-4" aria-hidden /> Terug
+          <ArrowLeft className="size-4" aria-hidden /> {t.back}
         </Button>
         {onNext ? (
           <Button size="lg" onClick={onNext} disabled={nextDisabled} className="flex-1 sm:flex-none">
-            Volgende <ArrowRight className="size-4" aria-hidden />
+            {t.next} <ArrowRight className="size-4" aria-hidden />
           </Button>
         ) : null}
       </div>
@@ -506,34 +516,36 @@ function BookingSummary({
   date: string | null;
   time: string | null;
 }) {
+  const locale = useLocale();
+  const t = booking[locale];
   const end = service && time ? minutesToTime(timeToMinutes(time) + service.durationMinutes) : null;
   const rows: Array<[string, string | null, ReactNode]> = [
-    ["Behandeling", service?.name ?? null, <Scissors key="s" className="size-4" aria-hidden />],
-    ...(showBarber ? [["Barber", barberLabel, <UserRound key="b" className="size-4" aria-hidden />] as [string, string | null, ReactNode]] : []),
+    [t.treatment, service?.name ?? null, <Scissors key="s" className="size-4" aria-hidden />],
+    ...(showBarber ? [[t.barber, barberLabel, <UserRound key="b" className="size-4" aria-hidden />] as [string, string | null, ReactNode]] : []),
     [
-      "Moment",
-      date ? `${capitalize(formatDateLong(date))}${time ? `, ${time} – ${end}` : ""}` : null,
+      t.moment,
+      date ? `${capitalize(formatDateLong(date, false, locale))}${time ? `, ${time} – ${end}` : ""}` : null,
       <Clock key="m" className="size-4" aria-hidden />,
     ],
   ];
   return (
     <div className="rounded-2xl border border-line bg-surface p-6">
-      <p className="eyebrow">Jouw afspraak</p>
+      <p className="eyebrow">{t.summaryTitle}</p>
       <ul className="mt-5 space-y-4">
         {rows.map(([label, value, icon]) => (
           <li key={label} className="flex gap-3">
             <span className={cn("mt-0.5", value ? "text-gold" : "text-ink-faint")}>{icon}</span>
             <span className="min-w-0">
               <span className="block text-xs text-ink-faint">{label}</span>
-              <span className={cn("block text-sm", value ? "text-ink" : "text-ink-faint")}>{value ?? "Nog niet gekozen"}</span>
+              <span className={cn("block text-sm", value ? "text-ink" : "text-ink-faint")}>{value ?? t.notChosen}</span>
             </span>
           </li>
         ))}
       </ul>
       {service ? (
         <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
-          <span className="text-sm text-ink-muted">{formatDuration(service.durationMinutes)}</span>
-          <span className="font-display text-3xl font-semibold text-gold-bright">{formatPrice(service.priceCents)}</span>
+          <span className="text-sm text-ink-muted">{formatDuration(service.durationMinutes, locale)}</span>
+          <span className="font-display text-3xl font-semibold text-gold-bright">{formatPrice(service.priceCents, locale)}</span>
         </div>
       ) : null}
     </div>
@@ -541,6 +553,7 @@ function BookingSummary({
 }
 
 function DetailsStep({
+  locale,
   initial,
   serverErrors,
   remember,
@@ -548,6 +561,7 @@ function DetailsStep({
   onBack,
   onSubmit,
 }: {
+  locale: Locale;
   initial: Details | null;
   serverErrors: FieldErrors;
   remember: boolean;
@@ -564,6 +578,7 @@ function DetailsStep({
       return EMPTY_DETAILS;
     }
   });
+  const t = booking[locale];
   const [errors, setErrors] = useState<FieldErrors>(serverErrors);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -578,7 +593,7 @@ function DetailsStep({
     };
     const parsed = customerDetailsSchema.safeParse(value);
     if (!parsed.success) {
-      const found = fieldErrors(parsed.error);
+      const found = localizeFieldErrors(fieldErrors(parsed.error), locale);
       setErrors(found);
       const first = Object.keys(found)[0];
       document.getElementById(first)?.focus();
@@ -593,35 +608,35 @@ function DetailsStep({
     err(name) ? { "aria-invalid": true as const, "aria-describedby": `${name}-error` } : {};
 
   return (
-    <StepSection title="Je gegevens" subtitle="Zodat we je afspraak kunnen bevestigen.">
+    <StepSection title={t.detailsTitle} subtitle={t.detailsSubtitle}>
       <form noValidate onSubmit={handleSubmit} className="grid gap-5 sm:grid-cols-2">
-        <Field label="Voornaam" htmlFor="firstName" error={err("firstName")}>
+        <Field label={t.firstName} htmlFor="firstName" error={err("firstName")}>
           <Input id="firstName" name="firstName" autoComplete="given-name" defaultValue={defaults.firstName} required {...aria("firstName")} />
         </Field>
-        <Field label="Achternaam" htmlFor="lastName" error={err("lastName")}>
+        <Field label={t.lastName} htmlFor="lastName" error={err("lastName")}>
           <Input id="lastName" name="lastName" autoComplete="family-name" defaultValue={defaults.lastName} required {...aria("lastName")} />
         </Field>
-        <Field label="Telefoonnummer" htmlFor="phone" error={err("phone")}>
-          <Input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="06 12345678" defaultValue={defaults.phone} required {...aria("phone")} />
+        <Field label={t.phoneLabel} htmlFor="phone" error={err("phone")}>
+          <Input id="phone" name="phone" type="tel" inputMode="tel" autoComplete="tel" placeholder={t.phonePlaceholder} defaultValue={defaults.phone} required {...aria("phone")} />
         </Field>
-        <Field label="E-mailadres" htmlFor="email" error={err("email")} hint="Hier sturen we de bevestiging naartoe.">
-          <Input id="email" name="email" type="email" inputMode="email" autoComplete="email" placeholder="naam@voorbeeld.nl" defaultValue={defaults.email} required {...aria("email")} />
+        <Field label={t.emailLabel} htmlFor="email" error={err("email")} hint={t.emailHint}>
+          <Input id="email" name="email" type="email" inputMode="email" autoComplete="email" placeholder={t.emailPlaceholder} defaultValue={defaults.email} required {...aria("email")} />
         </Field>
-        <Field label="Opmerkingen (optioneel)" htmlFor="notes" error={err("notes")} className="sm:col-span-2">
-          <Textarea id="notes" name="notes" maxLength={500} placeholder="Bijvoorbeeld een specifieke wens voor je kapsel" defaultValue={defaults.notes} {...aria("notes")} />
+        <Field label={t.notesLabel} htmlFor="notes" error={err("notes")} className="sm:col-span-2">
+          <Textarea id="notes" name="notes" maxLength={500} placeholder={t.notesPlaceholder} defaultValue={defaults.notes} {...aria("notes")} />
         </Field>
         <label className="flex cursor-pointer items-center gap-3 text-sm text-ink-muted sm:col-span-2">
           <Checkbox name="remember" defaultChecked={remember || Boolean(saved)} />
-          Onthoud mijn gegevens op dit apparaat
+          {t.remember}
         </label>
         {/* Direct grid child, so it stays stuck to the bottom while the whole form scrolls. */}
         <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-canvas/95 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:static sm:col-span-2 sm:mx-0 sm:mt-2 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
           <div className="flex items-center justify-between gap-3">
             <Button variant="ghost" onClick={onBack}>
-              <ArrowLeft className="size-4" aria-hidden /> Terug
+              <ArrowLeft className="size-4" aria-hidden /> {t.back}
             </Button>
             <Button type="submit" size="lg" className="flex-1 sm:flex-none">
-              Volgende <ArrowRight className="size-4" aria-hidden />
+              {t.next} <ArrowRight className="size-4" aria-hidden />
             </Button>
           </div>
         </div>

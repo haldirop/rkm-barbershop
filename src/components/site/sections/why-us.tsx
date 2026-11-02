@@ -1,39 +1,23 @@
 import { Clock, MessageSquare, Scissors, ShieldCheck } from "lucide-react";
 import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
+import type { Locale } from "@/i18n/config";
+import { home } from "@/i18n/messages/home";
 
-const REASONS = [
-  {
-    Icon: Scissors,
-    title: "Vakmanschap",
-    text: "Twintig jaar ervaring in fades, klassieke cuts en baardwerk, tot in de puntjes verzorgd.",
-  },
-  {
-    Icon: Clock,
-    title: "Afspraak of binnenlopen",
-    text: "Met een afspraak zit je op een vast moment in de stoel. Geen afspraak? Loop gerust binnen: als er tijd is, helpen we je meteen.",
-  },
-  {
-    Icon: MessageSquare,
-    title: "Persoonlijk advies",
-    text: "We denken mee over je haartype, gezichtsvorm en stijl. Wat je met ons advies doet, kies je helemaal zelf.",
-  },
-  {
-    Icon: ShieldCheck,
-    title: "Hygiëne & kwaliteit",
-    text: "Schone werkplekken, gedesinfecteerde materialen en verzorgende producten.",
-  },
-];
+const ICONS = [Scissors, Clock, MessageSquare, ShieldCheck];
 
-export function WhyUs() {
+export function WhyUs({ locale }: { locale: Locale }) {
+  const t = home[locale].whyUs;
   return (
     <section aria-labelledby="waarom" className="border-y border-line bg-surface py-24 sm:py-32">
       <div className="container-page">
         <Reveal>
-          <SectionHeading id="waarom" eyebrow="Waarom RKM?" title="De details maken het verschil" align="center" />
+          <SectionHeading id="waarom" eyebrow={t.eyebrow} title={t.title} align="center" />
         </Reveal>
         <ul className="mt-16 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-          {REASONS.map(({ Icon, title, text }, i) => (
+          {t.reasons.map(({ title, text }, i) => {
+            const Icon = ICONS[i];
+            return (
             <Reveal as="li" key={title} delay={i * 90} className="bg-surface p-8">
               <span className="grid size-12 place-items-center rounded-full border border-gold/30 bg-gold/5 text-gold">
                 <Icon className="size-5" aria-hidden />
@@ -41,7 +25,8 @@ export function WhyUs() {
               <h3 className="mt-6 text-lg font-semibold text-ink">{title}</h3>
               <p className="mt-2 leading-relaxed text-ink-muted">{text}</p>
             </Reveal>
-          ))}
+            );
+          })}
         </ul>
       </div>
     </section>

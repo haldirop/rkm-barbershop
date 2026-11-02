@@ -1,6 +1,9 @@
 "use server";
 
 import { after } from "next/server";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/config";
+import { customerErrorText } from "@/i18n/errors";
+import { booking, localizeFieldErrors } from "@/i18n/messages/booking";
 import { formatDateLong, formatPrice } from "@/lib/format";
 import { availabilityAlertSchema, bookingRequestSchema, fieldErrors, type FieldErrors } from "@/lib/validation";
 import { clientIp, isRateLimited, recordHit } from "@/server/auth/rate-limit";
@@ -25,24 +28,24 @@ export type BookingResult =
     }
   | { ok: false; error: string; fieldErrors?: FieldErrors; slotTaken?: boolean };
 
-const GENERIC_ERROR = "Er ging iets mis bij het versturen. Probeer het opnieuw of bel ons even.";
+/** The language the request came from; anything unexpected is treated as Dutch. */
+function asLocale(value: unknown): Locale {
+  return isLocale(value) ? value : DEFAULT_LOCALE;
+}
 
-export async function requestAppointment(input: unknown): Promise<BookingResult> {
+export async function requestAppointment(input: unknown, language?: unknown): Promise<BookingResult> {
+  const locale = asLocale(language);
+  const t = booking[locale].errors;
   const parsed = bookingRequestSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: "Controleer de gemarkeerde velden.", fieldErrors: fieldErrors(parsed.error) };
+    return { ok: false, error: t.checkFields, fieldErrors: localizeFieldErrors(fieldErrors(parsed.error), locale) };
   }
   const data = parsed.data;
   // Honeypot filled in: almost certainly a bot. Answer vaguely, store nothing.
-  if (data.website) return { ok: false, error: GENERIC_ERROR };
+  if (data.website) return { ok: false, error: t.generic };
 
   const ipKey = `booking:${await clientIp()}`;
-  if (await isRateLimited(ipKey, 6, 30)) {
-    return {
-      ok: false,
-      error: "Je hebt in korte tijd veel aanvragen gedaan. Probeer het later opnieuw of bel ons.",
-    };
-  }
+  if (await isRateLimited(ipKey, 6, 30)) return { ok: false, error: t.tooManyRequests };
   await recordHit(ipKey);
 
   try {
@@ -56,6 +59,7 @@ export async function requestAppointment(input: unknown): Promise<BookingResult>
       phone: data.phone,
       email: data.email,
       notes: data.notes,
+      locale,
     });
     // E-mails are sent after the response, so the customer isn't kept waiting.
     after(() => notifyRequested(appointment.id));
@@ -63,38 +67,39 @@ export async function requestAppointment(input: unknown): Promise<BookingResult>
       ok: true,
       token,
       summary: {
+        // The appointment keeps the Dutch name for the shop; the customer sees their own language.
         serviceName: appointment.serviceName,
         barberName: appointment.barberName,
-        dateLabel: formatDateLong(appointment.date),
+        dateLabel: formatDateLong(appointment.date, false, locale),
         time: `${appointment.startTime.slice(0, 5)} – ${appointment.endTime.slice(0, 5)}`,
-        price: formatPrice(appointment.priceCents),
+        price: formatPrice(appointment.priceCents, locale),
         firstName: data.firstName,
         email: data.email,
       },
     };
   } catch (error) {
     if (error instanceof DomainError) {
-      return { ok: false, error: error.message, slotTaken: error.code === "SLOT_TAKEN" };
+      return { ok: false, error: customerErrorText(error, locale), slotTaken: error.code === "SLOT_TAKEN" };
     }
     console.error("[boeking] Onverwachte fout:", error);
-    return { ok: false, error: GENERIC_ERROR };
+    return { ok: false, error: t.generic };
   }
 }
 
 export type AlertResult = { ok: true; message: string } | { ok: false; error: string; fieldErrors?: FieldErrors };
 
 /** "Houd me op de hoogte": an e-mail as soon as a fully booked day has room again. */
-export async function requestAvailabilityAlert(input: unknown): Promise<AlertResult> {
+export async function requestAvailabilityAlert(input: unknown, language?: unknown): Promise<AlertResult> {
+  const locale = asLocale(language);
+  const t = booking[locale];
   const parsed = availabilityAlertSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, error: "Controleer je e-mailadres.", fieldErrors: fieldErrors(parsed.error) };
+    return { ok: false, error: t.errors.checkEmail, fieldErrors: localizeFieldErrors(fieldErrors(parsed.error), locale) };
   }
   const data = parsed.data;
 
   const ipKey = `alert:${await clientIp()}`;
-  if (await isRateLimited(ipKey, 8, 30)) {
-    return { ok: false, error: "Je hebt je in korte tijd vaak aangemeld. Probeer het later opnieuw." };
-  }
+  if (await isRateLimited(ipKey, 8, 30)) return { ok: false, error: t.errors.tooManyAlerts };
   await recordHit(ipKey);
 
   try {
@@ -103,14 +108,12 @@ export async function requestAvailabilityAlert(input: unknown): Promise<AlertRes
       barberId: data.barberId,
       date: data.date,
       email: data.email,
+      locale,
     });
-    return {
-      ok: true,
-      message: `Je staat op de lijst. Komt er op ${formatDateLong(data.date)} een plek vrij, dan sturen we direct een e-mail naar ${data.email}.`,
-    };
+    return { ok: true, message: t.waitlist.addedText(formatDateLong(data.date, false, locale), data.email) };
   } catch (error) {
-    if (error instanceof DomainError) return { ok: false, error: error.message };
+    if (error instanceof DomainError) return { ok: false, error: customerErrorText(error, locale) };
     console.error("[wachtlijst] Onverwachte fout:", error);
-    return { ok: false, error: GENERIC_ERROR };
+    return { ok: false, error: t.errors.generic };
   }
 }

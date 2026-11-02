@@ -2,12 +2,14 @@ import { ExternalLink, Star } from "lucide-react";
 import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
 import { ButtonLink } from "@/components/ui/button";
+import type { Locale } from "@/i18n/config";
+import { home } from "@/i18n/messages/home";
 import { cn } from "@/lib/cn";
 import type { Review } from "@/server/db/schema";
 
-function Stars({ rating }: { rating: number }) {
+function Stars({ rating, label }: { rating: number; label: string }) {
   return (
-    <div className="flex gap-0.5" role="img" aria-label={`${rating} van 5 sterren`}>
+    <div className="flex gap-0.5" role="img" aria-label={label}>
       {Array.from({ length: 5 }, (_, i) => (
         <Star
           key={i}
@@ -19,18 +21,27 @@ function Stars({ rating }: { rating: number }) {
   );
 }
 
-export function Reviews({ reviews, googleReviewsUrl }: { reviews: Review[]; googleReviewsUrl: string | null }) {
+export function Reviews({
+  reviews,
+  googleReviewsUrl,
+  locale,
+}: {
+  reviews: Review[];
+  googleReviewsUrl: string | null;
+  locale: Locale;
+}) {
   if (!reviews.length && !googleReviewsUrl) return null;
+  const t = home[locale].reviews;
   return (
     <section aria-labelledby="reviews" className="py-24 sm:py-32">
       <div className="container-page">
         <div className="flex flex-col justify-between gap-8 sm:flex-row sm:items-end">
           <Reveal>
-            <SectionHeading id="reviews" eyebrow="Reviews" title="Wat klanten zeggen" />
+            <SectionHeading id="reviews" eyebrow={t.eyebrow} title={t.title} />
           </Reveal>
           {googleReviewsUrl ? (
             <ButtonLink href={googleReviewsUrl} variant="secondary" target="_blank" rel="noopener noreferrer">
-              Alle reviews op Google
+              {t.allOnGoogle}
               <ExternalLink className="size-4" aria-hidden />
             </ButtonLink>
           ) : null}
@@ -41,10 +52,10 @@ export function Reviews({ reviews, googleReviewsUrl }: { reviews: Review[]; goog
               <Reveal as="li" key={review.id} delay={(i % 3) * 100}>
                 <figure className="flex h-full flex-col rounded-2xl border border-line bg-surface p-7">
                   <div className="flex items-center justify-between gap-3">
-                    <Stars rating={review.rating} />
+                    <Stars rating={review.rating} label={t.stars(review.rating)} />
                     {review.isDemo ? (
                       <span className="rounded-full bg-fuchsia-400/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-fuchsia-300 uppercase">
-                        Voorbeeld
+                        {t.example}
                       </span>
                     ) : null}
                   </div>

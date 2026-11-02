@@ -125,6 +125,9 @@ export const barbers = pgTable("barbers", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   bio: text("bio"),
+  /** English and German bio for the website in those languages (empty: the Dutch one is shown). */
+  bioEn: text("bio_en"),
+  bioDe: text("bio_de"),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   ...timestamps,
@@ -154,6 +157,11 @@ export const services = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     description: text("description"),
+    /** Name and description on the English and German website (empty: the Dutch ones are shown). */
+    nameEn: text("name_en"),
+    nameDe: text("name_de"),
+    descriptionEn: text("description_en"),
+    descriptionDe: text("description_de"),
     priceCents: integer("price_cents").notNull(),
     durationMinutes: integer("duration_minutes").notNull(),
     /** Btw-percentage, used at the till. Hairdressing services fall under the low rate (9%). */
@@ -281,10 +289,13 @@ export const appointments = pgTable(
     statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),
     reminderSentAt: timestamp("reminder_sent_at", { withTimezone: true }),
     isDemo: boolean("is_demo").notNull().default(false),
+    /** Language the customer booked in (nl, en, de): e-mails and links follow it. */
+    locale: text("locale").notNull().default("nl"),
     ...timestamps,
   },
   (t) => [
     index("appointments_date_idx").on(t.date, t.startTime),
+    check("appointments_locale_chk", sql`${t.locale} IN ('nl', 'en', 'de')`),
     index("appointments_status_idx").on(t.status),
     index("appointments_customer_idx").on(t.customerId),
     index("appointments_barber_date_idx").on(t.barberId, t.date),
@@ -347,11 +358,14 @@ export const availabilityAlerts = pgTable(
     notifiedAt: timestamp("notified_at", { withTimezone: true }),
     /** Why the last "plek vrij" e-mail could not be sent (retried at the next check). */
     lastError: text("last_error"),
+    /** Language of the website the sign-up came from: the e-mail is sent in that language. */
+    locale: text("locale").notNull().default("nl"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     unique("availability_alerts_unique").on(t.date, t.serviceId, t.barberId, t.email).nullsNotDistinct(),
     index("availability_alerts_date_idx").on(t.date),
+    check("availability_alerts_locale_chk", sql`${t.locale} IN ('nl', 'en', 'de')`),
   ],
 );
 
@@ -507,6 +521,9 @@ export const settings = pgTable(
     id: smallint("id").primaryKey().default(1),
     businessName: text("business_name").notNull().default("RKM Barbershop"),
     tagline: text("tagline").notNull().default("Strak geknipt. Zelfverzekerd naar buiten."),
+    /** The slogan on the English and German website (empty: the Dutch one is shown). */
+    taglineEn: text("tagline_en"),
+    taglineDe: text("tagline_de"),
     phone: text("phone").notNull().default(""),
     email: text("email").notNull().default(""),
     street: text("street").notNull().default(""),

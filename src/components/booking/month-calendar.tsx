@@ -1,13 +1,14 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useLocale } from "@/i18n/client";
+import { booking } from "@/i18n/messages/booking";
+import { common } from "@/i18n/messages/common";
 import { cn } from "@/lib/cn";
-import { capitalize, formatDateLong, formatMonth } from "@/lib/format";
+import { capitalize, formatDateLong, formatMonth, weekdayShort } from "@/lib/format";
 import { DAY_LEVEL_META } from "@/lib/status";
 import { addMonths, eachDay, endOfMonth, isoWeekday } from "@/lib/time";
 import type { CalendarDay } from "@/server/services/availability";
-
-const WEEKDAY_HEADERS = ["ma", "di", "wo", "do", "vr", "za", "zo"];
 
 export function MonthCalendar({
   month,
@@ -34,6 +35,9 @@ export function MonthCalendar({
   /** Fully booked days can be picked too (to sign up for a "plek vrij" e-mail). */
   allowFull?: boolean;
 }) {
+  const locale = useLocale();
+  const t = booking[locale];
+  const levels = common[locale].dayLevels;
   const byDate = new Map(days?.map((d) => [d.date, d]));
   const dates = eachDay(month, endOfMonth(month));
   const leading = isoWeekday(month) - 1;
@@ -42,7 +46,7 @@ export function MonthCalendar({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h3 className="font-display text-2xl font-semibold text-ink" aria-live="polite">
-          {capitalize(formatMonth(month))}
+          {capitalize(formatMonth(month, locale))}
         </h3>
         <div className="flex gap-1">
           <button
@@ -50,7 +54,7 @@ export function MonthCalendar({
             onClick={() => onMonthChange(addMonths(month, -1))}
             disabled={month <= minMonth}
             className="grid size-10 place-items-center rounded-full text-ink-muted transition-colors hover:bg-surface-3 hover:text-ink disabled:opacity-30"
-            aria-label="Vorige maand"
+            aria-label={t.previousMonth}
           >
             <ChevronLeft className="size-5" />
           </button>
@@ -59,7 +63,7 @@ export function MonthCalendar({
             onClick={() => onMonthChange(addMonths(month, 1))}
             disabled={month >= maxMonth}
             className="grid size-10 place-items-center rounded-full text-ink-muted transition-colors hover:bg-surface-3 hover:text-ink disabled:opacity-30"
-            aria-label="Volgende maand"
+            aria-label={t.nextMonth}
           >
             <ChevronRight className="size-5" />
           </button>
@@ -67,7 +71,7 @@ export function MonthCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-1 text-center" role="grid" aria-busy={loading}>
-        {WEEKDAY_HEADERS.map((d) => (
+        {[1, 2, 3, 4, 5, 6, 7].map((weekday) => weekdayShort(weekday, locale)).map((d) => (
           <div key={d} role="columnheader" className="pb-2 text-xs font-semibold tracking-wider text-ink-faint uppercase">
             {d}
           </div>
@@ -81,7 +85,7 @@ export function MonthCalendar({
           const bookable = level === "available" || level === "limited";
           const selectable = bookable || (allowFull && level === "full");
           const isSelected = selected === date;
-          const meta = level && level !== "unavailable" ? DAY_LEVEL_META[level] : null;
+          const meta = level && level !== "unavailable" ? { ...DAY_LEVEL_META[level], ...levels[level] } : null;
           return (
             <button
               key={date}
@@ -89,7 +93,7 @@ export function MonthCalendar({
               role="gridcell"
               disabled={!selectable}
               aria-selected={isSelected}
-              aria-label={`${formatDateLong(date)}${meta ? `, ${meta.label.toLowerCase()}` : ""}`}
+              aria-label={`${formatDateLong(date, false, locale)}${meta ? `, ${meta.label.toLowerCase()}` : ""}`}
               onClick={() => onSelect(date)}
               className={cn(
                 "relative flex aspect-square min-h-11 flex-col items-center justify-center rounded-xl border text-[15px] font-medium tabular-nums transition-all",

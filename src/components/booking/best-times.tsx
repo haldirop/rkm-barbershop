@@ -1,6 +1,8 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { useLocale } from "@/i18n/client";
+import { booking } from "@/i18n/messages/booking";
 import { cn } from "@/lib/cn";
 import { relativeDayLabel } from "@/lib/format";
 import type { Suggestion } from "@/server/services/availability";
@@ -19,16 +21,16 @@ export function BestTimes({
   selected: { date: string | null; time: string | null };
   onPick: (date: string, time: string) => void;
 }) {
+  const locale = useLocale();
+  const t = booking[locale];
   if (!loading && !suggestions?.length) return null;
   return (
     <section aria-labelledby="best-times" className="rounded-2xl border border-gold/20 bg-gradient-to-b from-gold/[0.07] to-transparent p-5">
       <h3 id="best-times" className="flex items-center gap-2 text-sm font-semibold text-gold">
         <Sparkles className="size-4" aria-hidden />
-        Beste beschikbaarheid
+        {t.bestTitle}
       </h3>
-      <p className="mt-1 text-xs text-ink-faint">
-        Op basis van de huidige agenda zijn deze tijden het meest waarschijnlijk beschikbaar.
-      </p>
+      <p className="mt-1 text-xs text-ink-faint">{t.bestNote}</p>
       {loading && !suggestions ? (
         <div className="mt-4 space-y-3">
           {[0, 1].map((i) => (
@@ -39,7 +41,7 @@ export function BestTimes({
         <ul className="mt-4 space-y-3">
           {suggestions?.map((s) => (
             <li key={s.date} className="flex flex-wrap items-center gap-2">
-              <span className="w-full text-sm font-medium text-ink sm:w-28">{relativeDayLabel(s.date, today)}</span>
+              <span className="w-full text-sm font-medium text-ink sm:w-28">{relativeDayLabel(s.date, today, locale)}</span>
               {s.times.map((time) => {
                 const active = selected.date === s.date && selected.time === time;
                 return (

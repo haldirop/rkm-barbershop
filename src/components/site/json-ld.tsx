@@ -1,3 +1,6 @@
+import { localizePath } from "@/i18n/config";
+import { common } from "@/i18n/messages/common";
+import { home } from "@/i18n/messages/home";
 import { capitalize } from "@/lib/format";
 import type { SiteData } from "@/server/services/site";
 import { siteUrl } from "@/server/services/settings";
@@ -6,7 +9,7 @@ const SCHEMA_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Sa
 
 /** schema.org structured data for local SEO (HairSalon is a LocalBusiness subtype). */
 export function LocalBusinessJsonLd({ site }: { site: SiteData }) {
-  const { settings } = site;
+  const { settings, locale } = site;
   const url = siteUrl();
   const prices = site.services.map((s) => s.priceCents);
   const data = {
@@ -14,8 +17,8 @@ export function LocalBusinessJsonLd({ site }: { site: SiteData }) {
     "@type": "HairSalon",
     "@id": `${url}/#barbershop`,
     name: settings.businessName,
-    slogan: settings.tagline,
-    url,
+    slogan: site.tagline,
+    url: `${url}${localizePath("/", locale) === "/" ? "" : localizePath("/", locale)}`,
     telephone: settings.phone || undefined,
     email: settings.email || undefined,
     image: `${url}/opengraph-image`,
@@ -42,12 +45,12 @@ export function LocalBusinessJsonLd({ site }: { site: SiteData }) {
     sameAs: [settings.instagramUrl, settings.facebookUrl].filter(Boolean),
     potentialAction: {
       "@type": "ReserveAction",
-      target: `${url}/afspraak-maken`,
-      name: "Afspraak maken",
+      target: `${url}${localizePath("/afspraak-maken", locale)}`,
+      name: common[locale].book,
     },
     hasOfferCatalog: {
       "@type": "OfferCatalog",
-      name: "Behandelingen",
+      name: home[locale].meta.treatmentsTitle,
       itemListElement: site.services.map((s) => ({
         "@type": "Offer",
         price: (s.priceCents / 100).toFixed(2),

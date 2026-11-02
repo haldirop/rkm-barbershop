@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cinzel, Cormorant_Garamond, Manrope } from "next/font/google";
+import { headers } from "next/headers";
+import { DEFAULT_LOCALE, LOCALE_HEADER, isLocale } from "@/i18n/config";
 import { getSettings, siteUrl } from "@/server/services/settings";
 import "./globals.css";
 
@@ -70,9 +72,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // The proxy passes the language of public pages; the admin and the till are Dutch.
+  const requested = (await headers()).get(LOCALE_HEADER);
+  const lang = isLocale(requested) ? requested : DEFAULT_LOCALE;
   return (
-    <html lang="nl" className={`${display.variable} ${caps.variable} ${sans.variable}`} data-scroll-behavior="smooth">
+    <html lang={lang} className={`${display.variable} ${caps.variable} ${sans.variable}`} data-scroll-behavior="smooth">
       <body className="min-h-dvh">{children}</body>
     </html>
   );

@@ -1,5 +1,7 @@
 import "server-only";
 import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
+import type { Locale } from "@/i18n/config";
+import type { CustomerMessage } from "@/i18n/errors";
 import { daySlots, pickBarber } from "@/lib/availability";
 import { ACTIVE_STATUSES } from "@/lib/status";
 import { minutesToTime, minutesUntil, timeToMinutes, zonedNow, type IsoDate, type ZonedNow } from "@/lib/time";
@@ -21,6 +23,8 @@ export interface BookingInput {
   phone: string;
   email: string;
   notes: string | null;
+  /** The language of the website the customer booked on (default Dutch). */
+  locale?: Locale;
 }
 
 interface SlotChoice {
@@ -44,7 +48,9 @@ async function claimSlot(tx: Database, choice: SlotChoice, now: ZonedNow) {
     bookingWindow(schedule.settings, now),
     choice.excludeAppointmentId,
   );
-  if (!rules) throw new DomainError("Op deze datum kun je online geen afspraak maken.");
+  if (!rules) {
+    throw new DomainError("Op deze datum kun je online geen afspraak maken.", "INVALID", { key: "noOnlineBooking" });
+  }
 
   const start = timeToMinutes(choice.startTime);
   const day = buildDay(schedule, choice.date);
@@ -72,10 +78,14 @@ export async function createBookingRequest(
 ) {
   const now = opts.now ?? zonedNow();
   const [service] = await db.select().from(services).where(eq(services.id, input.serviceId));
-  if (!service?.isActive) throw new DomainError("Deze behandeling is niet (meer) online te boeken.");
+  if (!service?.isActive) {
+    throw new DomainError("Deze behandeling is niet (meer) online te boeken.", "INVALID", { key: "serviceUnavailable" });
+  }
   if (input.barberId) {
     const [barber] = await db.select().from(barbers).where(eq(barbers.id, input.barberId));
-    if (!barber?.isActive) throw new DomainError("Deze barber is niet (meer) beschikbaar.");
+    if (!barber?.isActive) {
+      throw new DomainError("Deze barber is niet (meer) beschikbaar.", "INVALID", { key: "barberUnavailable" });
+    }
   }
 
   try {
@@ -139,6 +149,7 @@ export async function createBookingRequest(
           anyBarber: input.barberId === null,
           notes: input.notes,
           source: "ONLINE",
+          locale: input.locale ?? "nl",
           statusChangedAt: new Date(),
         })
         .returning();
@@ -173,6 +184,7 @@ async function assertOpenAppointmentLimit(
     throw new DomainError(
       `Je hebt al ${open} openstaande afspraken. Neem contact met ons op als je meer afspraken wilt plannen.`,
       "LIMIT",
+      { key: "openLimit", arg: open },
     );
   }
 }
@@ -197,6 +209,8 @@ export type ManagedAppointment = NonNullable<Awaited<ReturnType<typeof getAppoin
 export interface ChangePolicy {
   allowed: boolean;
   reason?: string;
+  /** The same reason, for the customer's language. */
+  message?: CustomerMessage;
 }
 
 /** Whether the customer may still cancel or move this appointment online. */
@@ -206,15 +220,18 @@ export function customerChangePolicy(
   now: ZonedNow = zonedNow(),
 ): ChangePolicy {
   if (appointment.status !== "PENDING" && appointment.status !== "APPROVED") {
-    return { allowed: false, reason: "Deze afspraak kan niet meer worden gewijzigd." };
+    return { allowed: false, reason: "Deze afspraak kan niet meer worden gewijzigd.", message: { key: "notChangeable" } };
   }
   const minutesLeft = minutesUntil(appointment.date, timeToMinutes(appointment.startTime), now);
-  if (minutesLeft <= 0) return { allowed: false, reason: "Deze afspraak is al begonnen of voorbij." };
+  if (minutesLeft <= 0) {
+    return { allowed: false, reason: "Deze afspraak is al begonnen of voorbij.", message: { key: "alreadyStarted" } };
+  }
   // An unconfirmed request can always be withdrawn; confirmed ones respect the cutoff.
   if (appointment.status === "APPROVED" && minutesLeft < settings.cancellationCutoffHours * 60) {
     return {
       allowed: false,
       reason: `Wijzigen of annuleren kan online tot ${settings.cancellationCutoffHours} uur van tevoren. Bel ons even, dan kijken we samen naar een oplossing.`,
+      message: { key: "cutoff", arg: settings.cancellationCutoffHours },
     };
   }
   return { allowed: true };
@@ -222,11 +239,11 @@ export function customerChangePolicy(
 
 async function loadForChange(tx: Database, token: string, now: ZonedNow) {
   const id = verifyManageToken(token);
-  if (!id) throw new DomainError("Deze link is ongeldig.", "NOT_FOUND");
+  if (!id) throw new DomainError("Deze link is ongeldig.", "NOT_FOUND", { key: "invalidLink" });
   const [appointment] = await tx.select().from(appointments).where(eq(appointments.id, id)).for("update");
-  if (!appointment) throw new DomainError("Deze afspraak bestaat niet meer.", "NOT_FOUND");
+  if (!appointment) throw new DomainError("Deze afspraak bestaat niet meer.", "NOT_FOUND", { key: "appointmentGone" });
   const policy = customerChangePolicy(appointment, await loadSettings(tx), now);
-  if (!policy.allowed) throw new DomainError(policy.reason!, "NOT_ALLOWED");
+  if (!policy.allowed) throw new DomainError(policy.reason!, "NOT_ALLOWED", policy.message);
   return appointment;
 }
 

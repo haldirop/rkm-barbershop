@@ -7,6 +7,8 @@ import { BestTimes } from "./best-times";
 import { useJson } from "./hooks";
 import { MonthCalendar } from "./month-calendar";
 import { TimeSlots } from "./time-slots";
+import { useLocale } from "@/i18n/client";
+import { booking } from "@/i18n/messages/booking";
 import { capitalize, formatDateLong } from "@/lib/format";
 import { endOfMonth, startOfMonth } from "@/lib/time";
 import type { CalendarDay, DayAvailability, Suggestion } from "@/server/services/availability";
@@ -38,9 +40,12 @@ export function DateTimePicker({
   /** When set, fully booked days can be picked to sign up for a "plek vrij" e-mail. */
   waitlist?: { serviceId: string; barberId: string | null };
 }) {
+  const locale = useLocale();
+  const t = booking[locale];
   const [month, setMonth] = useState(startOfMonth(value.date ?? today));
   const slotsRef = useRef<HTMLDivElement>(null);
-  const v = `&v=${refreshKey}`;
+  // The language only changes the wording of error messages.
+  const v = `&v=${refreshKey}&taal=${locale}`;
 
   const calendar = useJson<CalendarDay[]>(
     `/api/availability/calendar?${query}&van=${month}&tot=${endOfMonth(month)}${v}`,
@@ -98,7 +103,7 @@ export function DateTimePicker({
 
         <div ref={slotsRef} className="scroll-mt-24">
           <h3 className="mb-4 font-display text-2xl font-semibold text-ink">
-            {value.date ? capitalize(formatDateLong(value.date)) : "Kies een dag"}
+            {value.date ? capitalize(formatDateLong(value.date, false, locale)) : t.pickDay}
           </h3>
           {value.date && waitlist && day.data?.date === value.date && day.data.level === "full" ? (
             <AvailabilityAlert
@@ -116,9 +121,7 @@ export function DateTimePicker({
               onSelect={(time) => onChange({ date: value.date, time })}
             />
           ) : (
-            <p className="rounded-xl border border-dashed border-line-strong p-5 text-sm text-ink-muted">
-              Kies links een dag in de kalender, of tik op een van de voorgestelde tijden hierboven.
-            </p>
+            <p className="rounded-xl border border-dashed border-line-strong p-5 text-sm text-ink-muted">{t.pickDayHint}</p>
           )}
         </div>
       </div>

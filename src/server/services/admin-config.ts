@@ -39,6 +39,10 @@ async function openAppointments(column: typeof appointments.serviceId | typeof a
 export interface ServiceInput {
   name: string;
   description: string | null;
+  nameEn: string | null;
+  nameDe: string | null;
+  descriptionEn: string | null;
+  descriptionDe: string | null;
   priceCents: number;
   durationMinutes: number;
   vatRate: number;
@@ -76,6 +80,8 @@ export async function deleteService(id: string) {
 export interface BarberInput {
   name: string;
   bio: string | null;
+  bioEn: string | null;
+  bioDe: string | null;
   isActive: boolean;
   sortOrder: number;
   hours: Array<{ weekday: number; isWorking: boolean; startTime: string; endTime: string }>;

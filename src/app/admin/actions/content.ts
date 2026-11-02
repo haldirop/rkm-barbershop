@@ -77,6 +77,8 @@ const optionalUrl = z
 const businessSchema = z.object({
   businessName: z.string().transform(cleanText).pipe(z.string().min(2, "Vul de bedrijfsnaam in.").max(80)),
   tagline: z.string().transform(cleanText).pipe(z.string().max(120)),
+  taglineEn: z.string().transform(cleanText).pipe(z.string().max(120)).transform((v) => v || null),
+  taglineDe: z.string().transform(cleanText).pipe(z.string().max(120)).transform((v) => v || null),
   phone: z.string().transform(cleanText).pipe(z.string().min(6, "Vul een telefoonnummer in.").max(30)),
   email: emailSchema,
   street: z.string().transform(cleanText).pipe(z.string().min(2, "Vul straat en huisnummer in.").max(120)),

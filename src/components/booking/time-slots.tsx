@@ -1,20 +1,22 @@
 "use client";
 
 import { Sparkles, Sun, Sunrise, Sunset } from "lucide-react";
+import { useLocale } from "@/i18n/client";
+import { booking, type BookingMessages } from "@/i18n/messages/booking";
 import { cn } from "@/lib/cn";
 import { timeToMinutes } from "@/lib/time";
 import type { DayAvailability } from "@/server/services/availability";
 
 const PARTS = [
-  { id: "ochtend", label: "Ochtend", Icon: Sunrise, test: (m: number) => m < 12 * 60 },
-  { id: "middag", label: "Middag", Icon: Sun, test: (m: number) => m >= 12 * 60 && m < 17 * 60 },
-  { id: "avond", label: "Avond", Icon: Sunset, test: (m: number) => m >= 17 * 60 },
-];
+  { id: "morning", Icon: Sunrise, test: (m: number) => m < 12 * 60 },
+  { id: "afternoon", Icon: Sun, test: (m: number) => m >= 12 * 60 && m < 17 * 60 },
+  { id: "evening", Icon: Sunset, test: (m: number) => m >= 17 * 60 },
+] as const;
 
-function partLevel(count: number) {
-  if (count >= 6) return { dot: "bg-emerald-400", label: "ruim" };
-  if (count > 0) return { dot: "bg-amber-400", label: "beperkt" };
-  return { dot: "bg-red-400", label: "vol" };
+function partLevel(count: number, t: BookingMessages) {
+  if (count >= 6) return { dot: "bg-emerald-400", label: t.partLevels.many };
+  if (count > 0) return { dot: "bg-amber-400", label: t.partLevels.some };
+  return { dot: "bg-red-400", label: t.partLevels.none };
 }
 
 export function TimeSlots({
@@ -30,6 +32,7 @@ export function TimeSlots({
   selected: string | null;
   onSelect: (time: string) => void;
 }) {
+  const t = booking[useLocale()];
   if (error) return <p className="rounded-xl border border-red-400/30 bg-red-400/5 p-4 text-sm text-red-200">{error}</p>;
 
   if (loading && !day) {
@@ -44,10 +47,7 @@ export function TimeSlots({
 
   if (!day || day.slots.length === 0) {
     return (
-      <p className="rounded-xl border border-line bg-surface-2 p-5 text-sm text-ink-muted">
-        Op deze dag is helaas geen plek meer voor deze behandeling. Kies een andere dag of bekijk de beste
-        beschikbaarheid hierboven.
-      </p>
+      <p className="rounded-xl border border-line bg-surface-2 p-5 text-sm text-ink-muted">{t.noSlots}</p>
     );
   }
 
@@ -57,24 +57,24 @@ export function TimeSlots({
         <p className="flex items-center gap-2 rounded-xl border border-gold/25 bg-gold/5 px-4 py-3 text-sm text-ink">
           <Sparkles className="size-4 shrink-0 text-gold" aria-hidden />
           <span>
-            <span className="font-semibold">Beste beschikbaarheid deze dag:</span> {day.bestWindow.start} –{" "}
+            <span className="font-semibold">{t.bestThisDay}</span> {day.bestWindow.start} –{" "}
             {day.bestWindow.end}
           </span>
         </p>
       ) : null}
 
-      {PARTS.map(({ id, label, Icon, test }) => {
+      {PARTS.map(({ id, Icon, test }) => {
         const slots = day.slots.filter((s) => test(timeToMinutes(s.time)));
         if (!slots.length) return null;
-        const level = partLevel(slots.length);
+        const level = partLevel(slots.length, t);
         return (
           <fieldset key={id}>
             <legend className="mb-3 flex w-full items-center gap-2 text-sm font-medium text-ink-muted">
               <Icon className="size-4 text-gold" aria-hidden />
-              {label}
+              {t.dayParts[id]}
               <span className="ml-auto flex items-center gap-1.5 text-xs text-ink-faint">
                 <span className={cn("size-1.5 rounded-full", level.dot)} aria-hidden />
-                {slots.length} {slots.length === 1 ? "tijd" : "tijden"} · {level.label}
+                {t.times(slots.length)} · {level.label}
               </span>
             </legend>
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">

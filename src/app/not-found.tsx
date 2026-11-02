@@ -1,25 +1,15 @@
-import Link from "next/link";
+import { headers } from "next/headers";
 import { BrandLockup } from "@/components/site/logo";
-import { buttonClasses } from "@/components/ui/button";
+import { NotFoundMessage } from "@/components/site/not-found-message";
+import { DEFAULT_LOCALE, LOCALE_HEADER, isLocale } from "@/i18n/config";
 
-export default function NotFound() {
+export default async function NotFound() {
+  const requested = (await headers()).get(LOCALE_HEADER);
   return (
-    <main className="grain grid min-h-dvh place-items-center px-4 text-center">
+    <main className="grid min-h-dvh place-items-center px-4">
       <div>
-        <BrandLockup sizes="14rem" className="mx-auto w-56" />
-        <p className="eyebrow mt-8">Pagina niet gevonden</p>
-        <h1 className="heading-display mt-4 text-4xl sm:text-5xl">Deze pagina bestaat niet</h1>
-        <p className="mx-auto mt-4 max-w-md text-ink-muted">
-          Misschien is de link verlopen of verkeerd overgenomen. Ga terug naar de homepage of maak direct een afspraak.
-        </p>
-        <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-          <Link href="/afspraak-maken" className={buttonClasses({ size: "lg" })}>
-            Afspraak maken
-          </Link>
-          <Link href="/" className={buttonClasses({ size: "lg", variant: "secondary" })}>
-            Naar de homepage
-          </Link>
-        </div>
+        <BrandLockup sizes="14rem" className="mx-auto mb-8 w-56" />
+        <NotFoundMessage locale={isLocale(requested) ? requested : DEFAULT_LOCALE} />
       </div>
     </main>
   );

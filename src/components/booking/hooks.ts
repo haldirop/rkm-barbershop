@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useLocale } from "@/i18n/client";
+import { booking } from "@/i18n/messages/booking";
 
 interface FetchState<T> {
   key: string;
@@ -10,6 +12,7 @@ interface FetchState<T> {
 
 /** Fetches JSON for `url` (null = skip). Stale responses are ignored automatically. */
 export function useJson<T>(url: string | null) {
+  const t = booking[useLocale()];
   const [state, setState] = useState<FetchState<T> | null>(null);
   const [version, setVersion] = useState(0);
   const key = url ? `${url}#${version}` : null;
@@ -23,16 +26,16 @@ export function useJson<T>(url: string | null) {
         setState(
           res.ok
             ? { key, data: body as T }
-            : { key, error: (body as { error?: string }).error ?? "Er ging iets mis. Probeer het opnieuw." },
+            : { key, error: (body as { error?: string }).error ?? t.loadError },
         );
       })
       .catch((error: unknown) => {
         if ((error as Error).name !== "AbortError") {
-          setState({ key, error: "Geen verbinding. Controleer je internet en probeer het opnieuw." });
+          setState({ key, error: t.offline });
         }
       });
     return () => controller.abort();
-  }, [url, key]);
+  }, [url, key, t]);
 
   const reload = useCallback(() => setVersion((v) => v + 1), []);
   const current = state && state.key === key ? state : null;

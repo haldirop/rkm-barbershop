@@ -47,6 +47,8 @@ export interface EmailContent {
   footer: string[];
   /** Absolute URL of the logo image (see EMAIL_LOGO_PATH); without it the header is plain text. */
   logoUrl?: string;
+  /** Language of the e-mail (default Dutch). */
+  lang?: string;
 }
 
 export interface EmailTableRow {
@@ -115,7 +117,7 @@ export function renderEmail(subject: string, content: EmailContent): { subject: 
   ].join("\n");
 
   const html = `<!doctype html>
-<html lang="nl">
+<html lang="${escapeHtml(content.lang ?? "nl")}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">

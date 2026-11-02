@@ -1,9 +1,14 @@
+import type { Locale } from "@/i18n/config";
+import { email as emailMessages } from "@/i18n/messages/email";
 import { capitalize, formatAmount, formatDateLong, formatDateTime, formatPrice } from "@/lib/format";
 import { PAYMENT_METHODS, receiptRows, type PaymentMethodKey, type ReceiptInput, type ReceiptRow } from "@/lib/pos";
 import type { Appointment, Customer, Settings } from "@/server/db/schema";
 import { renderEmail, type EmailContent, type EmailTableRow } from "./layout";
 
-/** All transactional e-mails, in Dutch. Each returns { subject, html, text }. */
+/**
+ * All transactional e-mails. Each returns { subject, html, text }. E-mails to the customer
+ * are in the language they booked in (ctx.locale); e-mails to the shop are Dutch.
+ */
 
 export interface TemplateContext {
   settings: Settings;
@@ -11,191 +16,236 @@ export interface TemplateContext {
   customer: Customer;
   links: { manage?: string; book?: string; admin?: string; ics?: string; logo?: string };
   reason?: string | null;
+  /** The customer's language (default Dutch). */
+  locale?: Locale;
+  /** The treatment in the customer's language (default: the name on the appointment). */
+  serviceName?: string;
 }
 
 export type RenderedEmail = ReturnType<typeof renderEmail>;
 
-function details(ctx: TemplateContext, withCustomer = false): Array<[string, string]> {
+const lang = (ctx: TemplateContext): Locale => ctx.locale ?? "nl";
+const msg = (ctx: TemplateContext) => emailMessages[lang(ctx)];
+
+/** The appointment as a list for the customer, in their language. */
+function details(ctx: TemplateContext): Array<[string, string]> {
+  const a = ctx.appointment;
+  const locale = lang(ctx);
+  const l = msg(ctx).labels;
+  return [
+    [l.treatment, ctx.serviceName ?? a.serviceName],
+    [l.date, capitalize(formatDateLong(a.date, false, locale))],
+    [l.time, `${a.startTime.slice(0, 5)} – ${a.endTime.slice(0, 5)}`],
+    [l.barber, a.barberName],
+    [l.price, formatPrice(a.priceCents, locale)],
+  ];
+}
+
+/** The appointment with the customer's details, for the shop (Dutch). */
+function adminDetails(ctx: TemplateContext): Array<[string, string]> {
   const a = ctx.appointment;
   const c = ctx.customer;
   return [
-    ...(withCustomer
-      ? ([
-          ["Klant", `${c.firstName} ${c.lastName}`],
-          ["Telefoon", c.phone],
-          ...(c.email ? [["E-mail", c.email]] : []),
-        ] as Array<[string, string]>)
+    ["Klant", `${c.firstName} ${c.lastName}`],
+    ["Telefoon", c.phone],
+    ...(c.email ? ([["E-mail", c.email]] as Array<[string, string]>) : []),
+    ...(ctx.locale && ctx.locale !== "nl"
+      ? ([["Taal", ctx.locale === "en" ? "Engels" : "Duits"]] as Array<[string, string]>)
       : []),
     ["Behandeling", a.serviceName],
     ["Datum", capitalize(formatDateLong(a.date))],
     ["Tijd", `${a.startTime.slice(0, 5)} – ${a.endTime.slice(0, 5)}`],
     ["Barber", a.barberName],
     ["Prijs", formatPrice(a.priceCents)],
-    ...(withCustomer && a.notes ? ([["Opmerking", a.notes]] as Array<[string, string]>) : []),
+    ...(a.notes ? ([["Opmerking", a.notes]] as Array<[string, string]>) : []),
   ];
 }
 
-function footer(s: Settings, forCustomer = true): string[] {
+function footer(s: Settings, why: string | null): string[] {
   return [
     s.businessName,
     [s.street, [s.postalCode, s.city].filter(Boolean).join(" ")].filter(Boolean).join(", "),
     [s.phone, s.email].filter(Boolean).join(" · "),
-    ...(forCustomer ? [`Je ontvangt deze e-mail omdat je een afspraak hebt bij ${s.businessName}.`] : []),
+    ...(why ? [why] : []),
   ].filter(Boolean);
 }
 
-const hi = (ctx: TemplateContext) => `Hoi ${ctx.customer.firstName},`;
+const hi = (ctx: TemplateContext) => msg(ctx).hi(ctx.customer.firstName);
 const when = (ctx: TemplateContext) =>
+  msg(ctx).when(formatDateLong(ctx.appointment.date, false, lang(ctx)), ctx.appointment.startTime.slice(0, 5));
+/** For the shop: always Dutch. */
+const whenNl = (ctx: TemplateContext) =>
   `${formatDateLong(ctx.appointment.date)} om ${ctx.appointment.startTime.slice(0, 5)}`;
-const manage = (ctx: TemplateContext, label = "Afspraak bekijken of wijzigen") =>
+const manage = (ctx: TemplateContext, label = msg(ctx).manage) =>
   ctx.links.manage ? { label, url: ctx.links.manage } : undefined;
+const reason = (ctx: TemplateContext) => (ctx.reason ? [msg(ctx).reason(ctx.reason)] : []);
 
-function email(ctx: TemplateContext, subject: string, content: Omit<EmailContent, "footer">, forCustomer = true) {
-  return renderEmail(subject, { ...content, footer: footer(ctx.settings, forCustomer), logoUrl: ctx.links.logo });
+/** An e-mail to the customer, in their language. */
+function email(ctx: TemplateContext, subject: string, content: Omit<EmailContent, "footer">) {
+  return renderEmail(subject, {
+    ...content,
+    footer: footer(ctx.settings, msg(ctx).why(ctx.settings.businessName)),
+    logoUrl: ctx.links.logo,
+    lang: lang(ctx),
+  });
+}
+
+/** An e-mail to the shop (Dutch). */
+function shopEmail(ctx: TemplateContext, subject: string, content: Omit<EmailContent, "footer">) {
+  return renderEmail(subject, { ...content, footer: footer(ctx.settings, null), logoUrl: ctx.links.logo });
 }
 
 export const templates = {
-  requestReceived: (ctx: TemplateContext) =>
-    email(ctx, `Je afspraakaanvraag bij ${ctx.settings.businessName} is ontvangen`, {
-      preheader: `Aanvraag voor ${when(ctx)} — we laten je snel weten of het lukt.`,
-      heading: "Je afspraakaanvraag is ontvangen",
-      paragraphs: [hi(ctx), `Bedankt voor je aanvraag bij ${ctx.settings.businessName}.`],
+  requestReceived: (ctx: TemplateContext) => {
+    const t = msg(ctx).requestReceived;
+    const business = ctx.settings.businessName;
+    return email(ctx, t.subject(business), {
+      preheader: t.preheader(when(ctx)),
+      heading: t.heading,
+      paragraphs: [hi(ctx), t.thanks(business)],
       details: details(ctx),
-      note: `Je afspraak is nog niet definitief. Je ontvangt een bevestiging zodra ${ctx.settings.businessName} de aanvraag heeft goedgekeurd.`,
-      button: manage(ctx, "Aanvraag bekijken"),
-    }),
+      note: t.note(business),
+      button: manage(ctx, t.button),
+    });
+  },
 
-  approved: (ctx: TemplateContext) =>
-    email(ctx, `Je afspraak bij ${ctx.settings.businessName} is bevestigd`, {
-      preheader: `Bevestigd: ${when(ctx)}. Tot dan!`,
-      heading: "Je afspraak is bevestigd",
-      paragraphs: [hi(ctx), `Je afspraak bij ${ctx.settings.businessName} is bevestigd.`],
+  approved: (ctx: TemplateContext) => {
+    const m = msg(ctx);
+    const t = m.approved;
+    const business = ctx.settings.businessName;
+    return email(ctx, t.subject(business), {
+      preheader: t.preheader(when(ctx)),
+      heading: t.heading,
+      paragraphs: [hi(ctx), t.text(business)],
       details: details(ctx),
-      button: ctx.links.ics ? { label: "Zet in je agenda", url: ctx.links.ics } : undefined,
-      secondary: manage(ctx, "Afspraak wijzigen of annuleren"),
-      closing: [
-        `Kun je toch niet? Laat het ons uiterlijk ${ctx.settings.cancellationCutoffHours} uur van tevoren weten via de link hierboven.`,
-        "Tot dan!",
-      ],
-    }),
+      button: ctx.links.ics ? { label: m.addToCalendar, url: ctx.links.ics } : undefined,
+      secondary: manage(ctx, m.manageOrCancel),
+      closing: [t.cutoff(ctx.settings.cancellationCutoffHours), t.seeYou],
+    });
+  },
 
-  rejected: (ctx: TemplateContext) =>
-    email(ctx, `Je afspraak bij ${ctx.settings.businessName} kon helaas niet worden bevestigd`, {
-      preheader: "Kies gerust een ander moment.",
-      heading: "Je afspraak kon helaas niet worden bevestigd",
-      paragraphs: [
-        hi(ctx),
-        `Je afspraak bij ${ctx.settings.businessName} kon helaas niet worden bevestigd.`,
-        ...(ctx.reason ? [`Toelichting: ${ctx.reason}`] : []),
-        "Kies gerust een ander moment — we helpen je graag.",
-      ],
+  rejected: (ctx: TemplateContext) => {
+    const t = msg(ctx).rejected;
+    const business = ctx.settings.businessName;
+    return email(ctx, t.subject(business), {
+      preheader: t.preheader,
+      heading: t.heading,
+      paragraphs: [hi(ctx), t.text(business), ...reason(ctx), t.other],
       details: details(ctx),
-      button: ctx.links.book ? { label: "Kies een ander moment", url: ctx.links.book } : undefined,
-    }),
+      button: ctx.links.book ? { label: t.button, url: ctx.links.book } : undefined,
+    });
+  },
 
-  cancelledByShop: (ctx: TemplateContext) =>
-    email(ctx, `Je afspraak bij ${ctx.settings.businessName} is geannuleerd`, {
-      preheader: `Je afspraak van ${when(ctx)} is geannuleerd.`,
-      heading: "Je afspraak is geannuleerd",
-      paragraphs: [
-        hi(ctx),
-        `Helaas moeten we je afspraak bij ${ctx.settings.businessName} annuleren.`,
-        ...(ctx.reason ? [`Toelichting: ${ctx.reason}`] : []),
-        "Onze excuses voor het ongemak. Plan gerust een nieuw moment in.",
-      ],
+  cancelledByShop: (ctx: TemplateContext) => {
+    const m = msg(ctx);
+    const t = m.cancelledByShop;
+    const business = ctx.settings.businessName;
+    return email(ctx, t.subject(business), {
+      preheader: t.preheader(when(ctx)),
+      heading: t.heading,
+      paragraphs: [hi(ctx), t.text(business), ...reason(ctx), t.sorry],
       details: details(ctx),
-      button: ctx.links.book ? { label: "Nieuwe afspraak maken", url: ctx.links.book } : undefined,
-    }),
+      button: ctx.links.book ? { label: m.newAppointment, url: ctx.links.book } : undefined,
+    });
+  },
 
-  cancelledByCustomer: (ctx: TemplateContext) =>
-    email(ctx, `Je afspraak bij ${ctx.settings.businessName} is geannuleerd`, {
-      preheader: "Bedankt dat je het ons liet weten.",
-      heading: "Je afspraak is geannuleerd",
-      paragraphs: [hi(ctx), "Je hebt de onderstaande afspraak geannuleerd. Bedankt dat je het ons liet weten."],
+  cancelledByCustomer: (ctx: TemplateContext) => {
+    const m = msg(ctx);
+    const t = m.cancelledByCustomer;
+    return email(ctx, t.subject(ctx.settings.businessName), {
+      preheader: t.preheader,
+      heading: t.heading,
+      paragraphs: [hi(ctx), t.text],
       details: details(ctx),
-      button: ctx.links.book ? { label: "Nieuwe afspraak maken", url: ctx.links.book } : undefined,
-    }),
+      button: ctx.links.book ? { label: m.newAppointment, url: ctx.links.book } : undefined,
+    });
+  },
 
-  rescheduleRequested: (ctx: TemplateContext) =>
-    email(ctx, "Je nieuwe afspraaktijd is ontvangen", {
-      preheader: `Nieuwe tijd: ${when(ctx)} — nog te bevestigen.`,
-      heading: "We hebben je nieuwe tijd ontvangen",
-      paragraphs: [hi(ctx), "Je wilt je afspraak verplaatsen naar het onderstaande moment."],
+  rescheduleRequested: (ctx: TemplateContext) => {
+    const t = msg(ctx).rescheduleRequested;
+    return email(ctx, t.subject, {
+      preheader: t.preheader(when(ctx)),
+      heading: t.heading,
+      paragraphs: [hi(ctx), t.text],
       details: details(ctx),
-      note: `Je nieuwe tijd is nog niet definitief. Je ontvangt een bevestiging zodra ${ctx.settings.businessName} hem heeft goedgekeurd.`,
+      note: t.note(ctx.settings.businessName),
       button: manage(ctx),
-    }),
+    });
+  },
 
-  movedByShop: (ctx: TemplateContext) =>
-    email(ctx, `Je afspraak bij ${ctx.settings.businessName} is gewijzigd`, {
-      preheader: `Nieuwe tijd: ${when(ctx)}.`,
-      heading: "Je afspraak is gewijzigd",
-      paragraphs: [hi(ctx), "In overleg is je afspraak aangepast. Dit zijn de nieuwe gegevens:"],
+  movedByShop: (ctx: TemplateContext) => {
+    const m = msg(ctx);
+    const t = m.movedByShop;
+    return email(ctx, t.subject(ctx.settings.businessName), {
+      preheader: t.preheader(when(ctx)),
+      heading: t.heading,
+      paragraphs: [hi(ctx), t.text],
       details: details(ctx),
-      button: ctx.links.ics ? { label: "Zet in je agenda", url: ctx.links.ics } : undefined,
-      secondary: manage(ctx, "Afspraak wijzigen of annuleren"),
-    }),
+      button: ctx.links.ics ? { label: m.addToCalendar, url: ctx.links.ics } : undefined,
+      secondary: manage(ctx, m.manageOrCancel),
+    });
+  },
 
-  reminder: (ctx: TemplateContext) =>
-    email(ctx, `Herinnering: morgen heb je een afspraak bij ${ctx.settings.businessName}`, {
-      preheader: `Morgen om ${ctx.appointment.startTime.slice(0, 5)}: ${ctx.appointment.serviceName}.`,
-      heading: "Tot morgen!",
-      paragraphs: [hi(ctx), `Herinnering: morgen heb je een afspraak bij ${ctx.settings.businessName}.`],
+  reminder: (ctx: TemplateContext) => {
+    const t = msg(ctx).reminder;
+    const business = ctx.settings.businessName;
+    return email(ctx, t.subject(business), {
+      preheader: t.preheader(ctx.appointment.startTime.slice(0, 5), ctx.serviceName ?? ctx.appointment.serviceName),
+      heading: t.heading,
+      paragraphs: [hi(ctx), t.text(business)],
       details: details(ctx),
-      secondary: manage(ctx, "Kun je toch niet? Afspraak wijzigen of annuleren"),
-    }),
+      secondary: manage(ctx, t.cantMake),
+    });
+  },
 
-  // --- Voor de zaak -------------------------------------------------------
+// --- Voor de zaak -------------------------------------------------------
 
   newRequestAdmin: (ctx: TemplateContext) =>
-    email(
+    shopEmail(
       ctx,
       `Nieuwe afspraakaanvraag: ${ctx.customer.firstName} ${ctx.customer.lastName}, ${formatDateLong(ctx.appointment.date)} ${ctx.appointment.startTime.slice(0, 5)}`,
       {
-        preheader: `${ctx.appointment.serviceName} op ${when(ctx)} — goedkeuren of weigeren.`,
+        preheader: `${ctx.appointment.serviceName} op ${whenNl(ctx)} — goedkeuren of weigeren.`,
         heading: "Nieuwe afspraakaanvraag",
         paragraphs: ["Er is een nieuwe afspraak aangevraagd. Keur hem goed of weiger hem in het beheer."],
-        details: details(ctx, true),
+        details: adminDetails(ctx),
         button: ctx.links.admin ? { label: "Bekijk in het beheer", url: ctx.links.admin } : undefined,
       },
-      false,
     ),
 
   cancelledByCustomerAdmin: (ctx: TemplateContext) =>
-    email(
+    shopEmail(
       ctx,
       `Geannuleerd door klant: ${ctx.customer.firstName} ${ctx.customer.lastName}, ${formatDateLong(ctx.appointment.date)} ${ctx.appointment.startTime.slice(0, 5)}`,
       {
         preheader: "Het tijdslot is weer vrij.",
         heading: "Een klant heeft geannuleerd",
         paragraphs: [`${ctx.customer.firstName} ${ctx.customer.lastName} heeft de afspraak geannuleerd. Het tijdslot is weer vrij.`],
-        details: details(ctx, true),
+        details: adminDetails(ctx),
         button: ctx.links.admin ? { label: "Bekijk in het beheer", url: ctx.links.admin } : undefined,
       },
-      false,
     ),
 
   rescheduleRequestedAdmin: (ctx: TemplateContext) =>
-    email(
+    shopEmail(
       ctx,
       `Verplaatsingsverzoek: ${ctx.customer.firstName} ${ctx.customer.lastName}`,
       {
-        preheader: `Nieuwe tijd: ${when(ctx)} — wacht op je bevestiging.`,
+        preheader: `Nieuwe tijd: ${whenNl(ctx)} — wacht op je bevestiging.`,
         heading: "Een klant wil de afspraak verplaatsen",
         paragraphs: [
           `${ctx.customer.firstName} ${ctx.customer.lastName} heeft een nieuwe tijd gekozen. De afspraak staat weer op ‘aanvraag’ en wacht op je bevestiging.`,
           ...(ctx.reason ? [ctx.reason] : []),
         ],
-        details: details(ctx, true),
+        details: adminDetails(ctx),
         button: ctx.links.admin ? { label: "Aanvraag beoordelen", url: ctx.links.admin } : undefined,
       },
-      false,
     ),
 } satisfies Record<string, (ctx: TemplateContext) => RenderedEmail>;
 
 export type TemplateName = keyof typeof templates;
 
-/** "Er is een plek vrijgekomen": for a customer on the waiting list of a fully booked day. */
+/** "Er is een plek vrijgekomen": for a customer on the waiting list, in the language they signed up in. */
 export function availabilityAlertEmail(input: {
   settings: Settings;
   date: string;
@@ -204,27 +254,26 @@ export function availabilityAlertEmail(input: {
   times: string[];
   bookUrl: string;
   logoUrl?: string;
+  locale?: Locale;
 }): RenderedEmail {
-  const day = formatDateLong(input.date);
-  return renderEmail(`Er is een plek vrijgekomen op ${day}`, {
-    preheader: `Goed nieuws: ${input.serviceName} op ${day} is weer te boeken. Wees er snel bij.`,
-    heading: "Er is een plek vrijgekomen",
-    paragraphs: [
-      `Goed nieuws! Je wilde graag weten of er op ${day} nog plek zou komen. Dat is gelukt: er is weer een moment vrij.`,
-      "Wie als eerste boekt, krijgt de plek. Wacht dus niet te lang.",
-    ],
+  const locale = input.locale ?? "nl";
+  const m = emailMessages[locale];
+  const t = m.alert;
+  const day = formatDateLong(input.date, false, locale);
+  return renderEmail(t.subject(day), {
+    preheader: t.preheader(input.serviceName, day),
+    heading: t.heading,
+    paragraphs: [t.text(day), t.hurry],
     details: [
-      ["Behandeling", input.serviceName],
-      ["Datum", capitalize(day)],
-      ...(input.barberName ? ([["Barber", input.barberName]] as Array<[string, string]>) : []),
-      ...(input.times.length ? ([["Vrije tijden", input.times.join(", ")]] as Array<[string, string]>) : []),
+      [m.labels.treatment, input.serviceName],
+      [m.labels.date, capitalize(day)],
+      ...(input.barberName ? ([[m.labels.barber, input.barberName]] as Array<[string, string]>) : []),
+      ...(input.times.length ? ([[m.labels.freeTimes, input.times.join(", ")]] as Array<[string, string]>) : []),
     ],
-    button: { label: "Nu boeken", url: input.bookUrl },
-    footer: [
-      ...footer(input.settings, false),
-      "Je ontvangt deze eenmalige e-mail omdat je je op onze website hebt aangemeld voor een melding.",
-    ],
+    button: { label: t.button, url: input.bookUrl },
+    footer: [...footer(input.settings, null), t.why],
     logoUrl: input.logoUrl,
+    lang: locale,
   });
 }
 
@@ -275,7 +324,7 @@ export function receiptEmail(input: {
       ...RECEIPT_ROW_STYLE[row.kind],
     })),
     footer: [
-      ...footer(s, false),
+      ...footer(s, null),
       [s.kvkNumber ? `KvK ${s.kvkNumber}` : "", s.vatNumber ? `Btw ${s.vatNumber}` : ""].filter(Boolean).join(" · "),
     ].filter(Boolean),
     logoUrl: input.logoUrl,

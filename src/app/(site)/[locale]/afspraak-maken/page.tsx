@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { BookingWizard } from "@/components/booking/booking-wizard";
+import { localizedBio } from "@/i18n/content";
+import { home } from "@/i18n/messages/home";
+import { alternatesFor } from "@/i18n/seo";
+import { pageLocale } from "@/i18n/server";
 import { isIsoDate, isTimeString } from "@/lib/time";
 import { bookingWindow } from "@/server/services/availability";
 import { getActiveBarbers } from "@/server/services/catalog";
@@ -8,20 +12,25 @@ import { getSiteData } from "@/server/services/site";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Afspraak maken",
-  description:
-    "Maak online een afspraak bij RKM Barbershop. Kies je behandeling, barber en een moment dat jou uitkomt — direct zichtbaar welke tijden beschikbaar zijn.",
-  alternates: { canonical: "/afspraak-maken" },
-};
+export async function generateMetadata({ params }: PageProps<"/[locale]/afspraak-maken">): Promise<Metadata> {
+  const locale = await pageLocale(params);
+  const t = home[locale].meta;
+  return {
+    title: t.bookingTitle,
+    description: t.bookingDescription,
+    alternates: alternatesFor("/afspraak-maken", locale),
+  };
+}
 
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
 }
 
-export default async function BookingPage({ searchParams }: PageProps<"/afspraak-maken">) {
+export default async function BookingPage({ params: routeParams, searchParams }: PageProps<"/[locale]/afspraak-maken">) {
+  const locale = await pageLocale(routeParams);
+  const t = home[locale].booking;
   const params = await searchParams;
-  const [site, barbers] = await Promise.all([getSiteData(), getActiveBarbers()]);
+  const [site, barbers] = await Promise.all([getSiteData(locale), getActiveBarbers()]);
   const range = bookingWindow(site.settings, site.now);
 
   const serviceId = first(params.behandeling);
@@ -40,15 +49,13 @@ export default async function BookingPage({ searchParams }: PageProps<"/afspraak
       <header className="mb-10 max-w-2xl">
         <p className="eyebrow flex items-center gap-3">
           <span className="gold-rule" aria-hidden />
-          Online boeken
+          {t.eyebrow}
         </p>
-        <h1 className="heading-display mt-4 text-5xl sm:text-6xl">Afspraak maken</h1>
+        <h1 className="heading-display mt-4 text-5xl sm:text-6xl">{t.title}</h1>
       </header>
 
       {site.services.length === 0 || barbers.length === 0 ? (
-        <p className="rounded-2xl border border-line bg-surface p-6 text-ink-muted">
-          Online boeken is op dit moment niet mogelijk. Bel ons gerust{site.settings.phone ? ` op ${site.settings.phone}` : ""}.
-        </p>
+        <p className="rounded-2xl border border-line bg-surface p-6 text-ink-muted">{t.unavailable(site.settings.phone)}</p>
       ) : (
         <Suspense>
           <BookingWizard
@@ -59,7 +66,7 @@ export default async function BookingPage({ searchParams }: PageProps<"/afspraak
               priceCents: s.priceCents,
               durationMinutes: s.durationMinutes,
             }))}
-            barbers={barbers.map((b) => ({ id: b.id, name: b.name, bio: b.bio }))}
+            barbers={barbers.map((b) => ({ id: b.id, name: b.name, bio: localizedBio(b, locale) }))}
             today={site.now.date}
             lastDate={range.lastDate}
             initial={initial}

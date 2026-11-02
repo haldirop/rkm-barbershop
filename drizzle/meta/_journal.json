@@ -78,6 +78,13 @@
       "when": 1791682181201,
       "tag": "0010_low_stock",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793618618459,
+      "tag": "0011_i18n",
+      "breakpoints": true
     }
   ]
 }

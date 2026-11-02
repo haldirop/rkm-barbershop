@@ -1,5 +1,9 @@
+import { DEFAULT_LOCALE, isLocale, localizedUrl } from "@/i18n/config";
+import { localizeService } from "@/i18n/content";
+import { email as emailMessages } from "@/i18n/messages/email";
 import { timeToMinutes, zonedToUtc } from "@/lib/time";
 import { getAppointmentByToken } from "@/server/services/booking";
+import { getService } from "@/server/services/catalog";
 import { formatAddress, loadSettings, siteUrl } from "@/server/services/settings";
 
 function icsDate(date: Date): string {
@@ -27,9 +31,14 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/afspraak/[t
   const { token } = await ctx.params;
   const managed = await getAppointmentByToken(token);
   if (!managed || managed.appointment.status !== "APPROVED") {
-    return new Response("Afspraak niet gevonden of nog niet bevestigd.", { status: 404 });
+    return new Response(emailMessages.nl.calendar.notFound, { status: 404 });
   }
   const a = managed.appointment;
+  // In the language the customer booked in.
+  const locale = isLocale(a.locale) ? a.locale : DEFAULT_LOCALE;
+  const t = emailMessages[locale].calendar;
+  const service = a.serviceId ? await getService(a.serviceId) : null;
+  const serviceName = service ? localizeService(service, locale).name : a.serviceName;
   const settings = await loadSettings();
   const start = zonedToUtc(a.date, timeToMinutes(a.startTime));
   const end = zonedToUtc(a.date, timeToMinutes(a.endTime));
@@ -37,7 +46,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/afspraak/[t
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//RKM Barbershop//Afspraken//NL",
+    `PRODID:-//RKM Barbershop//Afspraken//${locale.toUpperCase()}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
@@ -45,13 +54,13 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/afspraak/[t
     `DTSTAMP:${icsDate(new Date())}`,
     `DTSTART:${icsDate(start)}`,
     `DTEND:${icsDate(end)}`,
-    `SUMMARY:${icsText(`${a.serviceName} bij ${settings.businessName}`)}`,
+    `SUMMARY:${icsText(t.summary(serviceName, settings.businessName))}`,
     `LOCATION:${icsText(formatAddress(settings))}`,
-    `DESCRIPTION:${icsText(`Barber: ${a.barberName}\nWijzigen of annuleren: ${siteUrl()}/afspraak/${token}`)}`,
+    `DESCRIPTION:${icsText(t.description(a.barberName, localizedUrl(siteUrl(), `/afspraak/${token}`, locale)))}`,
     "BEGIN:VALARM",
     "TRIGGER:-PT2H",
     "ACTION:DISPLAY",
-    `DESCRIPTION:${icsText(`Afspraak bij ${settings.businessName}`)}`,
+    `DESCRIPTION:${icsText(t.alarm(settings.businessName))}`,
     "END:VALARM",
     "END:VEVENT",
     "END:VCALENDAR",
@@ -60,7 +69,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/afspraak/[t
   return new Response(lines.map(fold).join("\r\n") + "\r\n", {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": 'attachment; filename="afspraak-rkm-barbershop.ics"',
+      "Content-Disposition": `attachment; filename="${t.filename}"`,
       "Cache-Control": "private, no-store",
     },
   });

@@ -1,5 +1,6 @@
 import "server-only";
 import { and, asc, count, eq, gte, inArray, isNull, lt, lte, sql } from "drizzle-orm";
+import type { Locale } from "@/i18n/config";
 import { zonedNow, type IsoDate, type ZonedNow } from "@/lib/time";
 import { getDb, type DbOrTx } from "@/server/db/client";
 import { availabilityAlerts, barbers, services, type AvailabilityAlert } from "@/server/db/schema";
@@ -26,6 +27,8 @@ export interface AlertInput {
   barberId: string | null;
   date: IsoDate;
   email: string;
+  /** The language of the website the sign-up came from: the e-mail is sent in it. */
+  locale?: Locale;
 }
 
 export async function createAvailabilityAlert(
@@ -37,20 +40,24 @@ export async function createAvailabilityAlert(
   const email = input.email.trim().toLowerCase();
   const window = bookingWindow(await loadSettings(db), now);
   if (input.date < window.firstDate || input.date > window.lastDate) {
-    throw new DomainError("Voor deze datum kun je je niet aanmelden.");
+    throw new DomainError("Voor deze datum kun je je niet aanmelden.", "INVALID", { key: "alertDate" });
   }
 
   const [service] = await db
     .select()
     .from(services)
     .where(and(eq(services.id, input.serviceId), eq(services.isActive, true)));
-  if (!service) throw new DomainError("Deze behandeling bestaat niet meer. Kies opnieuw een behandeling.");
+  if (!service) {
+    throw new DomainError("Deze behandeling bestaat niet meer. Kies opnieuw een behandeling.", "INVALID", {
+      key: "alertService",
+    });
+  }
   if (input.barberId) {
     const [barber] = await db
       .select({ id: barbers.id })
       .from(barbers)
       .where(and(eq(barbers.id, input.barberId), eq(barbers.isActive, true)));
-    if (!barber) throw new DomainError("Deze barber is niet beschikbaar. Kies opnieuw.");
+    if (!barber) throw new DomainError("Deze barber is niet beschikbaar. Kies opnieuw.", "INVALID", { key: "alertBarber" });
   }
 
   const day = await getDayAvailability(
@@ -58,8 +65,10 @@ export async function createAvailabilityAlert(
     { durationMinutes: service.durationMinutes, barberId: input.barberId, now },
     db,
   );
-  if (day.slots.length) throw new DomainError("Er zijn op deze dag nog tijden vrij: kies er gerust een.");
-  if (day.level !== "full") throw new DomainError("Op deze dag zijn we gesloten.");
+  if (day.slots.length) {
+    throw new DomainError("Er zijn op deze dag nog tijden vrij: kies er gerust een.", "INVALID", { key: "alertSlotsFree" });
+  }
+  if (day.level !== "full") throw new DomainError("Op deze dag zijn we gesloten.", "INVALID", { key: "alertClosed" });
 
   const sameAlert = and(
     eq(availabilityAlerts.date, input.date),
@@ -70,7 +79,7 @@ export async function createAvailabilityAlert(
   // Signed up before (and maybe already e-mailed while the day was briefly free): start over.
   const [renewed] = await db
     .update(availabilityAlerts)
-    .set({ notifiedAt: null, lastError: null, createdAt: new Date() })
+    .set({ notifiedAt: null, lastError: null, createdAt: new Date(), locale: input.locale ?? "nl" })
     .where(sameAlert)
     .returning();
   if (renewed) return renewed;
@@ -89,12 +98,13 @@ export async function createAvailabilityAlert(
     throw new DomainError(
       "Je staat al voor meerdere dagen op de lijst. Je krijgt bericht zodra daar een plek vrijkomt.",
       "LIMIT",
+      { key: "alertLimit" },
     );
   }
 
   const [created] = await db
     .insert(availabilityAlerts)
-    .values({ date: input.date, serviceId: input.serviceId, barberId: input.barberId, email })
+    .values({ date: input.date, serviceId: input.serviceId, barberId: input.barberId, email, locale: input.locale ?? "nl" })
     .onConflictDoNothing()
     .returning();
   if (created) return created;

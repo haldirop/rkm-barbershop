@@ -92,9 +92,17 @@ export function BrandLockup({
 }
 
 /** Compact logo for the header and other small places. */
-export function Logo({ className, href = "/" }: { className?: string; href?: string }) {
+export function Logo({
+  className,
+  href = "/",
+  label = "RKM Barbershop — home",
+}: {
+  className?: string;
+  href?: string;
+  label?: string;
+}) {
   return (
-    <Link href={href} className={cn("group flex flex-col items-center", className)} aria-label="RKM Barbershop — home">
+    <Link href={href} className={cn("group flex flex-col items-center", className)} aria-label={label}>
       <LogoMark sizes="86px" priority className="w-[86px] transition-transform duration-500 group-hover:scale-[1.03]" />
       <Wordmark className="mt-1.5 text-[0.5rem] tracking-[0.5em] [margin-right:-0.5em]" />
     </Link>

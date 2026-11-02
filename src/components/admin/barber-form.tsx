@@ -6,11 +6,14 @@ import { Checkbox, Field, Input } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { capitalize, weekdayName } from "@/lib/format";
 import { DeleteButton, FormError, useActionFeedback } from "./form-helpers";
+import { TranslationFields } from "./translation-fields";
 
 export interface BarberValues {
   id: string;
   name: string;
   bio: string | null;
+  bioEn: string | null;
+  bioDe: string | null;
   isActive: boolean;
   sortOrder: number;
   hours: Array<{ weekday: number; isWorking: boolean; startTime: string; endTime: string }>;
@@ -42,6 +45,14 @@ export function BarberForm({ barber }: { barber?: BarberValues }) {
           <Input id={`bio-${key}`} name="bio" defaultValue={barber?.bio ?? ""} maxLength={160} />
         </Field>
       </div>
+      <TranslationFields filled={Boolean(barber?.bioEn || barber?.bioDe)}>
+        <Field label="Korte omschrijving (Engels)" htmlFor={`bioEn-${key}`} error={errors.bioEn}>
+          <Input id={`bioEn-${key}`} name="bioEn" defaultValue={barber?.bioEn ?? ""} maxLength={160} />
+        </Field>
+        <Field label="Korte omschrijving (Duits)" htmlFor={`bioDe-${key}`} error={errors.bioDe}>
+          <Input id={`bioDe-${key}`} name="bioDe" defaultValue={barber?.bioDe ?? ""} maxLength={160} />
+        </Field>
+      </TranslationFields>
 
       <fieldset>
         <legend className="mb-3 text-sm font-medium text-ink-muted">Werkdagen en werktijden</legend>

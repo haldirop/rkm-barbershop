@@ -1,6 +1,8 @@
 import "server-only";
 import { asc, eq } from "drizzle-orm";
 import { cache } from "react";
+import { DEFAULT_LOCALE, type Locale } from "@/i18n/config";
+import { localizeService, localizedTagline } from "@/i18n/content";
 import { openStatus, type OpeningDay } from "@/lib/opening-hours";
 import { addDays, zonedNow } from "@/lib/time";
 import { getDb } from "@/server/db/client";
@@ -8,8 +10,11 @@ import { reviews } from "@/server/db/schema";
 import { getActiveServices, getBusinessHours, listBlockedTimes } from "./catalog";
 import { getSettings } from "./settings";
 
-/** Everything the public pages share, loaded once per request. */
-export const getSiteData = cache(async () => {
+/**
+ * Everything the public pages share, loaded once per request, in the page language:
+ * treatment names, slogan and the "nu open" label follow it.
+ */
+export const getSiteData = cache(async (locale: Locale = DEFAULT_LOCALE) => {
   const now = zonedNow();
   const [settings, hours, services, publishedReviews, blocks] = await Promise.all([
     getSettings(),
@@ -31,11 +36,13 @@ export const getSiteData = cache(async () => {
   }));
   const shopClosures = blocks.filter((b) => b.barberId === null);
   return {
+    locale,
     settings,
+    tagline: localizedTagline(settings, locale),
     openingDays,
-    services,
+    services: services.map((service) => localizeService(service, locale)),
     reviews: publishedReviews,
-    status: openStatus(openingDays, now, shopClosures),
+    status: openStatus(openingDays, now, shopClosures, 120, locale),
     now,
   };
 });

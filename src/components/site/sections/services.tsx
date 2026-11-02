@@ -2,15 +2,17 @@ import { ArrowUpRight, Clock } from "lucide-react";
 import Link from "next/link";
 import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
+import { localizePath, type Locale } from "@/i18n/config";
+import { home } from "@/i18n/messages/home";
 import { formatDuration, formatPrice } from "@/lib/format";
 import { bookingHref } from "@/lib/links";
 import type { Service } from "@/server/db/schema";
 
-export function ServiceCard({ service, index }: { service: Service; index: number }) {
+export function ServiceCard({ service, index, locale }: { service: Service; index: number; locale: Locale }) {
   return (
     <Reveal as="li" delay={(index % 3) * 100} className="h-full">
       <Link
-        href={bookingHref({ serviceId: service.id })}
+        href={localizePath(bookingHref({ serviceId: service.id }), locale)}
         className="group relative flex h-full flex-col rounded-2xl border border-line bg-surface p-7 transition-all duration-300 hover:-translate-y-1 hover:border-gold/40 hover:bg-surface-2"
       >
         <div className="flex items-start justify-between gap-4">
@@ -28,31 +30,32 @@ export function ServiceCard({ service, index }: { service: Service; index: numbe
         <div className="mt-7 flex items-end justify-between border-t border-line pt-5">
           <span className="flex items-center gap-1.5 text-sm text-ink-muted">
             <Clock className="size-4 text-gold" aria-hidden />
-            {formatDuration(service.durationMinutes)}
+            {formatDuration(service.durationMinutes, locale)}
           </span>
-          <span className="font-display text-3xl font-semibold text-gold-bright">{formatPrice(service.priceCents)}</span>
+          <span className="font-display text-3xl font-semibold text-gold-bright">{formatPrice(service.priceCents, locale)}</span>
         </div>
-        <span className="sr-only">— boek deze behandeling</span>
+        <span className="sr-only">{home[locale].services.bookThis}</span>
       </Link>
     </Reveal>
   );
 }
 
-export function Services({ services }: { services: Service[] }) {
+export function Services({ services, locale }: { services: Service[]; locale: Locale }) {
+  const t = home[locale].services;
   return (
     <section aria-labelledby="behandelingen" className="py-24 sm:py-32">
       <div className="container-page">
         <Reveal>
           <SectionHeading
             id="behandelingen"
-            eyebrow="Onze behandelingen"
-            title="Van klassiek tot messcherp"
-            intro="Kies je behandeling en boek direct een moment dat jou uitkomt. De tijd die we nodig hebben, reserveren we ook echt voor je."
+            eyebrow={t.eyebrow}
+            title={t.title}
+            intro={t.intro}
           />
         </Reveal>
         <ul className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((service, i) => (
-            <ServiceCard key={service.id} service={service} index={i} />
+            <ServiceCard key={service.id} service={service} index={i} locale={locale} />
           ))}
         </ul>
       </div>

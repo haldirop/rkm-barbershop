@@ -2,6 +2,7 @@ import { count, eq } from "drizzle-orm";
 import { daySlots, type DayInput } from "@/lib/availability";
 import { addDays, isoWeekday, minutesToTime, timeToMinutes, zonedNow } from "@/lib/time";
 import type { Database } from "./client";
+import { DEFAULT_SERVICE_TRANSLATIONS, DEFAULT_TAGLINE, DEFAULT_TAGLINE_DE, DEFAULT_TAGLINE_EN } from "./default-translations";
 import {
   appointments,
   barberWorkingHours,
@@ -26,7 +27,9 @@ export async function seedBaseData(db: Database): Promise<boolean> {
     await tx.insert(settings).values({
       id: 1,
       businessName: "RKM Barbershop",
-      tagline: "Strak geknipt. Zelfverzekerd naar buiten.",
+      tagline: DEFAULT_TAGLINE,
+      taglineEn: DEFAULT_TAGLINE_EN,
+      taglineDe: DEFAULT_TAGLINE_DE,
       phone: "020 000 0000",
       email: "info@rkmbarbershop.nl",
       street: "Voorbeeldstraat 12",
@@ -47,50 +50,22 @@ export async function seedBaseData(db: Database): Promise<boolean> {
       hours.map(([weekday, openTime, closeTime, isOpen]) => ({ weekday, openTime, closeTime, isOpen })),
     );
 
-    await tx.insert(services).values([
-      {
-        name: "Knippen",
-        description: "Klassiek of modern, afgestemd op je haartype. Inclusief wassen en styling.",
-        priceCents: 2500,
-        durationMinutes: 30,
-        sortOrder: 1,
-      },
-      {
-        name: "Skin Fade",
-        description: "Strakke fade tot op de huid met een naadloze overgang. Afgewerkt met scheermes.",
-        priceCents: 3000,
-        durationMinutes: 45,
-        sortOrder: 2,
-      },
-      {
-        name: "Knippen + Baard",
-        description: "Complete behandeling: knipbeurt en baard in model, met strakke contouren.",
-        priceCents: 3750,
-        durationMinutes: 45,
-        sortOrder: 3,
-      },
-      {
-        name: "Baard",
-        description: "Baard trimmen en in model brengen, contouren met het mes en verzorgende olie.",
-        priceCents: 1750,
-        durationMinutes: 20,
-        sortOrder: 4,
-      },
-      {
-        name: "Kinderen t/m 12 jaar",
-        description: "Rustig en met aandacht geknipt, voor de jongste gasten.",
-        priceCents: 2000,
-        durationMinutes: 30,
-        sortOrder: 5,
-      },
-      {
-        name: "Hot Towel Shave",
-        description: "Traditioneel scheren met warme handdoeken, scheerzeep en mes.",
-        priceCents: 2750,
-        durationMinutes: 30,
-        sortOrder: 6,
-      },
-    ]);
+    const prices: Record<string, [priceCents: number, durationMinutes: number]> = {
+      Knippen: [2500, 30],
+      "Skin Fade": [3000, 45],
+      "Knippen + Baard": [3750, 45],
+      Baard: [1750, 20],
+      "Kinderen t/m 12 jaar": [2000, 30],
+      "Hot Towel Shave": [2750, 30],
+    };
+    await tx.insert(services).values(
+      DEFAULT_SERVICE_TRANSLATIONS.map((service, i) => ({
+        ...service,
+        priceCents: prices[service.name][0],
+        durationMinutes: prices[service.name][1],
+        sortOrder: i + 1,
+      })),
+    );
 
     const [first, second] = await tx
       .insert(barbers)

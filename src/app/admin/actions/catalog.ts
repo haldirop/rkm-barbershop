@@ -21,6 +21,10 @@ const serviceSchema = z.object({
   id: optionalId,
   name: text(60),
   description: optionalText(300),
+  nameEn: optionalText(60),
+  nameDe: optionalText(60),
+  descriptionEn: optionalText(300),
+  descriptionDe: optionalText(300),
   price: z
     .string()
     .trim()
@@ -66,6 +70,8 @@ const barberSchema = z.object({
   id: optionalId,
   name: text(40),
   bio: optionalText(160),
+  bioEn: optionalText(160),
+  bioDe: optionalText(160),
   sortOrder: z.coerce.number().int().min(0).max(999).default(0),
 });
 
@@ -94,6 +100,8 @@ export async function saveBarberAction(_prev: FormState, formData: FormData): Pr
     await saveBarber(parsed.data.id, {
       name: parsed.data.name,
       bio: parsed.data.bio,
+      bioEn: parsed.data.bioEn,
+      bioDe: parsed.data.bioDe,
       sortOrder: parsed.data.sortOrder,
       isActive: data.isActive === "on",
       hours,

@@ -1,5 +1,7 @@
 import { Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
+import { localizePath } from "@/i18n/config";
+import { common } from "@/i18n/messages/common";
 import { capitalize, telHref, weekdayShort } from "@/lib/format";
 import { groupOpeningDays } from "@/lib/opening-hours";
 import type { SiteData } from "@/server/services/site";
@@ -8,18 +10,17 @@ import { BrandLockup } from "./logo";
 import { FacebookIcon, InstagramIcon } from "./social-icons";
 
 export function SiteFooter({ site }: { site: SiteData }) {
-  const { settings } = site;
+  const { settings, locale } = site;
+  const t = common[locale];
   const groups = groupOpeningDays(site.openingDays);
   return (
     <footer className="border-t border-line bg-surface pb-28 lg:pb-0">
       <div className="container-page grid gap-12 py-16 md:grid-cols-2 lg:grid-cols-4">
         <div className="space-y-5">
-          <Link href="/" aria-label="RKM Barbershop — home" className="block w-52">
+          <Link href={localizePath("/", locale)} aria-label={t.homeLabel} className="block w-52">
             <BrandLockup sizes="13rem" />
           </Link>
-          <p className="max-w-xs text-sm leading-relaxed text-ink-muted">
-            Vakmanschap in knippen, fades en baardverzorging. Maak eenvoudig online een afspraak.
-          </p>
+          <p className="max-w-xs text-sm leading-relaxed text-ink-muted">{t.footer.intro}</p>
           <div className="flex gap-2">
             {settings.instagramUrl ? (
               <a
@@ -47,17 +48,17 @@ export function SiteFooter({ site }: { site: SiteData }) {
         </div>
 
         <div>
-          <h2 className="eyebrow mb-5">Navigatie</h2>
+          <h2 className="eyebrow mb-5">{t.footer.navigation}</h2>
           <ul className="space-y-3 text-sm">
             {[
-              ["/afspraak-maken", "Afspraak maken"],
-              ["/behandelingen", "Behandelingen & prijzen"],
-              ["/#over-ons", "Over ons"],
-              ["/#contact", "Contact & route"],
-              ["/privacy", "Privacyverklaring"],
+              ["/afspraak-maken", t.footer.book],
+              ["/behandelingen", t.footer.treatments],
+              ["/#over-ons", t.footer.about],
+              ["/#contact", t.footer.contact],
+              ["/privacy", t.footer.privacy],
             ].map(([href, label]) => (
               <li key={href}>
-                <Link href={href} className="text-ink-muted transition-colors hover:text-ink">
+                <Link href={localizePath(href, locale)} className="text-ink-muted transition-colors hover:text-ink">
                   {label}
                 </Link>
               </li>
@@ -66,7 +67,7 @@ export function SiteFooter({ site }: { site: SiteData }) {
         </div>
 
         <div>
-          <h2 className="eyebrow mb-5">Contact</h2>
+          <h2 className="eyebrow mb-5">{t.footer.contactHeading}</h2>
           <address className="space-y-3 text-sm not-italic">
             {formatAddress(settings) ? (
               <a
@@ -99,15 +100,15 @@ export function SiteFooter({ site }: { site: SiteData }) {
         </div>
 
         <div>
-          <h2 className="eyebrow mb-5">Openingstijden</h2>
+          <h2 className="eyebrow mb-5">{t.footer.hours}</h2>
           <ul className="space-y-2 text-sm">
             {groups.map((g) => (
               <li key={g.from} className="flex justify-between gap-4 text-ink-muted">
                 <span>
-                  {capitalize(weekdayShort(g.from))}
-                  {g.to !== g.from ? ` – ${weekdayShort(g.to)}` : ""}
+                  {capitalize(weekdayShort(g.from, locale))}
+                  {g.to !== g.from ? ` – ${weekdayShort(g.to, locale)}` : ""}
                 </span>
-                <span className="tabular-nums">{g.isOpen ? `${g.open} – ${g.close}` : "Gesloten"}</span>
+                <span className="tabular-nums">{g.isOpen ? `${g.open} – ${g.close}` : t.closed}</span>
               </li>
             ))}
           </ul>
@@ -117,9 +118,9 @@ export function SiteFooter({ site }: { site: SiteData }) {
         <div className="container-page flex flex-col gap-2 py-6 text-xs text-ink-faint sm:flex-row sm:justify-between">
           <p>
             © {new Date().getFullYear()} {settings.businessName}
-            {settings.kvkNumber ? ` · KvK ${settings.kvkNumber}` : ""}
+            {settings.kvkNumber ? ` · ${t.footer.kvk} ${settings.kvkNumber}` : ""}
           </p>
-          <p>Strak geknipt. Zelfverzekerd naar buiten.</p>
+          <p>{site.tagline}</p>
         </div>
       </div>
     </footer>

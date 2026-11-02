@@ -93,6 +93,9 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
                 ["Duur", formatDuration(a.durationMinutes)],
                 ["Prijs", formatPrice(a.priceCents)],
                 ["Bron", a.source === "ONLINE" ? "Online aangevraagd" : "Ingepland door beheer"],
+                ...(a.locale !== "nl"
+                  ? [["Taal klant", `${a.locale === "en" ? "Engels" : "Duits"} (e-mails gaan in die taal)`]]
+                  : []),
                 ["Aangemaakt", formatDateTime(a.createdAt)],
                 ...(a.statusChangedAt ? [["Status gewijzigd", formatDateTime(a.statusChangedAt)]] : []),
                 ...(a.reminderSentAt ? [["Herinnering verstuurd", formatDateTime(a.reminderSentAt)]] : []),

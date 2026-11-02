@@ -9,14 +9,16 @@ import { Prices } from "@/components/site/sections/prices";
 import { Reviews } from "@/components/site/sections/reviews";
 import { Services } from "@/components/site/sections/services";
 import { WhyUs } from "@/components/site/sections/why-us";
+import { pageLocale } from "@/i18n/server";
 import { addDays } from "@/lib/time";
 import { getCalendar, getSuggestions } from "@/server/services/availability";
 import { getSiteData } from "@/server/services/site";
 
 export const dynamic = "force-dynamic";
 
-export default async function HomePage() {
-  const site = await getSiteData();
+export default async function HomePage({ params }: PageProps<"/[locale]">) {
+  const locale = await pageLocale(params);
+  const site = await getSiteData(locale);
   const featured = site.services[0] ?? null;
   const query = { durationMinutes: featured?.durationMinutes ?? 30, barberId: null, now: site.now };
   const [suggestions, days] = await Promise.all([
@@ -29,22 +31,23 @@ export default async function HomePage() {
     <>
       <LocalBusinessJsonLd site={site} />
       <Hero
+        locale={locale}
         city={site.settings.city}
-        tagline={site.settings.tagline}
+        tagline={site.tagline}
         status={site.status}
         today={site.now.date}
         featuredService={featuredRef}
         suggestions={suggestions}
       />
-      <About />
-      <Barber />
-      <Services services={site.services} />
-      <WhyUs />
-      <AvailabilityOverview days={days} today={site.now.date} service={featuredRef} />
-      <Prices services={site.services} />
-      <Reviews reviews={site.reviews} googleReviewsUrl={site.settings.googleReviewsUrl} />
+      <About locale={locale} />
+      <Barber locale={locale} />
+      <Services services={site.services} locale={locale} />
+      <WhyUs locale={locale} />
+      <AvailabilityOverview days={days} today={site.now.date} service={featuredRef} locale={locale} />
+      <Prices services={site.services} locale={locale} />
+      <Reviews reviews={site.reviews} googleReviewsUrl={site.settings.googleReviewsUrl} locale={locale} />
       <Contact site={site} />
-      <CtaBand />
+      <CtaBand locale={locale} />
     </>
   );
 }

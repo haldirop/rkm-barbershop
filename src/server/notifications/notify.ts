@@ -1,7 +1,9 @@
 import "server-only";
 import { eq } from "drizzle-orm";
+import { DEFAULT_LOCALE, isLocale, localizedUrl, type Locale } from "@/i18n/config";
+import { localizeService } from "@/i18n/content";
 import { getDb } from "@/server/db/client";
-import { appointments, customers } from "@/server/db/schema";
+import { appointments, customers, services } from "@/server/db/schema";
 import { createManageToken } from "@/server/security";
 import { loadSettings, siteUrl } from "@/server/services/settings";
 import { sendMail } from "./mailer";
@@ -27,16 +29,21 @@ async function context(appointmentId: string, reason?: string | null): Promise<T
   if (!row) return null;
   const base = siteUrl();
   const token = createManageToken(appointmentId);
-  const book = new URL("/afspraak-maken", base);
-  if (row.appointment.serviceId) book.searchParams.set("behandeling", row.appointment.serviceId);
+  // The customer gets e-mails and links in the language they booked in.
+  const locale: Locale = isLocale(row.appointment.locale) ? row.appointment.locale : DEFAULT_LOCALE;
+  const [service] = row.appointment.serviceId
+    ? await db.select().from(services).where(eq(services.id, row.appointment.serviceId))
+    : [];
   return {
     settings: await loadSettings(db),
     ...row,
     reason,
+    locale,
+    serviceName: service ? localizeService(service, locale).name : row.appointment.serviceName,
     links: {
-      manage: `${base}/afspraak/${token}`,
+      manage: localizedUrl(base, `/afspraak/${token}`, locale),
       ics: `${base}/api/afspraak/${token}/agenda.ics`,
-      book: book.toString(),
+      book: localizedUrl(base, bookingHref({ serviceId: row.appointment.serviceId }), locale),
       admin: `${base}/admin/afspraken/${appointmentId}`,
       logo: `${base}${EMAIL_LOGO_PATH}`,
     },
@@ -136,14 +143,17 @@ export async function notifyAvailabilityAlert(spot: FreedUpSpot): Promise<SendOu
   const settings = await loadSettings();
   const base = siteUrl();
   const { alert } = spot;
+  const locale: Locale = isLocale(alert.locale) ? alert.locale : DEFAULT_LOCALE;
+  const [service] = await getDb().select().from(services).where(eq(services.id, alert.serviceId));
   const mail = availabilityAlertEmail({
     settings,
     date: alert.date,
-    serviceName: spot.serviceName,
+    serviceName: service ? localizeService(service, locale).name : spot.serviceName,
     barberName: spot.barberName,
     times: spot.times,
-    bookUrl: `${base}${bookingHref({ serviceId: alert.serviceId, barberId: alert.barberId, date: alert.date })}`,
+    bookUrl: localizedUrl(base, bookingHref({ serviceId: alert.serviceId, barberId: alert.barberId, date: alert.date }), locale),
     logoUrl: `${base}${EMAIL_LOGO_PATH}`,
+    locale,
   });
   return sendMail({
     ...mail,

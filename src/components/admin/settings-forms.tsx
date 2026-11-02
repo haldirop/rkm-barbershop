@@ -33,6 +33,10 @@ export function BusinessForm({ settings }: { settings: Settings }) {
       <div className="grid gap-4 sm:grid-cols-2">
         {field("businessName", "Bedrijfsnaam", { required: true })}
         {field("tagline", "Slogan")}
+        <div className="grid gap-4 sm:col-span-2 sm:grid-cols-2">
+          {field("taglineEn", "Slogan (Engels)", {}, "Voor de Engelse website. Leeg = Nederlandse slogan.")}
+          {field("taglineDe", "Slogan (Duits)", {}, "Voor de Duitse website. Leeg = Nederlandse slogan.")}
+        </div>
         {field("phone", "Telefoonnummer", { type: "tel", required: true })}
         {field("email", "E-mailadres (publiek)", { type: "email", required: true })}
         {field("street", "Straat en huisnummer", { required: true })}

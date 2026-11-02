@@ -5,19 +5,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ButtonLink } from "@/components/ui/button";
+import { useLocale } from "@/i18n/client";
+import { localizePath } from "@/i18n/config";
+import { common } from "@/i18n/messages/common";
 import { cn } from "@/lib/cn";
 import { telHref } from "@/lib/format";
+import { LanguageSwitch } from "./language-switch";
 import { Logo } from "./logo";
 
 const NAV = [
-  { href: "/#over-ons", label: "Over ons" },
-  { href: "/behandelingen", label: "Behandelingen" },
-  { href: "/#prijzen", label: "Prijzen" },
-  { href: "/#beschikbaarheid", label: "Beschikbaarheid" },
-  { href: "/#contact", label: "Contact" },
-];
+  { href: "/#over-ons", key: "about" },
+  { href: "/behandelingen", key: "treatments" },
+  { href: "/#prijzen", key: "prices" },
+  { href: "/#beschikbaarheid", key: "availability" },
+  { href: "/#contact", key: "contact" },
+] as const;
 
 export function SiteHeader({ phone }: { phone: string }) {
+  const locale = useLocale();
+  const t = common[locale];
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [open, setOpen] = useState(false);
@@ -53,16 +59,16 @@ export function SiteHeader({ phone }: { phone: string }) {
       )}
     >
       <div className="container-page flex h-18 items-center justify-between gap-6">
-        <Logo />
+        <Logo href={localizePath("/", locale)} label={t.homeLabel} />
 
-        <nav aria-label="Hoofdmenu" className="hidden items-center gap-8 lg:flex">
+        <nav aria-label={t.mainMenu} className="hidden items-center gap-7 lg:flex xl:gap-8">
           {NAV.map((item) => (
             <Link
               key={item.href}
-              href={item.href}
+              href={localizePath(item.href, locale)}
               className="text-sm font-medium text-ink-muted transition-colors hover:text-ink"
             >
-              {item.label}
+              {t.nav[item.key]}
             </Link>
           ))}
         </nav>
@@ -71,14 +77,15 @@ export function SiteHeader({ phone }: { phone: string }) {
           {phone ? (
             <a
               href={telHref(phone)}
-              className="hidden items-center gap-2 px-3 text-sm text-ink-muted transition-colors hover:text-ink md:flex"
+              className="hidden items-center gap-2 px-3 text-sm text-ink-muted transition-colors hover:text-ink xl:flex"
             >
               <Phone className="size-4 text-gold" aria-hidden />
               {phone}
             </a>
           ) : null}
-          <ButtonLink href="/afspraak-maken" size="sm" className="hidden px-5 sm:inline-flex">
-            Afspraak maken
+          <LanguageSwitch className="hidden lg:flex" />
+          <ButtonLink href={localizePath("/afspraak-maken", locale)} size="sm" className="hidden px-5 sm:inline-flex">
+            {t.book}
           </ButtonLink>
           <button
             type="button"
@@ -86,7 +93,7 @@ export function SiteHeader({ phone }: { phone: string }) {
             className="grid size-11 place-items-center rounded-full text-ink lg:hidden"
             aria-expanded={open}
             aria-controls="mobile-menu"
-            aria-label={open ? "Menu sluiten" : "Menu openen"}
+            aria-label={open ? t.closeMenu : t.openMenu}
           >
             {open ? <X className="size-6" /> : <Menu className="size-6" />}
           </button>
@@ -95,25 +102,26 @@ export function SiteHeader({ phone }: { phone: string }) {
 
       {open ? (
         <div id="mobile-menu" className="h-[calc(100dvh-4.5rem)] animate-fade-in overflow-y-auto lg:hidden">
-          <nav aria-label="Mobiel menu" className="container-page flex flex-col py-6">
+          <nav aria-label={t.mobileMenu} className="container-page flex flex-col py-6">
             {NAV.map((item) => (
               <Link
                 key={item.href}
-                href={item.href}
+                href={localizePath(item.href, locale)}
                 onClick={() => setOpen(false)}
                 className="border-b border-line py-4 font-display text-2xl text-ink"
               >
-                {item.label}
+                {t.nav[item.key]}
               </Link>
             ))}
-            <ButtonLink href="/afspraak-maken" size="lg" className="mt-8 w-full">
-              Afspraak maken
+            <ButtonLink href={localizePath("/afspraak-maken", locale)} size="lg" className="mt-8 w-full">
+              {t.book}
             </ButtonLink>
             {phone ? (
               <a href={telHref(phone)} className="mt-4 flex items-center justify-center gap-2 py-3 text-ink-muted">
-                <Phone className="size-4 text-gold" aria-hidden /> Bel {phone}
+                <Phone className="size-4 text-gold" aria-hidden /> {t.call(phone)}
               </a>
             ) : null}
+            <LanguageSwitch size="lg" className="mt-4 justify-center" />
           </nav>
         </div>
       ) : null}

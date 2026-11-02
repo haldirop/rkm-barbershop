@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import type { CustomerMessage } from "@/i18n/errors";
 import type { DbOrTx } from "@/server/db/client";
 import { appointmentEvents } from "@/server/db/schema";
 
@@ -7,6 +8,8 @@ export class DomainError extends Error {
   constructor(
     message: string,
     readonly code: "SLOT_TAKEN" | "NOT_FOUND" | "INVALID" | "LIMIT" | "NOT_ALLOWED" = "INVALID",
+    /** For messages a customer can see on the website: the same message in their language. */
+    readonly customer?: CustomerMessage,
   ) {
     super(message);
     this.name = "DomainError";

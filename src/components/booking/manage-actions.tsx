@@ -3,9 +3,11 @@
 import { CalendarClock, LoaderCircle, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
-import { cancelAppointment, rescheduleAppointment } from "@/app/(site)/afspraak/[token]/actions";
+import { cancelAppointment, rescheduleAppointment } from "@/app/(site)/[locale]/afspraak/[token]/actions";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/i18n/client";
+import { booking } from "@/i18n/messages/booking";
 import { capitalize, formatDateLong } from "@/lib/format";
 import { DateTimePicker, type DateTimeValue } from "./date-time-picker";
 
@@ -18,6 +20,8 @@ export function ManageActions({
   today: string;
   lastDate: string;
 }) {
+  const locale = useLocale();
+  const t = booking[locale].manage;
   const router = useRouter();
   const [mode, setMode] = useState<"idle" | "reschedule" | "cancel">("idle");
   const [slot, setSlot] = useState<DateTimeValue>({ date: null, time: null });
@@ -30,10 +34,10 @@ export function ManageActions({
   function confirmCancel() {
     setError(null);
     startTransition(async () => {
-      const result = await cancelAppointment(token);
+      const result = await cancelAppointment(token, locale);
       if (!result.ok) return setError(result.error);
       setMode("idle");
-      setNotice("Je afspraak is geannuleerd. Je ontvangt een bevestiging per e-mail.");
+      setNotice(t.cancelled);
       router.refresh();
     });
   }
@@ -42,7 +46,7 @@ export function ManageActions({
     if (!slot.date || !slot.time) return;
     setError(null);
     startTransition(async () => {
-      const result = await rescheduleAppointment(token, slot.date!, slot.time!);
+      const result = await rescheduleAppointment(token, slot.date!, slot.time!, locale);
       if (!result.ok) {
         setError(result.error);
         if (result.slotTaken) {
@@ -52,7 +56,7 @@ export function ManageActions({
         return;
       }
       setMode("idle");
-      setNotice("Je nieuwe tijd is doorgegeven. We bevestigen hem zo snel mogelijk per e-mail.");
+      setNotice(t.rescheduled);
       router.refresh();
     });
   }
@@ -66,25 +70,25 @@ export function ManageActions({
       {mode === "idle" ? (
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button size="lg" onClick={() => setMode("reschedule")}>
-            <CalendarClock className="size-4" aria-hidden /> Afspraak verplaatsen
+            <CalendarClock className="size-4" aria-hidden /> {t.move}
           </Button>
           <Button size="lg" variant="danger" onClick={() => setMode("cancel")}>
-            <X className="size-4" aria-hidden /> Afspraak annuleren
+            <X className="size-4" aria-hidden /> {t.cancel}
           </Button>
         </div>
       ) : null}
 
       {mode === "cancel" ? (
         <div className="rounded-2xl border border-red-400/30 bg-red-400/5 p-6">
-          <h3 className="text-lg font-semibold text-ink">Weet je zeker dat je wilt annuleren?</h3>
-          <p className="mt-1 text-sm text-ink-muted">Je tijdslot komt dan weer vrij voor andere klanten.</p>
+          <h3 className="text-lg font-semibold text-ink">{t.cancelSure}</h3>
+          <p className="mt-1 text-sm text-ink-muted">{t.cancelText}</p>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Button variant="danger" onClick={confirmCancel} disabled={pending}>
               {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
-              Ja, annuleer mijn afspraak
+              {t.cancelYes}
             </Button>
             <Button variant="ghost" onClick={() => setMode("idle")} disabled={pending}>
-              Nee, behouden
+              {t.cancelNo}
             </Button>
           </div>
         </div>
@@ -94,16 +98,14 @@ export function ManageActions({
         <div className="rounded-2xl border border-line bg-surface p-5 sm:p-7">
           <div className="mb-6 flex items-start justify-between gap-4">
             <div>
-              <h3 className="font-display text-2xl font-semibold text-ink">Kies een nieuw moment</h3>
-              <p className="mt-1 text-sm text-ink-muted">
-                Na het verplaatsen bevestigen we je nieuwe tijd opnieuw.
-              </p>
+              <h3 className="font-display text-2xl font-semibold text-ink">{t.newMoment}</h3>
+              <p className="mt-1 text-sm text-ink-muted">{t.newMomentText}</p>
             </div>
             <button
               type="button"
               onClick={() => setMode("idle")}
               className="grid size-10 shrink-0 place-items-center rounded-full text-ink-muted hover:bg-surface-3 hover:text-ink"
-              aria-label="Verplaatsen sluiten"
+              aria-label={t.closeMove}
             >
               <X className="size-5" />
             </button>
@@ -118,11 +120,11 @@ export function ManageActions({
           />
           <div className="mt-8 flex flex-col gap-3 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-ink-muted">
-              {slot.date && slot.time ? `${capitalize(formatDateLong(slot.date))} om ${slot.time}` : "Nog geen tijd gekozen"}
+              {slot.date && slot.time ? t.at(capitalize(formatDateLong(slot.date, false, locale)), slot.time) : t.noTime}
             </p>
             <Button size="lg" onClick={confirmReschedule} disabled={!slot.date || !slot.time || pending}>
               {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
-              Verplaatsing bevestigen
+              {t.confirmMove}
             </Button>
           </div>
         </div>

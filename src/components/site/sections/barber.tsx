@@ -3,23 +3,21 @@ import { Ornament } from "@/components/site/logo";
 import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
 import { ButtonLink } from "@/components/ui/button";
+import { localizePath, type Locale } from "@/i18n/config";
+import { localizedBio } from "@/i18n/content";
+import { home } from "@/i18n/messages/home";
 import { bookingHref } from "@/lib/links";
 import { getActiveBarbers } from "@/server/services/catalog";
 
 /** The owner's story is told here; every other barber comes from Beheer → Barbers (name + short description). */
 const OWNER = "Rohid";
 
-const FACTS = [
-  { value: "20 jaar", label: "ervaring als barber" },
-  { value: "Gecertificeerd", label: "barber" },
-  { value: "Eigenaar", label: "van de zaak" },
-];
-
 /**
  * "Je barber" / "Het team": the owner first, then every other active barber, each with a
  * button that opens the booking flow with that barber already selected.
  */
-export async function Barber() {
+export async function Barber({ locale }: { locale: Locale }) {
+  const t = home[locale].barber;
   const barbers = await getActiveBarbers();
   const owner = barbers.find((b) => b.name.toLowerCase().includes(OWNER.toLowerCase()));
   const team = barbers.filter((b) => b !== owner);
@@ -31,43 +29,22 @@ export async function Barber() {
           <Reveal className="lg:order-last">
             <SectionHeading
               id="barber"
-              eyebrow={team.length ? "Het team" : "Je barber"}
+              eyebrow={team.length ? t.eyebrowTeam : t.eyebrowSolo}
               title={
                 <>
-                  Maak kennis met <em>{OWNER}</em>
+                  {t.meet[0]} <em>{OWNER}</em>
+                  {t.meet[1] ? ` ${t.meet[1]}` : null}
                 </>
               }
             />
             <div className="mt-8 space-y-5 text-base leading-relaxed text-ink-muted sm:text-lg">
-              {team.length ? (
-                <>
-                  <p>
-                    {OWNER} is de eigenaar van RKM Barbershop. Hij knipt al twintig jaar en is gecertificeerd
-                    barber. Van een klassieke herensnit tot een strakke skin fade of een baard in model: je bent in
-                    ervaren handen.
-                  </p>
-                  <p>
-                    Je kiest zelf bij wie je zit. Ga je steeds naar dezelfde barber, dan hoef je niet elke keer
-                    opnieuw uit te leggen hoe je het wilt.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p>
-                    Bij RKM Barbershop zit je altijd bij {OWNER}. Hij is de eigenaar van de zaak, knipt al twintig
-                    jaar en is gecertificeerd barber. Van een klassieke herensnit tot een strakke skin fade of een
-                    baard in model: je bent in ervaren handen.
-                  </p>
-                  <p>
-                    Omdat je steeds door dezelfde barber wordt geholpen, hoef je niet elke keer opnieuw uit te
-                    leggen hoe je het wilt. {OWNER} kent je stijl en denkt met je mee, zodat het elke keer klopt.
-                  </p>
-                </>
-              )}
+              {(team.length ? t.team(OWNER) : t.solo(OWNER)).map((paragraph) => (
+                <p key={paragraph}>{paragraph}</p>
+              ))}
             </div>
 
             <ul className="mt-10 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-[1fr_1.3fr_1fr]">
-              {FACTS.map((fact) => (
+              {t.facts.map((fact) => (
                 <li key={fact.value} className="flex items-baseline gap-2 bg-surface px-5 py-4 sm:flex-col sm:gap-1 sm:px-4 sm:py-5">
                   <span className="font-display text-lg font-semibold text-gold-bright">{fact.value}</span>
                   <span className="text-sm text-ink-muted">{fact.label}</span>
@@ -75,8 +52,8 @@ export async function Barber() {
               ))}
             </ul>
 
-            <ButtonLink href={bookingHref({ barberId: owner?.id })} className="mt-10">
-              Maak een afspraak bij {OWNER}
+            <ButtonLink href={localizePath(bookingHref({ barberId: owner?.id }), locale)} className="mt-10">
+              {t.bookWith(OWNER)}
               <ArrowRight className="size-4" aria-hidden />
             </ButtonLink>
           </Reveal>
@@ -99,7 +76,7 @@ export async function Barber() {
               <p className="mt-6 font-display text-2xl font-semibold tracking-[0.3em] text-ink uppercase [margin-right:-0.3em]">
                 {OWNER}
               </p>
-              <p className="eyebrow mt-3">Eigenaar &amp; barber</p>
+              <p className="eyebrow mt-3">{t.ownerRole}</p>
             </div>
           </Reveal>
         </div>
@@ -109,7 +86,7 @@ export async function Barber() {
             <Reveal>
               <h3 className="eyebrow flex items-center gap-3">
                 <span className="gold-rule" aria-hidden />
-                Ook in het team
+                {t.alsoInTeam}
               </h3>
             </Reveal>
             <ul className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -124,10 +101,12 @@ export async function Barber() {
                     </span>
                     <h4 className="font-display text-xl font-semibold text-ink">{barber.name}</h4>
                   </div>
-                  {barber.bio ? <p className="mt-4 text-sm leading-relaxed text-ink-muted">{barber.bio}</p> : null}
+                  {localizedBio(barber, locale) ? (
+                    <p className="mt-4 text-sm leading-relaxed text-ink-muted">{localizedBio(barber, locale)}</p>
+                  ) : null}
                   <div className="mt-auto pt-6">
-                    <ButtonLink href={bookingHref({ barberId: barber.id })} variant="secondary">
-                      Afspraak bij {barber.name}
+                    <ButtonLink href={localizePath(bookingHref({ barberId: barber.id }), locale)} variant="secondary">
+                      {t.bookWithShort(barber.name)}
                       <ArrowRight className="size-4" aria-hidden />
                     </ButtonLink>
                   </div>

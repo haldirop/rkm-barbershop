@@ -14,12 +14,21 @@ export function Badge({ className, ...props }: ComponentProps<"span">) {
   );
 }
 
-export function StatusBadge({ status, className }: { status: AppointmentStatus; className?: string }) {
+export function StatusBadge({
+  status,
+  label,
+  className,
+}: {
+  status: AppointmentStatus;
+  /** Another wording, e.g. in the customer's language on the website. */
+  label?: string;
+  className?: string;
+}) {
   const meta = STATUS_META[status];
   return (
     <Badge className={cn(meta.badge, className)}>
       <span className={cn("size-1.5 rounded-full", meta.dot)} aria-hidden />
-      {meta.label}
+      {label ?? meta.label}
     </Badge>
   );
 }
