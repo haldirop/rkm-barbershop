@@ -309,7 +309,7 @@ class Montage:
         raise ValueError(kind)
 
 
-def grain(img, i, amount=0.016):
+def grain(img, i, amount=0.011):
     rng = np.random.default_rng(1000 + i)
     n = rng.standard_normal((H // 2, W // 2)).astype(np.float32)
     n = cv2.resize(n, (W, H), interpolation=cv2.INTER_LINEAR)[..., None]
@@ -343,8 +343,8 @@ def make_cover(frame_rgb, path, width=420, top=290):
 # ------------------------------------------------------------------ audio
 
 def loudnorm(src, dst, target=-14.0):
-    """Two-pass loudness normalisation for social media (-14 LUFS, true peak -1 dB)."""
-    flt = f"loudnorm=I={target}:TP=-1.0:LRA=11"
+    """Two-pass loudness normalisation for social media (-14 LUFS, true peak -1.5 dB)."""
+    flt = f"loudnorm=I={target}:TP=-1.5:LRA=11"
     res = subprocess.run(["ffmpeg", "-hide_banner", "-i", src, "-af", flt + ":print_format=json", "-f", "null", "-"],
                          capture_output=True, text=True)
     m = json.loads(res.stderr[res.stderr.rindex("{"):res.stderr.rindex("}") + 1])
@@ -377,7 +377,7 @@ def main():
     video = out / "video.mp4"
     enc = subprocess.Popen(
         ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
-         "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-maxrate", "16M", "-bufsize", "32M",
+         "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-maxrate", "10M", "-bufsize", "20M",
          "-profile:v", "high", "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709",
          "-color_trc", "bt709", "-movflags", "+faststart", str(video)],
         stdin=subprocess.PIPE)
@@ -392,9 +392,10 @@ def main():
     enc.stdin.close()
     enc.wait()
 
-    for wav, name in [(music, "RKM-promo-reel.mp4"), (sfx, "RKM-promo-reel-zonder-muziek.mp4")]:
+    # effects only: a little quieter, it gets mixed with a song in the app
+    for wav, name, target in [(music, "RKM-promo-reel.mp4", -14.0), (sfx, "RKM-promo-reel-zonder-muziek.mp4", -17.0)]:
         norm = out / (Path(wav).stem + "-norm.wav")
-        loudnorm(wav, str(norm))
+        loudnorm(wav, str(norm), target)
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-i", str(norm), "-map", "0:v", "-map", "1:a",
                         "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart",
                         str(out / name)], check=True)
