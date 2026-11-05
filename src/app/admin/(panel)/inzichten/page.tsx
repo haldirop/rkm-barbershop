@@ -7,13 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
-import { capitalize, formatAmount, formatDateLong, formatDateShort, formatMonth, telHref, weekdayName } from "@/lib/format";
+import { capitalize, formatAmount, formatDateLong, formatDateShort, formatMonth, telHref, weekdayName, weekdayShort } from "@/lib/format";
 import { isoWeekNumber, rhythmLabel } from "@/lib/insights";
 import { addDays, isoWeekday, startOfMonth, startOfWeek, zonedNow } from "@/lib/time";
 import { requireAdmin } from "@/server/auth/session";
 import {
   busyTimes,
   customerInsights,
+  expectedRevenue,
   firstSaleDate,
   noShowInsights,
   occupancy,
@@ -21,12 +22,14 @@ import {
   revenueOverview,
   revenueSeries,
   waitlistDemand,
+  type ExpectedTotals,
 } from "@/server/services/insights";
 
 export const metadata = { title: "Inzichten" };
 
 const SECTIONS = [
   ["omzet", "Omzet"],
+  ["verwacht", "Verwachte omzet"],
   ["drukte", "Drukte"],
   ["klanten", "Klanten"],
   ["niet-verschenen", "Niet verschenen"],
@@ -36,6 +39,30 @@ const SECTIONS = [
 const ago = (days: number) => (days < 14 ? `${days} dagen geleden` : `${Math.round(days / 7)} weken geleden`);
 const clock = (minutes: number) =>
   `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+const appointmentCount = (n: number) => (n === 1 ? "1 afspraak" : `${n} afspraken`);
+
+/** Under an expected amount: how many appointments, open requests on top, and the forecast. */
+function ExpectedFooter({ totals, forecast }: { totals: ExpectedTotals; forecast?: { label: string; cents: number } }) {
+  return (
+    <>
+      <span className="block text-ink-faint">
+        {appointmentCount(totals.confirmed)}
+        {totals.pending ? (
+          <span className="text-amber-300">
+            {" "}
+            · + {formatAmount(totals.pendingCents)} {totals.pending === 1 ? "aanvraag" : "aanvragen"}
+          </span>
+        ) : null}
+      </span>
+      {forecast ? (
+        <span className="mt-1 block text-ink-muted">
+          {forecast.label}: <span className="text-ink tabular-nums">{formatAmount(forecast.cents)}</span>
+        </span>
+      ) : null}
+    </>
+  );
+}
 
 function SectionTitle({ id, title, intro }: { id: string; title: string; intro: string }) {
   return (
@@ -53,10 +80,11 @@ export default async function InsightsPage({ searchParams }: PageProps<"/admin/i
   const now = zonedNow();
   const period = (await searchParams).omzet === "maand" ? "month" : "week";
 
-  const [overview, series, firstSale, busy, lastWeeks, nextWeek, waitlist, customers, noShows, productInfo] = await Promise.all([
+  const [overview, series, firstSale, expected, busy, lastWeeks, nextWeek, waitlist, customers, noShows, productInfo] = await Promise.all([
     revenueOverview(now),
     revenueSeries(period, 12, now),
     firstSaleDate(),
+    expectedRevenue(now),
     busyTimes(addDays(now.date, -84), now.date, now),
     occupancy(addDays(now.date, -28), addDays(now.date, -1)),
     occupancy(now.date, addDays(now.date, 6)),
@@ -88,6 +116,17 @@ export default async function InsightsPage({ searchParams }: PageProps<"/admin/i
       note: current ? "Deze maand, tot nu toe" : undefined,
     };
   });
+  const expectedData = expected.byDay.map((d) => ({
+    key: d.date,
+    label: `${weekdayShort(isoWeekday(d.date))} ${Number(d.date.slice(8))}`,
+    title: `${capitalize(formatDateLong(d.date))}${d.date === now.date ? " (vandaag, vanaf nu)" : ""}`,
+    values: [d.confirmedCents, d.pendingCents],
+  }));
+  // With the share of no-shows of the last 90 days taken off.
+  const realistic =
+    noShows.percent && expected.next30.confirmedCents
+      ? Math.round(expected.next30.confirmedCents * (1 - noShows.percent / 100))
+      : null;
   const busiestWaitDays = [...waitlist.days].sort((a, b) => b.waiting - a.waiting).slice(0, 5);
 
   return (
@@ -167,6 +206,66 @@ export default async function InsightsPage({ searchParams }: PageProps<"/admin/i
               <BarChart data={revenueData} unit="euro" caption={period === "week" ? "Omzet per week" : "Omzet per maand"} />
             ) : (
               <p className="text-sm text-ink-muted">Nog geen kassabonnen. Zodra je afrekent in de kassa, verschijnt hier het verloop.</p>
+            )}
+          </div>
+        </Card>
+      </section>
+
+      {/* Verwachte omzet */}
+      <section aria-labelledby="verwacht">
+        <SectionTitle
+          id="verwacht"
+          title="Verwachte omzet"
+          intro="Wat er nog binnenkomt volgens de agenda: bevestigde afspraken tegen de prijs bij het boeken, vanaf nu. Al afgerekende afspraken, producten en fooi tellen niet mee. De prognose is wat al is afgerekend plus wat nog verwacht wordt."
+        />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile label="Rest van vandaag" value={formatAmount(expected.today.confirmedCents)} footer={<ExpectedFooter totals={expected.today} />} />
+          <StatTile
+            label="Rest van deze week"
+            value={formatAmount(expected.week.confirmedCents)}
+            footer={
+              <ExpectedFooter
+                totals={expected.week}
+                forecast={{ label: "Prognose week", cents: overview.week.current.revenueCents + expected.week.confirmedCents }}
+              />
+            }
+          />
+          <StatTile
+            label="Rest van deze maand"
+            value={formatAmount(expected.month.confirmedCents)}
+            footer={
+              <ExpectedFooter
+                totals={expected.month}
+                forecast={{ label: "Prognose maand", cents: overview.month.current.revenueCents + expected.month.confirmedCents }}
+              />
+            }
+          />
+          <StatTile label="Komende 30 dagen" value={formatAmount(expected.next30.confirmedCents)} footer={<ExpectedFooter totals={expected.next30} />} />
+        </div>
+        {realistic !== null ? (
+          <p className="mt-3 text-sm text-ink-muted">
+            Houd je rekening met klanten die niet verschijnen ({String(noShows.percent).replace(".", ",")}% de afgelopen{" "}
+            {noShows.days} dagen), dan is de komende 30 dagen realistisch{" "}
+            <span className="font-medium text-ink tabular-nums">{formatAmount(realistic)}</span>.
+          </p>
+        ) : null}
+        <Card className="mt-4">
+          <CardHeader
+            title="Verwacht per dag"
+            description="De komende 14 dagen: bevestigde afspraken en aanvragen die nog bevestigd moeten worden."
+            action={
+              expected.next30.pending ? (
+                <Link href="/admin/afspraken?status=PENDING" className="shrink-0 text-sm text-gold hover:text-gold-bright">
+                  Aanvragen bekijken
+                </Link>
+              ) : undefined
+            }
+          />
+          <div className="p-5">
+            {expectedData.some((d) => d.values[0] + d.values[1] > 0) ? (
+              <StackedBarChart caption="Verwachte omzet per dag" unit="euro" series={["Bevestigd", "Aanvraag"]} data={expectedData} />
+            ) : (
+              <p className="text-sm text-ink-muted">Er staan nog geen afspraken in de agenda voor de komende 14 dagen.</p>
             )}
           </div>
         </Card>

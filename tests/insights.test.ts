@@ -8,6 +8,7 @@ import { seedBaseData } from "@/server/db/seed";
 import {
   busyTimes,
   customerInsights,
+  expectedRevenue,
   noShowInsights,
   occupancy,
   productInsights,
@@ -192,6 +193,31 @@ describe("insights from the database", () => {
       { start: "2026-09-01", revenueCents: 13900 },
       { start: "2026-10-01", revenueCents: 6500 },
     ]);
+  });
+
+  it("expects revenue from the agenda, from now on, without double counting", async () => {
+    const jan = await customer("Jan");
+    await visit(jan.id, "2026-10-07", "APPROVED"); // yesterday: not expected any more
+    await visit(jan.id, "2026-10-08", "APPROVED", "10:00"); // earlier today: past
+    await visit(jan.id, "2026-10-08", "APPROVED", "18:00"); // today 18:00–18:30: still to come
+    await visit(jan.id, "2026-10-08", "PENDING", "19:00"); // request, not yet confirmed
+    await visit(jan.id, "2026-10-10", "APPROVED"); // Saturday, this week
+    const paid = await visit(jan.id, "2026-10-10", "APPROVED", "11:00");
+    await sell("2026-10-08", 2500, { appointmentId: paid.id }); // paid in advance: already revenue
+    await visit(jan.id, "2026-10-20", "APPROVED"); // later this month
+    await visit(jan.id, "2026-10-21", "CANCELLED");
+    await visit(jan.id, "2026-11-03", "APPROVED"); // within 30 days, next month
+    await visit(jan.id, "2026-11-10", "APPROVED"); // beyond 30 days
+
+    const expected = await expectedRevenue(NOW);
+    expect(expected.today).toEqual({ confirmedCents: 2500, confirmed: 1, pendingCents: 2500, pending: 1 });
+    expect(expected.week).toEqual({ confirmedCents: 5000, confirmed: 2, pendingCents: 2500, pending: 1 });
+    expect(expected.month).toEqual({ confirmedCents: 7500, confirmed: 3, pendingCents: 2500, pending: 1 });
+    expect(expected.next30).toEqual({ confirmedCents: 10000, confirmed: 4, pendingCents: 2500, pending: 1 });
+    expect(expected.byDay).toHaveLength(14);
+    expect(expected.byDay[0]).toMatchObject({ date: "2026-10-08", confirmedCents: 2500, pendingCents: 2500 });
+    expect(expected.byDay[2]).toMatchObject({ date: "2026-10-10", confirmedCents: 2500, confirmed: 1 });
+    expect(expected.byDay[13].date).toBe("2026-10-21");
   });
 
   it("shows busy times from visits and walk-ins", async () => {

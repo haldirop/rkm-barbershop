@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
 import { workingIntervals } from "@/lib/availability";
 import { dueForVisit, heatmapCounts, median, newVsReturning, percentChange, visitRhythms, type Visit } from "@/lib/insights";
 import { stockStatus } from "@/lib/pos";
@@ -122,6 +122,76 @@ export async function firstSaleDate(db: DbOrTx = getDb()): Promise<IsoDate | nul
   const [row] = await db.select({ date: sql<string | null>`MIN(${sales.date})` }).from(sales).where(activeSale);
   return row?.date ?? null;
 }
+
+// ---------------------------------------------------------------------------
+// Verwachte omzet (agenda)
+// ---------------------------------------------------------------------------
+
+export interface ExpectedTotals {
+  /** Confirmed appointments, at the price agreed when booking. */
+  confirmedCents: number;
+  confirmed: number;
+  /** Requests that still have to be confirmed. */
+  pendingCents: number;
+  pending: number;
+}
+
+type ExpectedRow = { date: IsoDate; status: string; priceCents: number };
+
+function sumExpected(rows: ExpectedRow[], from: IsoDate, to: IsoDate): ExpectedTotals {
+  const totals: ExpectedTotals = { confirmedCents: 0, confirmed: 0, pendingCents: 0, pending: 0 };
+  for (const row of rows) {
+    if (row.date < from || row.date > to) continue;
+    if (row.status === "APPROVED") {
+      totals.confirmedCents += row.priceCents;
+      totals.confirmed += 1;
+    } else {
+      totals.pendingCents += row.priceCents;
+      totals.pending += 1;
+    }
+  }
+  return totals;
+}
+
+/**
+ * Revenue still to come according to the agenda: booked treatments at the price agreed when
+ * booking, from now on (an appointment that is still running counts too). Appointments that
+ * were already paid at the till are left out: that money is in the revenue already.
+ * Products and tips are not included.
+ */
+export async function expectedRevenue(now: ZonedNow = zonedNow(), db: DbOrTx = getDb()) {
+  const today = now.date;
+  const weekEnd = addDays(startOfWeek(today), 6);
+  const monthEnd = endOfMonth(today);
+  const next30End = addDays(today, 29);
+  const rows = await db
+    .select({ date: appointments.date, endTime: appointments.endTime, status: appointments.status, priceCents: appointments.priceCents })
+    .from(appointments)
+    .where(
+      and(
+        gte(appointments.date, today),
+        lte(appointments.date, monthEnd > next30End ? monthEnd : next30End),
+        inArray(appointments.status, ["PENDING", "APPROVED"]),
+        notExists(
+          db
+            .select({ id: sales.id })
+            .from(sales)
+            .where(and(eq(sales.appointmentId, appointments.id), eq(sales.kind, "SALE"), activeSale)),
+        ),
+      ),
+    );
+  const upcoming = rows.filter((r) => r.date > today || timeToMinutes(r.endTime) > now.minutes);
+  return {
+    today: sumExpected(upcoming, today, today),
+    week: sumExpected(upcoming, today, weekEnd),
+    month: sumExpected(upcoming, today, monthEnd),
+    next30: sumExpected(upcoming, today, next30End),
+    /** Per day, the next 14 days (for the chart). */
+    byDay: eachDay(today, addDays(today, 13)).map((date) => ({ date, ...sumExpected(upcoming, date, date) })),
+  };
+}
+
+export type ExpectedRevenue = Awaited<ReturnType<typeof expectedRevenue>>;
 
 // ---------------------------------------------------------------------------
 // Drukte en bezetting

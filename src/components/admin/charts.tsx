@@ -109,10 +109,13 @@ function XLabels({ labels }: { labels: string[] }) {
       {labels.map((label, i) => (
         <span
           key={`${label}-${i}`}
-          // Many periods on a phone: every other label, counted back from the last one.
+          // Many periods on a phone: every other label, counted back from the last one. The
+          // visible ones may then run into the empty space next to them instead of being cut off.
           className={cn(
-            "flex-1 truncate text-center text-[11px] text-ink-faint",
-            labels.length > 8 && (labels.length - 1 - i) % 2 === 1 && "invisible sm:visible",
+            "min-w-0 flex-1 text-center text-[11px] text-ink-faint",
+            labels.length > 8
+              ? cn("flex justify-center whitespace-nowrap sm:block sm:truncate", (labels.length - 1 - i) % 2 === 1 && "invisible sm:visible")
+              : "truncate",
           )}
         >
           {label}
