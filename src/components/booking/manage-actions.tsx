@@ -15,10 +15,13 @@ export function ManageActions({
   token,
   today,
   lastDate,
+  groupSize = 1,
 }: {
   token: string;
   today: string;
   lastDate: string;
+  /** People in the booking: moving or cancelling applies to all of them. */
+  groupSize?: number;
 }) {
   const locale = useLocale();
   const t = booking[locale].manage;
@@ -82,6 +85,7 @@ export function ManageActions({
         <div className="rounded-2xl border border-red-400/30 bg-red-400/5 p-6">
           <h3 className="text-lg font-semibold text-ink">{t.cancelSure}</h3>
           <p className="mt-1 text-sm text-ink-muted">{t.cancelText}</p>
+          {groupSize > 1 ? <p className="mt-1 text-sm text-ink-muted">{t.groupNote(groupSize)}</p> : null}
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
             <Button variant="danger" onClick={confirmCancel} disabled={pending}>
               {pending ? <LoaderCircle className="size-4 animate-spin" aria-hidden /> : null}
@@ -100,6 +104,7 @@ export function ManageActions({
             <div>
               <h3 className="font-display text-2xl font-semibold text-ink">{t.newMoment}</h3>
               <p className="mt-1 text-sm text-ink-muted">{t.newMomentText}</p>
+              {groupSize > 1 ? <p className="mt-1 text-sm text-ink-muted">{t.groupNote(groupSize)}</p> : null}
             </div>
             <button
               type="button"

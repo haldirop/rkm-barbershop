@@ -37,6 +37,31 @@ describe("e-mail templates", () => {
     expect(mail.text).toContain("Je afspraak is nog niet definitief");
   });
 
+  it("puts everyone of a booking for several people in one e-mail", () => {
+    const father = { ...ctx.appointment, serviceName: "Knippen", priceCents: 2500, startTime: "15:30:00", endTime: "16:00:00", guestName: null };
+    const son = { ...ctx.appointment, id: "a2", serviceName: "Kinderen t/m 12 jaar", priceCents: 2000, startTime: "16:00:00", endTime: "16:30:00", guestName: "Daan" };
+    const group = {
+      ...ctx,
+      customer: { ...ctx.customer, firstName: "Jan" },
+      appointment: father,
+      people: [
+        { appointment: father, serviceName: "Knippen" },
+        { appointment: son, serviceName: "Kinderen t/m 12 jaar" },
+      ],
+    } satisfies TemplateContext;
+    const plain = (text: string) => text.replace(/\u00a0/g, " "); // prices use a non-breaking space
+    const mail = plain(templates.requestReceived(group).text);
+    expect(mail).toContain("Tijd: 15:30 – 16:30");
+    expect(mail).toContain("Jan: Knippen · 15:30 – 16:00 · € 25");
+    expect(mail).toContain("Daan: Kinderen t/m 12 jaar · 16:00 – 16:30 · € 20");
+    expect(mail).toContain("Totaal: € 45");
+    const shop = plain(templates.newRequestAdmin(group).text);
+    expect(shop).toContain("Persoon 2: Daan: Kinderen t/m 12 jaar · 16:00 – 16:30");
+    expect(shop).toContain("Totaal: € 45");
+    // One appointment for someone else: "Voor: Daan".
+    expect(templates.approved({ ...ctx, appointment: son }).text).toContain("Voor: Daan");
+  });
+
   it("shows the logo from the website in the header, with a text fallback", () => {
     const withLogo = templates.approved({ ...ctx, links: { ...ctx.links, logo: "https://rkm.test/brand/rkm-logo-email.png" } });
     expect(withLogo.html).toContain('<img src="https://rkm.test/brand/rkm-logo-email.png"');

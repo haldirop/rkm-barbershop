@@ -38,6 +38,8 @@ export interface TillAppointment {
   id: string;
   time: string;
   customerName: string;
+  /** Booked together for several people: the same id on each. */
+  groupId: string | null;
   email: string | null;
   serviceId: string | null;
   serviceName: string;
@@ -48,6 +50,8 @@ export interface TillAppointment {
 
 interface Line {
   key: string;
+  /** The appointment this line is for (the treatment of an appointment). */
+  appointmentId?: string;
   kind: "SERVICE" | "PRODUCT";
   id: string;
   name: string;
@@ -92,11 +96,16 @@ export function Checkout({
     const service = a?.serviceId ? services.find((s) => s.id === a.serviceId) : null;
     const fallback = a?.serviceId ? { id: a.serviceId, name: a.serviceName, priceCents: a.priceCents, vatRate: 9 } : null;
     const item = service ?? fallback;
-    return a && item ? [newLine("SERVICE", { ...item, name: a.serviceName }, a.priceCents)] : [];
+    return a && item ? [{ ...newLine("SERVICE", { ...item, name: a.serviceName }, a.priceCents), appointmentId: a.id }] : [];
   };
+  /** Others of the same group booking that still have to pay (e.g. the son of the father being paid for). */
+  const partnersOf = (a: TillAppointment | null) =>
+    a?.groupId ? unpaid.filter((x) => x.groupId === a.groupId && x.id !== a.id) : [];
 
   const [appointment, setAppointment] = useState<TillAppointment | null>(preselect);
-  const [lines, setLines] = useState<Line[]>(() => linesFor(preselect));
+  // A group booking is paid together by default: everyone on one receipt.
+  const [together, setTogether] = useState<string[]>(() => partnersOf(preselect).map((p) => p.id));
+  const [lines, setLines] = useState<Line[]>(() => [preselect, ...partnersOf(preselect)].flatMap(linesFor));
   const [barberId, setBarberId] = useState(preselect?.barberId ?? onlyBarber);
   const [discountType, setDiscountType] = useState<"amount" | "percent">("amount");
   const [discountInput, setDiscountInput] = useState("");
@@ -114,17 +123,30 @@ export function Checkout({
   const [pending, startTransition] = useTransition();
 
   function load(a: TillAppointment) {
+    const partners = partnersOf(a);
     setAppointment(a);
-    setLines(linesFor(a));
+    setTogether(partners.map((p) => p.id));
+    setLines([a, ...partners].flatMap(linesFor));
     setBarberId(a.barberId ?? onlyBarber);
     setEmail(a.email ?? "");
     setMailReceipt(false);
     setError(null);
   }
 
+  function toggleTogether(partner: TillAppointment) {
+    if (together.includes(partner.id)) {
+      setTogether((ids) => ids.filter((id) => id !== partner.id));
+      setLines((current) => current.filter((l) => l.appointmentId !== partner.id));
+    } else {
+      setTogether((ids) => [...ids, partner.id]);
+      setLines((current) => [...current, ...linesFor(partner)]);
+    }
+  }
+
   // Back to a walk-in: the previous customer's details go too.
   function detach() {
     setAppointment(null);
+    setTogether([]);
     setLines([]);
     setEmail("");
     setMailReceipt(false);
@@ -132,6 +154,7 @@ export function Checkout({
 
   function reset() {
     setAppointment(null);
+    setTogether([]);
     setLines([]);
     setBarberId(onlyBarber);
     setDiscountInput("");
@@ -201,6 +224,7 @@ export function Checkout({
     startTransition(async () => {
       const response = await checkoutAction({
         appointmentId: appointment?.id ?? null,
+        extraAppointmentIds: appointment ? together : [],
         barberId: barberId || null,
         items: lines.map((l, i) => ({ kind: l.kind, id: l.id, quantity: l.quantity, unitPriceCents: prices[i] ?? 0 })),
         discount,
@@ -272,6 +296,7 @@ export function Checkout({
                     <span className="min-w-0">
                       <span className="block font-semibold text-ink">
                         {a.time} · {a.customerName}
+                        {a.groupId ? <span className="ml-2 rounded-full bg-sky-400/10 px-2 py-0.5 text-[11px] font-semibold text-sky-300">Groep</span> : null}
                       </span>
                       <span className="block truncate text-sm text-ink-muted">
                         {a.serviceName} · {a.barberName}
@@ -384,6 +409,31 @@ export function Checkout({
           </div>
 
           <div className="space-y-5 p-5">
+            {partnersOf(appointment).length ? (
+              <fieldset className="min-w-0 rounded-xl border border-sky-400/30 bg-sky-400/[0.06] p-4">
+                <legend className="px-1 text-sm font-semibold text-ink">Samen geboekt</legend>
+                <p className="text-sm text-ink-muted">Ook afrekenen op deze bon:</p>
+                <ul className="mt-2 space-y-2">
+                  {partnersOf(appointment).map((p) => (
+                    <li key={p.id}>
+                      <label className="flex cursor-pointer items-center justify-between gap-3 text-sm">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <Checkbox checked={together.includes(p.id)} onChange={() => toggleTogether(p)} />
+                          <span className="min-w-0">
+                            <span className="block truncate text-ink">
+                              {p.time} · {p.customerName}
+                            </span>
+                            <span className="block truncate text-ink-muted">{p.serviceName}</span>
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-ink tabular-nums">{formatAmount(p.priceCents)}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </fieldset>
+            ) : null}
+
             {barbers.length > 1 ? (
               <Field label="Barber" htmlFor="till-barber">
                 <Select id="till-barber" value={barberId} onChange={(e) => setBarberId(e.target.value)}>

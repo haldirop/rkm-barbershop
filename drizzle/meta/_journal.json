@@ -92,6 +92,20 @@
       "when": 1793624186239,
       "tag": "0012_review_link",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793893732739,
+      "tag": "0013_group_booking",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793894591988,
+      "tag": "0014_sale_appointments",
+      "breakpoints": true
     }
   ]
 }

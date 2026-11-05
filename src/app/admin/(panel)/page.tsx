@@ -9,6 +9,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import { capitalize, formatAmount, formatDateLong, weekdayName } from "@/lib/format";
+import { appointmentName } from "@/lib/people";
 import { isoWeekday, zonedNow } from "@/lib/time";
 import { requireAdmin } from "@/server/auth/session";
 import { getDb } from "@/server/db/client";
@@ -177,9 +178,7 @@ export default async function DashboardPage({ searchParams }: PageProps<"/admin"
                       {a.startTime.slice(0, 5)}–{a.endTime.slice(0, 5)}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-ink">
-                        {a.firstName} {a.lastName}
-                      </span>
+                      <span className="block truncate text-ink">{appointmentName(a)}</span>
                       <span className="block truncate text-sm text-ink-muted">
                         {a.serviceName} · {a.barberName}
                       </span>

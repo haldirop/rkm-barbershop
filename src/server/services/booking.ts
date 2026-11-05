@@ -1,19 +1,31 @@
 import "server-only";
-import { and, count, eq, gte, inArray, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Locale } from "@/i18n/config";
 import type { CustomerMessage } from "@/i18n/errors";
 import { daySlots, pickBarber } from "@/lib/availability";
+import { groupDuration, MAX_PEOPLE, planSequence } from "@/lib/booking-group";
 import { ACTIVE_STATUSES } from "@/lib/status";
 import { minutesToTime, minutesUntil, timeToMinutes, zonedNow, type IsoDate, type ZonedNow } from "@/lib/time";
-import { getDb, type Database } from "@/server/db/client";
-import { appointments, barbers, customers, services, type Settings } from "@/server/db/schema";
+import { getDb, type Database, type DbOrTx } from "@/server/db/client";
+import { appointments, barbers, customers, services, type Appointment, type Settings } from "@/server/db/schema";
 import { createManageToken, verifyManageToken } from "@/server/security";
 import { bookingWindow, buildDay, loadSchedule, rulesForDate } from "./availability";
 import { loadSettings } from "./settings";
 import { DomainError, isOverlapViolation, lockBookings, logEvent, SLOT_TAKEN_MESSAGE } from "./shared";
 
+export interface BookingCompanion {
+  serviceId: string;
+  /** e.g. "Daan"; null = not given */
+  name: string | null;
+}
+
 export interface BookingInput {
   serviceId: string;
+  /** Who the first treatment is for, when that isn't the customer (null = the customer). */
+  name?: string | null;
+  /** More people in the same booking, one after another with the same barber. */
+  companions?: BookingCompanion[];
   /** null = geen voorkeur */
   barberId: string | null;
   date: IsoDate;
@@ -32,7 +44,7 @@ interface SlotChoice {
   barberId: string | null;
   date: IsoDate;
   startTime: string;
-  excludeAppointmentId?: string;
+  excludeAppointmentIds?: string[];
 }
 
 /**
@@ -46,7 +58,7 @@ async function claimSlot(tx: Database, choice: SlotChoice, now: ZonedNow) {
     choice.durationMinutes,
     choice.date,
     bookingWindow(schedule.settings, now),
-    choice.excludeAppointmentId,
+    choice.excludeAppointmentIds,
   );
   if (!rules) {
     throw new DomainError("Op deze datum kun je online geen afspraak maken.", "INVALID", { key: "noOnlineBooking" });
@@ -77,8 +89,16 @@ export async function createBookingRequest(
   db: Database = getDb(),
 ) {
   const now = opts.now ?? zonedNow();
-  const [service] = await db.select().from(services).where(eq(services.id, input.serviceId));
-  if (!service?.isActive) {
+  const people: BookingCompanion[] = [{ serviceId: input.serviceId, name: input.name ?? null }, ...(input.companions ?? [])];
+  if (people.length > MAX_PEOPLE) {
+    throw new DomainError(`Je kunt voor maximaal ${MAX_PEOPLE} personen tegelijk boeken.`, "INVALID", { key: "invalidRequest" });
+  }
+  const serviceRows = await db
+    .select()
+    .from(services)
+    .where(inArray(services.id, [...new Set(people.map((p) => p.serviceId))]));
+  const serviceById = new Map(serviceRows.map((row) => [row.id, row]));
+  if (people.some((p) => !serviceById.get(p.serviceId)?.isActive)) {
     throw new DomainError("Deze behandeling is niet (meer) online te boeken.", "INVALID", { key: "serviceUnavailable" });
   }
   if (input.barberId) {
@@ -99,10 +119,12 @@ export async function createBookingRequest(
       const settings = await loadSettings(tx);
       if (existing) await assertOpenAppointmentLimit(tx, existing.id, settings, now);
 
+      // Several people: one block with the same barber, the treatments one after another.
+      const durations = people.map((p) => serviceById.get(p.serviceId)!.durationMinutes);
       const slot = await claimSlot(
         tx,
         {
-          durationMinutes: service.durationMinutes,
+          durationMinutes: groupDuration(durations, settings.bufferMinutes),
           barberId: input.barberId,
           date: input.date,
           startTime: input.startTime,
@@ -132,31 +154,45 @@ export async function createBookingRequest(
         })
         .returning();
 
-      const [appointment] = await tx
-        .insert(appointments)
-        .values({
-          customerId: customer.id,
-          barberId: slot.barber.id,
-          serviceId: service.id,
-          barberName: slot.barber.name,
-          serviceName: service.name,
-          priceCents: service.priceCents,
-          durationMinutes: service.durationMinutes,
-          date: input.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          status: "PENDING",
-          anyBarber: input.barberId === null,
-          notes: input.notes,
-          source: "ONLINE",
-          locale: input.locale ?? "nl",
-          statusChangedAt: new Date(),
-        })
-        .returning();
+      const groupId = people.length > 1 ? randomUUID() : null;
+      const times = planSequence(timeToMinutes(slot.startTime), durations, settings.bufferMinutes);
+      const created: Appointment[] = [];
+      for (const [i, person] of people.entries()) {
+        const service = serviceById.get(person.serviceId)!;
+        const [appointment] = await tx
+          .insert(appointments)
+          .values({
+            customerId: customer.id,
+            barberId: slot.barber.id,
+            serviceId: service.id,
+            barberName: slot.barber.name,
+            serviceName: service.name,
+            priceCents: service.priceCents,
+            durationMinutes: service.durationMinutes,
+            date: input.date,
+            startTime: minutesToTime(times[i].start),
+            endTime: minutesToTime(times[i].end),
+            status: "PENDING",
+            anyBarber: input.barberId === null,
+            notes: i === 0 ? input.notes : null,
+            source: "ONLINE",
+            locale: input.locale ?? "nl",
+            statusChangedAt: new Date(),
+            groupId,
+            // null = the customer themself; "" = someone in the group without a name.
+            guestName: i === 0 ? person.name : (person.name ?? ""),
+          })
+          .returning();
+        await logEvent(tx, {
+          appointmentId: appointment.id,
+          type: "CREATED",
+          actor: "CUSTOMER",
+          message: groupId ? `Samen geboekt voor ${people.length} personen.` : undefined,
+        });
+        created.push(appointment);
+      }
 
-      await logEvent(tx, { appointmentId: appointment.id, type: "CREATED", actor: "CUSTOMER" });
-
-      return { appointment, customer, token: createManageToken(appointment.id) };
+      return { appointment: created[0], appointments: created, customer, token: createManageToken(created[0].id) };
     });
   } catch (error) {
     if (isOverlapViolation(error)) throw new DomainError(SLOT_TAKEN_MESSAGE, "SLOT_TAKEN");
@@ -170,8 +206,9 @@ async function assertOpenAppointmentLimit(
   settings: Settings,
   now: ZonedNow,
 ) {
+  // A booking for several people counts once.
   const [{ open }] = await tx
-    .select({ open: count() })
+    .select({ open: sql<number>`COUNT(DISTINCT COALESCE(${appointments.groupId}, ${appointments.id}))`.mapWith(Number) })
     .from(appointments)
     .where(
       and(
@@ -193,6 +230,25 @@ async function assertOpenAppointmentLimit(
 // Beheren via beveiligde link
 // ---------------------------------------------------------------------------
 
+/** Statuses of a booking that is still on: a group moves or is cancelled together in these. */
+const OPEN_STATUSES = ["PENDING", "APPROVED"] as const;
+const isOpen = (a: Pick<Appointment, "status">) => (OPEN_STATUSES as readonly string[]).includes(a.status);
+
+/** The appointments booked together with this one (itself included), in time order. */
+export async function loadGroup(appointment: Appointment, db: DbOrTx = getDb()): Promise<Appointment[]> {
+  if (!appointment.groupId) return [appointment];
+  return db
+    .select()
+    .from(appointments)
+    .where(eq(appointments.groupId, appointment.groupId))
+    .orderBy(asc(appointments.startTime));
+}
+
+/**
+ * The appointment behind a manage link, with everyone booked together with it. `appointment` is
+ * the first one that is still on (or the linked one when none is), so a group is shown and
+ * changed as one booking.
+ */
 export async function getAppointmentByToken(token: string, db: Database = getDb()) {
   const id = verifyManageToken(token);
   if (!id) return null;
@@ -201,7 +257,9 @@ export async function getAppointmentByToken(token: string, db: Database = getDb(
     .from(appointments)
     .innerJoin(customers, eq(customers.id, appointments.customerId))
     .where(eq(appointments.id, id));
-  return row ?? null;
+  if (!row) return null;
+  const group = await loadGroup(row.appointment, db);
+  return { ...row, appointment: group.find(isOpen) ?? row.appointment, group };
 }
 
 export type ManagedAppointment = NonNullable<Awaited<ReturnType<typeof getAppointmentByToken>>>;
@@ -240,27 +298,35 @@ export function customerChangePolicy(
 async function loadForChange(tx: Database, token: string, now: ZonedNow) {
   const id = verifyManageToken(token);
   if (!id) throw new DomainError("Deze link is ongeldig.", "NOT_FOUND", { key: "invalidLink" });
-  const [appointment] = await tx.select().from(appointments).where(eq(appointments.id, id)).for("update");
-  if (!appointment) throw new DomainError("Deze afspraak bestaat niet meer.", "NOT_FOUND", { key: "appointmentGone" });
-  const policy = customerChangePolicy(appointment, await loadSettings(tx), now);
+  const [own] = await tx.select().from(appointments).where(eq(appointments.id, id)).for("update");
+  if (!own) throw new DomainError("Deze afspraak bestaat niet meer.", "NOT_FOUND", { key: "appointmentGone" });
+  const group = own.groupId
+    ? await tx.select().from(appointments).where(eq(appointments.groupId, own.groupId)).orderBy(asc(appointments.startTime)).for("update")
+    : [own];
+  const members = group.filter(isOpen);
+  const lead = members[0] ?? own;
+  const policy = customerChangePolicy(lead, await loadSettings(tx), now);
   if (!policy.allowed) throw new DomainError(policy.reason!, "NOT_ALLOWED", policy.message);
-  return appointment;
+  return { lead, members };
 }
 
+/** Cancels the booking: every person in it that is still on. */
 export async function cancelByCustomer(token: string, opts: { now?: ZonedNow } = {}, db: Database = getDb()) {
   const now = opts.now ?? zonedNow();
   return db.transaction(async (tx) => {
-    const appointment = await loadForChange(tx, token, now);
-    const [updated] = await tx
+    const { lead, members } = await loadForChange(tx, token, now);
+    const updated = await tx
       .update(appointments)
       .set({ status: "CANCELLED", cancelledBy: "CUSTOMER", statusChangedAt: new Date() })
-      .where(eq(appointments.id, appointment.id))
+      .where(inArray(appointments.id, members.map((m) => m.id)))
       .returning();
-    await logEvent(tx, { appointmentId: appointment.id, type: "CANCELLED", actor: "CUSTOMER" });
-    return { previous: appointment, appointment: updated };
+    for (const m of members) await logEvent(tx, { appointmentId: m.id, type: "CANCELLED", actor: "CUSTOMER" });
+    updated.sort((a, b) => a.startTime.localeCompare(b.startTime));
+    return { previous: lead, appointment: updated[0], appointments: updated };
   });
 }
 
+/** Moves the booking (all people in it, again one after another) to another moment. */
 export async function rescheduleByCustomer(
   token: string,
   target: { date: IsoDate; startTime: string },
@@ -271,40 +337,51 @@ export async function rescheduleByCustomer(
   try {
     return await db.transaction(async (tx) => {
       await lockBookings(tx);
-      const appointment = await loadForChange(tx, token, now);
+      const { lead, members } = await loadForChange(tx, token, now);
+      const settings = await loadSettings(tx);
+      const durations = members.map((m) => m.durationMinutes);
       const slot = await claimSlot(
         tx,
         {
-          durationMinutes: appointment.durationMinutes,
-          barberId: appointment.anyBarber ? null : appointment.barberId,
+          durationMinutes: groupDuration(durations, settings.bufferMinutes),
+          barberId: lead.anyBarber ? null : lead.barberId,
           date: target.date,
           startTime: target.startTime,
-          excludeAppointmentId: appointment.id,
+          excludeAppointmentIds: members.map((m) => m.id),
         },
         now,
       );
-      const [updated] = await tx
-        .update(appointments)
-        .set({
-          date: target.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          barberId: slot.barber.id,
-          barberName: slot.barber.name,
-          // A moved appointment needs to be confirmed again by the shop.
-          status: "PENDING",
-          statusChangedAt: new Date(),
-          reminderSentAt: null,
-        })
-        .where(eq(appointments.id, appointment.id))
-        .returning();
-      await logEvent(tx, {
-        appointmentId: appointment.id,
-        type: "RESCHEDULED",
-        actor: "CUSTOMER",
-        message: `Van ${appointment.date} ${appointment.startTime.slice(0, 5)} naar ${target.date} ${slot.startTime}`,
-      });
-      return { previous: appointment, appointment: updated };
+      const times = planSequence(timeToMinutes(slot.startTime), durations, settings.bufferMinutes);
+      if (members.length > 1) {
+        // Out of the overlap check first: one person moving into another's old time would trip it.
+        await tx.update(appointments).set({ status: "CANCELLED" }).where(inArray(appointments.id, members.map((m) => m.id)));
+      }
+      const updated: Appointment[] = [];
+      for (const [i, member] of members.entries()) {
+        const [row] = await tx
+          .update(appointments)
+          .set({
+            date: target.date,
+            startTime: minutesToTime(times[i].start),
+            endTime: minutesToTime(times[i].end),
+            barberId: slot.barber.id,
+            barberName: slot.barber.name,
+            // A moved appointment needs to be confirmed again by the shop.
+            status: "PENDING",
+            statusChangedAt: new Date(),
+            reminderSentAt: null,
+          })
+          .where(eq(appointments.id, member.id))
+          .returning();
+        await logEvent(tx, {
+          appointmentId: member.id,
+          type: "RESCHEDULED",
+          actor: "CUSTOMER",
+          message: `Van ${member.date} ${member.startTime.slice(0, 5)} naar ${target.date} ${row.startTime.slice(0, 5)}`,
+        });
+        updated.push(row);
+      }
+      return { previous: lead, appointment: updated[0], appointments: updated };
     });
   } catch (error) {
     if (isOverlapViolation(error)) throw new DomainError(SLOT_TAKEN_MESSAGE, "SLOT_TAKEN");

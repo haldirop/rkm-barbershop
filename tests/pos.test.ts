@@ -7,10 +7,12 @@ import { appointments, appointmentEvents, barbers, cashCounts, customers, emailL
 import { seedBaseData } from "@/server/db/seed";
 import { sendReceipt } from "@/server/notifications/notify";
 import { changeStatus } from "@/server/services/appointments";
+import { expectedRevenue } from "@/server/services/insights";
 import { createBookingRequest } from "@/server/services/booking";
 import {
   checkout,
   deleteCashCount,
+  getSaleForAppointment,
   deleteSale,
   exportSalesCsv,
   getCashCount,
@@ -192,6 +194,77 @@ describe("till", () => {
     const [after] = await handle.db.select().from(appointments).where(eq(appointments.id, appointment.id));
     expect(after.status).toBe("APPROVED");
     expect(await listUnpaidAppointments(NOW.date)).toEqual([]);
+  });
+
+  it("pays a father and his son on one receipt", async () => {
+    const { appointments: group } = await createBookingRequest(
+      {
+        serviceId: knippenId,
+        companions: [{ serviceId: knippenId, name: "Daan" }],
+        barberId: rayanId,
+        date: NOW.date,
+        startTime: "14:00",
+        firstName: "Jan",
+        lastName: "Jansen",
+        phone: "0612345678",
+        email: "jan@example.com",
+        notes: null,
+      },
+      { now: NOW },
+    );
+    await changeStatus(group[0].id, "APPROVED", { userId: null }); // approves the whole group
+    const unpaid = await listUnpaidAppointments(NOW.date);
+    expect(unpaid.map((a) => [a.guestName, a.groupId])).toEqual([
+      [null, group[0].groupId],
+      ["Daan", group[0].groupId],
+    ]);
+    expect((await expectedRevenue(NOW)).today.confirmed).toBe(2);
+
+    // 15:30, after both appointments (14:00–14:30 and 14:30–15:00).
+    const sale = await checkout(
+      walkIn({
+        appointmentId: group[0].id,
+        extraAppointmentIds: [group[1].id],
+        barberId: null,
+        items: [{ kind: "SERVICE", id: knippenId, quantity: 2, unitPriceCents: 2500 }],
+      }),
+      { now: { date: NOW.date, minutes: 930 } },
+    );
+    expect(sale.totalCents).toBe(5000);
+    expect(await getSaleForAppointment(group[1].id)).toEqual({ id: sale.id, number: sale.number });
+    expect(await listUnpaidAppointments(NOW.date)).toEqual([]);
+    expect((await expectedRevenue(NOW)).today.confirmed).toBe(0);
+    const after = await handle.db.select().from(appointments).where(eq(appointments.groupId, group[0].groupId!));
+    expect(after.map((a) => a.status)).toEqual(["COMPLETED", "COMPLETED"]);
+    // The son was there: he can't be marked as a no-show, and he can't be paid twice.
+    await expect(changeStatus(group[1].id, "NO_SHOW", { userId: null })).rejects.toThrow(/afgerekend/);
+    await expect(checkout(walkIn({ appointmentId: group[1].id }), { now: NOW })).rejects.toThrow(/al afgerekend/);
+
+    // Removing the receipt makes both unpaid again.
+    await deleteSale(sale.id, { reason: "Test", userId: null });
+    expect((await listUnpaidAppointments(NOW.date)).length).toBe(2);
+  });
+
+  it("only pays appointments of the same group together", async () => {
+    const one = await approvedAppointment();
+    const { appointment: other } = await createBookingRequest(
+      {
+        serviceId: knippenId,
+        barberId: rayanId,
+        date: NOW.date,
+        startTime: "16:00",
+        firstName: "Piet",
+        lastName: "Pietersen",
+        phone: "0612345679",
+        email: "piet@example.com",
+        notes: null,
+      },
+      { now: NOW },
+    );
+    await changeStatus(other.id, "APPROVED", { userId: null });
+    await expect(
+      checkout(walkIn({ appointmentId: one.id, extraAppointmentIds: [other.id] }), { now: NOW }),
+    ).rejects.toThrow(/samen zijn geboekt/);
   });
 
   it("only sells products that are in stock, and counts stock down", async () => {

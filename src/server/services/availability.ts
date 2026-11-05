@@ -140,7 +140,7 @@ export function rulesForDate(
   durationMinutes: number,
   date: IsoDate,
   window: BookingWindow,
-  excludeAppointmentId?: string,
+  excludeAppointmentIds?: string[],
 ): SlotRules | null {
   if (date < window.firstDate || date > window.lastDate) return null;
   return {
@@ -148,7 +148,7 @@ export function rulesForDate(
     slotIntervalMinutes: settings.slotIntervalMinutes,
     bufferMinutes: settings.bufferMinutes,
     earliestStart: date === window.firstDate ? window.firstMinute : 0,
-    excludeAppointmentId,
+    excludeAppointmentIds,
   };
 }
 
@@ -156,7 +156,8 @@ export interface AvailabilityQuery {
   durationMinutes: number;
   /** null = any barber */
   barberId: string | null;
-  excludeAppointmentId?: string;
+  /** The appointments being moved (all people of a group booking). */
+  excludeAppointmentIds?: string[];
   now?: ZonedNow;
 }
 
@@ -191,7 +192,7 @@ export function dayAvailabilityFromSchedule(
     query.durationMinutes,
     date,
     window,
-    query.excludeAppointmentId,
+    query.excludeAppointmentIds,
   );
   if (!rules) return { date, level: "unavailable", slots: [], bestWindow: null };
 

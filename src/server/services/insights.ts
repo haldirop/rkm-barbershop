@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, inArray, isNull, lt, lte, notExists, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lt, lte, or, sql } from "drizzle-orm";
 import { workingIntervals } from "@/lib/availability";
 import { dueForVisit, heatmapCounts, median, newVsReturning, percentChange, visitRhythms, type Visit } from "@/lib/insights";
 import { stockStatus } from "@/lib/pos";
@@ -20,6 +20,7 @@ import { getDb, type DbOrTx } from "@/server/db/client";
 import { appointments, customers, products, saleLines, sales } from "@/server/db/schema";
 import { buildDay, loadSchedule } from "./availability";
 import { listBusinessHours, listProducts } from "./catalog";
+import { paidReceiptNumber } from "./pos";
 import { countWaitingByDate } from "./waitlist";
 
 /**
@@ -172,12 +173,7 @@ export async function expectedRevenue(now: ZonedNow = zonedNow(), db: DbOrTx = g
         gte(appointments.date, today),
         lte(appointments.date, monthEnd > next30End ? monthEnd : next30End),
         inArray(appointments.status, ["PENDING", "APPROVED"]),
-        notExists(
-          db
-            .select({ id: sales.id })
-            .from(sales)
-            .where(and(eq(sales.appointmentId, appointments.id), eq(sales.kind, "SALE"), activeSale)),
-        ),
+        sql`${paidReceiptNumber} IS NULL`,
       ),
     );
   const upcoming = rows.filter((r) => r.date > today || timeToMinutes(r.endTime) > now.minutes);
@@ -339,7 +335,8 @@ export async function customerInsights(now: ZonedNow = zonedNow(), db: DbOrTx = 
       .where(and(gte(sales.date, yearAgo), activeSale, sql`${sales.customerId} IS NOT NULL`))
       .groupBy(sales.customerId),
   ]);
-  const visits: Visit[] = visitRows;
+  // One visit per customer per day: a father who comes with his son is one visit.
+  const visits: Visit[] = [...new Map(visitRows.map((v) => [`${v.customerId}|${v.date}`, v])).values()];
   const months = Array.from({ length: 6 }, (_, i) => addMonths(startOfMonth(today), i - 5));
   const rhythms = visitRhythms(visits);
   const regulars = rhythms.filter((r) => r.averageGapDays !== null);

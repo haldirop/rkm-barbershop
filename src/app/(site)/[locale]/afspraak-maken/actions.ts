@@ -24,6 +24,8 @@ export type BookingResult =
         price: string;
         firstName: string;
         email: string;
+        /** Everyone in the booking, in order (one entry for a single appointment). */
+        people: Array<{ name: string | null; serviceId: string | null; serviceName: string; time: string; price: string }>;
       };
     }
   | { ok: false; error: string; fieldErrors?: FieldErrors; slotTaken?: boolean };
@@ -49,7 +51,7 @@ export async function requestAppointment(input: unknown, language?: unknown): Pr
   await recordHit(ipKey);
 
   try {
-    const { appointment, token } = await createBookingRequest({
+    const { appointment, appointments: created, token } = await createBookingRequest({
       serviceId: data.serviceId,
       barberId: data.barberId,
       date: data.date,
@@ -59,10 +61,13 @@ export async function requestAppointment(input: unknown, language?: unknown): Pr
       phone: data.phone,
       email: data.email,
       notes: data.notes,
+      name: data.name ?? null,
+      companions: data.companions ?? [],
       locale,
     });
     // E-mails are sent after the response, so the customer isn't kept waiting.
     after(() => notifyRequested(appointment.id));
+    const last = created.at(-1)!;
     return {
       ok: true,
       token,
@@ -71,10 +76,17 @@ export async function requestAppointment(input: unknown, language?: unknown): Pr
         serviceName: appointment.serviceName,
         barberName: appointment.barberName,
         dateLabel: formatDateLong(appointment.date, false, locale),
-        time: `${appointment.startTime.slice(0, 5)} – ${appointment.endTime.slice(0, 5)}`,
-        price: formatPrice(appointment.priceCents, locale),
+        time: `${appointment.startTime.slice(0, 5)} – ${last.endTime.slice(0, 5)}`,
+        price: formatPrice(created.reduce((sum, a) => sum + a.priceCents, 0), locale),
         firstName: data.firstName,
         email: data.email,
+        people: created.map((a) => ({
+          name: a.guestName,
+          serviceId: a.serviceId,
+          serviceName: a.serviceName,
+          time: `${a.startTime.slice(0, 5)} – ${a.endTime.slice(0, 5)}`,
+          price: formatPrice(a.priceCents, locale),
+        })),
       },
     };
   } catch (error) {

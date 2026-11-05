@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, count, desc, eq, gte, ilike, inArray, isNull, lt, lte, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lt, lte, ne, or, sql, type SQL } from "drizzle-orm";
 import { isActiveStatus, type AppointmentStatus } from "@/lib/status";
 import { minutesToTime, timeToMinutes, zonedNow, type IsoDate } from "@/lib/time";
 import { getDb, type Database, type DbOrTx } from "@/server/db/client";
@@ -9,10 +9,10 @@ import {
   barbers,
   customers,
   emailLog,
-  sales,
   services,
   adminUsers,
 } from "@/server/db/schema";
+import { paidReceipts } from "./pos";
 import { DomainError, isOverlapViolation, lockBookings, logEvent, type EventType } from "./shared";
 
 const listColumns = {
@@ -35,6 +35,11 @@ const listColumns = {
   lastName: customers.lastName,
   phone: customers.phone,
   email: customers.email,
+  /** Who it is for when that isn't the customer (see lib/people.ts). */
+  guestName: appointments.guestName,
+  /** Booked together for several people: the same id on each, and how many there are. */
+  groupId: appointments.groupId,
+  groupSize: sql<number>`(SELECT COUNT(*) FROM "appointments" g WHERE g."group_id" = ${appointments.groupId})`.mapWith(Number),
   /** How often this customer didn't show up before (for a warning on new requests). */
   noShows: sql<number>`(SELECT COUNT(*) FROM "appointments" ns WHERE ns."customer_id" = ${customers.id} AND ns."status" = 'NO_SHOW')`.mapWith(Number),
 };
@@ -171,7 +176,15 @@ export async function getAppointmentDetail(id: string, db: DbOrTx = getDb()) {
     .select({ noShows: count() })
     .from(appointments)
     .where(and(eq(appointments.customerId, row.customer.id), eq(appointments.status, "NO_SHOW")));
-  return { ...row, events, emails, customerNoShows: noShows };
+  // Booked together for several people: everyone in the group, in time order.
+  const group = row.appointment.groupId
+    ? await db
+        .select()
+        .from(appointments)
+        .where(eq(appointments.groupId, row.appointment.groupId))
+        .orderBy(asc(appointments.startTime))
+    : [];
+  return { ...row, events, emails, customerNoShows: noShows, group };
 }
 
 export type AppointmentDetail = NonNullable<Awaited<ReturnType<typeof getAppointmentDetail>>>;
@@ -205,10 +218,7 @@ async function assertCanMarkNoShow(tx: DbOrTx, appointment: typeof appointments.
   const started =
     appointment.date < now.date || (appointment.date === now.date && timeToMinutes(appointment.startTime) <= now.minutes);
   if (!started) throw new DomainError("Een afspraak kan pas als ‘niet verschenen’ worden gemarkeerd als hij begonnen is.", "NOT_ALLOWED");
-  const [paid] = await tx
-    .select({ number: sales.number })
-    .from(sales)
-    .where(and(eq(sales.appointmentId, appointment.id), eq(sales.kind, "SALE"), isNull(sales.deletedAt)));
+  const [paid] = await paidReceipts([appointment.id], tx);
   if (paid) throw new DomainError(`Deze afspraak is afgerekend (bon ${paid.number}), dus de klant is wel verschenen.`, "NOT_ALLOWED");
 }
 
@@ -236,7 +246,19 @@ export async function changeStatus(
           excludeId: current.id,
         });
       }
-      const [updated] = await tx
+      // A request for several people (e.g. a father and his son) is approved or rejected as a
+      // whole; cancelling or a no-show stays per person.
+      const together = current.groupId && current.status === "PENDING" && (to === "APPROVED" || to === "REJECTED");
+      const ids = together
+        ? (
+            await tx
+              .select({ id: appointments.id })
+              .from(appointments)
+              .where(and(eq(appointments.groupId, current.groupId!), eq(appointments.status, "PENDING")))
+              .for("update")
+          ).map((r) => r.id)
+        : [id];
+      const changed = await tx
         .update(appointments)
         .set({
           status: to,
@@ -244,16 +266,20 @@ export async function changeStatus(
           statusReason: opts.reason ?? null,
           cancelledBy: to === "CANCELLED" ? (opts.actor ?? "ADMIN") : null,
         })
-        .where(eq(appointments.id, id))
+        .where(inArray(appointments.id, ids))
         .returning();
-      await logEvent(tx, {
-        appointmentId: id,
-        type: to === "APPROVED" && current.status !== "PENDING" ? "REOPENED" : EVENT_FOR_STATUS[to],
-        actor: opts.actor ?? "ADMIN",
-        actorUserId: opts.userId,
-        message: opts.reason,
-      });
-      return { previous: current, appointment: updated };
+      for (const row of changed) {
+        await logEvent(tx, {
+          appointmentId: row.id,
+          type: to === "APPROVED" && current.status !== "PENDING" ? "REOPENED" : EVENT_FOR_STATUS[to],
+          actor: opts.actor ?? "ADMIN",
+          actorUserId: opts.userId,
+          message: opts.reason,
+        });
+      }
+      const updated = changed.find((row) => row.id === id)!;
+      changed.sort((x, y) => x.startTime.localeCompare(y.startTime));
+      return { previous: current, appointment: updated, appointments: changed };
     });
   } catch (error) {
     if (isOverlapViolation(error)) {

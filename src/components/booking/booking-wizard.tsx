@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, Clock, LoaderCircle, Lock, Scissors, Star, UserRound, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Clock, LoaderCircle, Lock, Minus, Plus, Scissors, Star, UserRound, Users, X } from "lucide-react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { requestAppointment, type BookingResult } from "@/app/(site)/[locale]/afspraak-maken/actions";
@@ -10,6 +10,7 @@ import { Checkbox, Field, Input, Textarea } from "@/components/ui/form";
 import { useLocale } from "@/i18n/client";
 import { localizePath, type Locale } from "@/i18n/config";
 import { booking, localizeFieldErrors, type BookingMessages } from "@/i18n/messages/booking";
+import { groupDuration, MAX_PEOPLE } from "@/lib/booking-group";
 import { cn } from "@/lib/cn";
 import { capitalize, formatDateLong, formatDuration, formatPrice } from "@/lib/format";
 import { timeToMinutes, minutesToTime } from "@/lib/time";
@@ -35,6 +36,17 @@ export interface BarberOption {
 type StepId = "service" | "barber" | "datetime" | "details" | "confirm";
 type BarberChoice = string | "any";
 
+/** One person in the booking: their treatment and (optionally) their name. */
+interface Person {
+  serviceId: string | null;
+  name: string;
+}
+
+/** "Daan", or "Jij" / "Persoon 2" when no name was given. */
+function personLabel(t: BookingMessages, index: number, name: string | null | undefined) {
+  return name?.trim() || (index === 0 ? t.group.you : t.group.person(index + 1));
+}
+
 /** Step names in the address (?stap=…); the labels come from the messages. */
 const STEP_SLUGS: Record<StepId, string> = {
   service: "behandeling",
@@ -59,12 +71,15 @@ export function BookingWizard({
   barbers,
   today,
   lastDate,
+  bufferMinutes,
   initial,
 }: {
   services: ServiceOption[];
   barbers: BarberOption[];
   today: string;
   lastDate: string;
+  /** Time between two people of a group booking (the shop's buffer). */
+  bufferMinutes: number;
   initial: { serviceId?: string; barberId?: BarberChoice; date?: string; time?: string };
 }) {
   const locale = useLocale();
@@ -76,7 +91,7 @@ export function BookingWizard({
   const onlyBarber = barbers.length === 1 ? barbers[0].id : null;
   const initialBarber: BarberChoice | null = initial.barberId ?? (initial.date ? "any" : onlyBarber);
 
-  const [serviceId, setServiceId] = useState<string | null>(initial.serviceId ?? null);
+  const [people, setPeople] = useState<Person[]>([{ serviceId: initial.serviceId ?? null, name: "" }]);
   const [barberChoice, setBarberChoice] = useState<BarberChoice | null>(initialBarber);
   const [slot, setSlot] = useState<DateTimeValue>({ date: initial.date ?? null, time: initial.time ?? null });
   const [details, setDetails] = useState<Details | null>(null);
@@ -93,11 +108,17 @@ export function BookingWizard({
   const pathname = usePathname();
   const favoriteBarber = useStoredValue(STORAGE_KEYS.favoriteBarber);
 
-  const service = services.find((s) => s.id === serviceId) ?? null;
+  const chosen = people.map((p) => services.find((s) => s.id === p.serviceId) ?? null);
+  const service = chosen[0];
+  const isGroup = people.length > 1;
+  const allChosen = chosen.every((s) => s !== null);
+  // Several people sit one after another, so their times (and prices) add up.
+  const durationMinutes = allChosen ? groupDuration(chosen.map((s) => s!.durationMinutes), bufferMinutes) : null;
+  const totalCents = allChosen ? chosen.reduce((sum, s) => sum + s!.priceCents, 0) : null;
   const barber = barbers.find((b) => b.id === barberChoice) ?? null;
 
   // The furthest step the customer may be on, given what has been filled in.
-  const firstIncomplete: StepId = !service
+  const firstIncomplete: StepId = !allChosen
     ? "service"
     : steps.includes("barber") && !barberChoice
       ? "barber"
@@ -135,9 +156,21 @@ export function BookingWizard({
   };
   const back = (from: StepId) => goTo(steps[Math.max(0, order(from) - 1)]);
 
-  const query = service
-    ? `behandeling=${service.id}${barberChoice && barberChoice !== "any" ? `&barber=${barberChoice}` : ""}`
+  const query = allChosen
+    ? `${people.map((p) => `behandeling=${p.serviceId}`).join("&")}${barberChoice && barberChoice !== "any" ? `&barber=${barberChoice}` : ""}`
     : "";
+
+  /** Any change to who comes or what they get changes the length, so the time is picked again. */
+  const updatePeople = (change: (list: Person[]) => Person[]) => {
+    setPeople(change);
+    setSlot((v) => ({ date: v.date, time: null }));
+  };
+  const setCount = (count: number) =>
+    updatePeople((list) =>
+      count > list.length
+        ? [...list, ...Array.from({ length: count - list.length }, () => ({ serviceId: null, name: "" }))]
+        : list.slice(0, count),
+    );
 
   const onSlotChange = useCallback((value: DateTimeValue) => {
     setSlot(value);
@@ -145,13 +178,15 @@ export function BookingWizard({
   }, []);
 
   function submit() {
-    if (!service || !slot.date || !slot.time || !details) return;
+    if (!service || !allChosen || !slot.date || !slot.time || !details) return;
     setError(null);
     startTransition(async () => {
       const response = await requestAppointment(
         {
           ...details,
           serviceId: service.id,
+          name: people[0].name,
+          companions: people.slice(1).map((p) => ({ serviceId: p.serviceId!, name: p.name })),
           barberId: barberChoice === "any" || !barberChoice ? null : barberChoice,
           date: slot.date,
           startTime: slot.time,
@@ -167,7 +202,14 @@ export function BookingWizard({
           remember ? JSON.stringify({ ...details, notes: "" }) : null,
         );
         // The confirmation shows the treatment as it was chosen, in the page language.
-        setResult({ ...response, summary: { ...response.summary, serviceName: service.name } });
+        setResult({
+          ...response,
+          summary: {
+            ...response.summary,
+            serviceName: service.name,
+            people: response.summary.people.map((p, i) => ({ ...p, serviceName: chosen[i]?.name ?? p.serviceName })),
+          },
+        });
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
@@ -187,7 +229,9 @@ export function BookingWizard({
 
   const summary = (
     <BookingSummary
-      service={service}
+      items={people.map((p, i) => ({ label: personLabel(t, i, p.name), service: chosen[i] }))}
+      durationMinutes={durationMinutes}
+      totalCents={totalCents}
       barberLabel={barberChoice === "any" ? t.anyBarber : (barber?.name ?? null)}
       showBarber={steps.includes("barber")}
       date={slot.date}
@@ -204,32 +248,117 @@ export function BookingWizard({
           {error && step !== "confirm" ? <Alert tone="error" className="mb-6">{error}</Alert> : null}
 
           {step === "service" ? (
-            <StepSection title={t.serviceTitle} subtitle={t.serviceSubtitle(linkedBarber?.name ?? null)}>
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {services.map((s) => (
-                  <li key={s.id}>
-                    <OptionCard
-                      selected={s.id === serviceId}
-                      onClick={() => {
-                        if (s.id !== serviceId) setSlot((v) => ({ date: v.date, time: null }));
-                        setServiceId(s.id);
-                        next("service");
-                      }}
-                      title={s.name}
-                      description={s.description}
-                      meta={
-                        <>
-                          <span className="flex items-center gap-1.5">
-                            <Clock className="size-3.5 text-gold" aria-hidden />
-                            {formatDuration(s.durationMinutes, locale)}
-                          </span>
-                          <span className="font-display text-2xl font-semibold text-gold-bright">{formatPrice(s.priceCents, locale)}</span>
-                        </>
-                      }
-                    />
-                  </li>
-                ))}
-              </ul>
+            <StepSection
+              title={isGroup ? t.group.servicesTitle : t.serviceTitle}
+              subtitle={t.serviceSubtitle(linkedBarber?.name ?? null)}
+            >
+              <PeopleCounter count={people.length} onChange={setCount} t={t} />
+              {isGroup ? (
+                <>
+                  <ol className="space-y-5">
+                    {people.map((person, i) => (
+                      <li key={i} className="rounded-2xl border border-line bg-surface/60 p-4 sm:p-5">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-lg font-semibold text-ink">
+                            {t.group.person(i + 1)}
+                            {i === 0 ? <span className="font-normal text-ink-muted"> · {t.group.you}</span> : null}
+                          </p>
+                          {i > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => updatePeople((list) => list.filter((_, j) => j !== i))}
+                              aria-label={`${t.group.fewer}: ${personLabel(t, i, person.name)}`}
+                              className="grid size-9 place-items-center rounded-full text-ink-faint transition-colors hover:bg-surface-3 hover:text-ink"
+                            >
+                              <X className="size-4" aria-hidden />
+                            </button>
+                          ) : null}
+                        </div>
+                        <Field label={t.group.nameLabel} htmlFor={`person-${i}-name`} className="mt-3 sm:max-w-xs">
+                          <Input
+                            id={`person-${i}-name`}
+                            value={person.name}
+                            maxLength={60}
+                            autoComplete="off"
+                            placeholder={i === 0 ? t.group.namePlaceholderSelf : t.group.namePlaceholderOther}
+                            onChange={(e) => {
+                              const name = e.target.value;
+                              setPeople((list) => list.map((p, j) => (j === i ? { ...p, name } : p)));
+                            }}
+                          />
+                        </Field>
+                        <p className="mt-4 text-sm text-ink-muted">{t.treatment}</p>
+                        <ul className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={`${t.treatment} · ${personLabel(t, i, person.name)}`}>
+                          {services.map((s) => {
+                            const selected = person.serviceId === s.id;
+                            return (
+                              <li key={s.id}>
+                                <button
+                                  type="button"
+                                  role="radio"
+                                  aria-checked={selected}
+                                  onClick={() => updatePeople((list) => list.map((p, j) => (j === i ? { ...p, serviceId: s.id } : p)))}
+                                  className={cn(
+                                    "flex w-full items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm transition-colors",
+                                    selected ? "border-gold bg-gold/[0.07]" : "border-line bg-surface hover:border-gold/50",
+                                  )}
+                                >
+                                  <span className="min-w-0">
+                                    <span className="block font-medium text-ink">{s.name}</span>
+                                    <span className="text-ink-faint">{formatDuration(s.durationMinutes, locale)}</span>
+                                  </span>
+                                  <span className="flex shrink-0 items-center gap-2">
+                                    <span className="font-semibold text-gold-bright tabular-nums">{formatPrice(s.priceCents, locale)}</span>
+                                    <span
+                                      className={cn("grid size-5 place-items-center rounded-full border", selected ? "border-gold bg-gold text-canvas" : "border-line-strong")}
+                                      aria-hidden
+                                    >
+                                      {selected ? <Check className="size-3" /> : null}
+                                    </span>
+                                  </span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </li>
+                    ))}
+                  </ol>
+                  <div className="sticky bottom-0 z-10 -mx-4 mt-8 border-t border-line bg-canvas/95 px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-xl sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none">
+                    {!allChosen ? <p className="mb-3 text-center text-sm text-ink-muted sm:text-right">{t.group.chooseAll}</p> : null}
+                    <div className="flex justify-end">
+                      <Button size="lg" onClick={() => next("service")} disabled={!allChosen} className="w-full sm:w-auto">
+                        {t.next} <ArrowRight className="size-4" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <ul className="grid gap-3 sm:grid-cols-2">
+                  {services.map((s) => (
+                    <li key={s.id}>
+                      <OptionCard
+                        selected={s.id === people[0].serviceId}
+                        onClick={() => {
+                          if (s.id !== people[0].serviceId) updatePeople((list) => [{ ...list[0], serviceId: s.id }]);
+                          next("service");
+                        }}
+                        title={s.name}
+                        description={s.description}
+                        meta={
+                          <>
+                            <span className="flex items-center gap-1.5">
+                              <Clock className="size-3.5 text-gold" aria-hidden />
+                              {formatDuration(s.durationMinutes, locale)}
+                            </span>
+                            <span className="font-display text-2xl font-semibold text-gold-bright">{formatPrice(s.priceCents, locale)}</span>
+                          </>
+                        }
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
             </StepSection>
           ) : null}
 
@@ -277,8 +406,11 @@ export function BookingWizard({
             </StepSection>
           ) : null}
 
-          {step === "datetime" && service ? (
-            <StepSection title={t.datetimeTitle} subtitle={`${service.name} · ${formatDuration(service.durationMinutes, locale)}`}>
+          {step === "datetime" && service && durationMinutes ? (
+            <StepSection
+              title={t.datetimeTitle}
+              subtitle={`${isGroup ? t.group.count(people.length) : service.name} · ${formatDuration(durationMinutes, locale)}`}
+            >
               <DateTimePicker
                 query={query}
                 today={today}
@@ -287,7 +419,8 @@ export function BookingWizard({
                 onChange={onSlotChange}
                 refreshKey={refreshKey}
                 waitlist={
-                  service ? { serviceId: service.id, barberId: barberChoice && barberChoice !== "any" ? barberChoice : null } : undefined
+                  // The waiting list is per treatment; for a group the shop is easier to call.
+                  !isGroup ? { serviceId: service.id, barberId: barberChoice && barberChoice !== "any" ? barberChoice : null } : undefined
                 }
               />
               <StepNav
@@ -504,13 +637,17 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 }
 
 function BookingSummary({
-  service,
+  items,
+  durationMinutes,
+  totalCents,
   barberLabel,
   showBarber,
   date,
   time,
 }: {
-  service: ServiceOption | null;
+  items: Array<{ label: string; service: ServiceOption | null }>;
+  durationMinutes: number | null;
+  totalCents: number | null;
   barberLabel: string | null;
   showBarber: boolean;
   date: string | null;
@@ -518,10 +655,25 @@ function BookingSummary({
 }) {
   const locale = useLocale();
   const t = booking[locale];
-  const end = service && time ? minutesToTime(timeToMinutes(time) + service.durationMinutes) : null;
-  const rows: Array<[string, string | null, ReactNode]> = [
-    [t.treatment, service?.name ?? null, <Scissors key="s" className="size-4" aria-hidden />],
-    ...(showBarber ? [[t.barber, barberLabel, <UserRound key="b" className="size-4" aria-hidden />] as [string, string | null, ReactNode]] : []),
+  const group = items.length > 1;
+  const end = durationMinutes && time ? minutesToTime(timeToMinutes(time) + durationMinutes) : null;
+  const treatment: ReactNode = group ? (
+    <span className="block space-y-1">
+      {items.map((item, i) => (
+        <span key={i} className="flex justify-between gap-3">
+          <span className="min-w-0 truncate">
+            <span className="text-ink-muted">{item.label}:</span> {item.service?.name ?? <span className="text-ink-faint">{t.notChosen}</span>}
+          </span>
+          {item.service ? <span className="shrink-0 text-ink-muted tabular-nums">{formatPrice(item.service.priceCents, locale)}</span> : null}
+        </span>
+      ))}
+    </span>
+  ) : (
+    (items[0]?.service?.name ?? null)
+  );
+  const rows: Array<[string, ReactNode, ReactNode]> = [
+    [group ? t.group.people : t.treatment, treatment, group ? <Users key="s" className="size-4" aria-hidden /> : <Scissors key="s" className="size-4" aria-hidden />],
+    ...(showBarber ? [[t.barber, barberLabel, <UserRound key="b" className="size-4" aria-hidden />] as [string, ReactNode, ReactNode]] : []),
     [
       t.moment,
       date ? `${capitalize(formatDateLong(date, false, locale))}${time ? `, ${time} – ${end}` : ""}` : null,
@@ -535,19 +687,52 @@ function BookingSummary({
         {rows.map(([label, value, icon]) => (
           <li key={label} className="flex gap-3">
             <span className={cn("mt-0.5", value ? "text-gold" : "text-ink-faint")}>{icon}</span>
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1">
               <span className="block text-xs text-ink-faint">{label}</span>
               <span className={cn("block text-sm", value ? "text-ink" : "text-ink-faint")}>{value ?? t.notChosen}</span>
             </span>
           </li>
         ))}
       </ul>
-      {service ? (
+      {group ? <p className="mt-4 text-xs text-ink-faint">{t.group.together}</p> : null}
+      {durationMinutes && totalCents !== null ? (
         <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
-          <span className="text-sm text-ink-muted">{formatDuration(service.durationMinutes, locale)}</span>
-          <span className="font-display text-3xl font-semibold text-gold-bright">{formatPrice(service.priceCents, locale)}</span>
+          <span className="text-sm text-ink-muted">
+            {group ? `${t.group.total} · ` : ""}
+            {formatDuration(durationMinutes, locale)}
+          </span>
+          <span className="font-display text-3xl font-semibold text-gold-bright">{formatPrice(totalCents, locale)}</span>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** "Met hoeveel personen kom je?" with − and + buttons. */
+function PeopleCounter({ count, onChange, t }: { count: number; onChange: (count: number) => void; t: BookingMessages }) {
+  const stepButton = "grid size-10 place-items-center rounded-full border border-line-strong text-ink transition-colors hover:border-gold/60 hover:text-gold disabled:pointer-events-none disabled:opacity-35";
+  return (
+    <div className="mb-6 rounded-2xl border border-line bg-surface p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="flex items-center gap-3 font-semibold text-ink">
+          <span className="grid size-10 shrink-0 place-items-center rounded-full border border-line-strong text-gold">
+            <Users className="size-5" aria-hidden />
+          </span>
+          {t.group.title}
+        </p>
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
+          <button type="button" className={stepButton} onClick={() => onChange(count - 1)} disabled={count <= 1} aria-label={t.group.fewer}>
+            <Minus className="size-4" aria-hidden />
+          </button>
+          <span className="min-w-28 text-center font-semibold text-ink tabular-nums" aria-live="polite">
+            {t.group.count(count)}
+          </span>
+          <button type="button" className={stepButton} onClick={() => onChange(count + 1)} disabled={count >= MAX_PEOPLE} aria-label={t.group.more}>
+            <Plus className="size-4" aria-hidden />
+          </button>
+        </div>
+      </div>
+      <p className="mt-3 text-sm text-ink-muted">{count >= MAX_PEOPLE ? t.group.max(MAX_PEOPLE) : count > 1 ? t.group.together : t.group.hint}</p>
     </div>
   );
 }

@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { isoDateSchema, uuidSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
+import { appointmentName } from "@/lib/people";
 import { listAppointmentsInRange } from "@/server/services/appointments";
 import { searchCustomers } from "@/server/services/customers";
 
@@ -28,7 +29,7 @@ export async function barberDay(barberId: string, date: string, excludeId?: stri
       id: r.id,
       start: r.startTime.slice(0, 5),
       end: r.endTime.slice(0, 5),
-      name: `${r.firstName} ${r.lastName}`,
+      name: appointmentName(r),
       service: r.serviceName,
       status: r.status,
     }));

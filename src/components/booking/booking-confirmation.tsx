@@ -14,6 +14,7 @@ export function BookingConfirmation({ result }: { result: Extract<BookingResult,
   const locale = useLocale();
   const t = booking[locale].received;
   const labels = booking[locale];
+  const group = summary.people.length > 1;
   return (
     <div className="mx-auto max-w-2xl animate-fade-up text-center" role="status" aria-live="polite">
       <span className="mx-auto grid size-16 place-items-center rounded-full border border-gold/40 bg-gold/10 text-gold">
@@ -30,11 +31,30 @@ export function BookingConfirmation({ result }: { result: Extract<BookingResult,
             {t.awaiting}
           </span>
         </div>
+        {group ? (
+          <ul className="mt-6 divide-y divide-line rounded-xl border border-line">
+            {summary.people.map((p, i) => (
+              <li key={i} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                <span className="min-w-0">
+                  <span className="block font-medium text-ink">
+                    {p.name?.trim() || (i === 0 ? labels.group.you : labels.group.person(i + 1))}
+                  </span>
+                  <span className="text-ink-muted">
+                    {p.serviceName} · <span className="tabular-nums">{p.time}</span>
+                  </span>
+                </span>
+                <span className="shrink-0 text-ink tabular-nums">{p.price}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
         <dl className="mt-6 grid gap-5 sm:grid-cols-2">
-          <div>
-            <dt className="text-xs text-ink-faint">{labels.treatment}</dt>
-            <dd className="text-ink">{summary.serviceName}</dd>
-          </div>
+          {!group ? (
+            <div>
+              <dt className="text-xs text-ink-faint">{labels.treatment}</dt>
+              <dd className="text-ink">{summary.serviceName}</dd>
+            </div>
+          ) : null}
           <div>
             <dt className="text-xs text-ink-faint">{labels.barber}</dt>
             <dd className="text-ink">{summary.barberName}</dd>
@@ -49,7 +69,7 @@ export function BookingConfirmation({ result }: { result: Extract<BookingResult,
           </div>
         </dl>
         <div className="mt-6 flex items-center justify-between border-t border-line pt-5">
-          <span className="text-sm text-ink-muted">{t.price}</span>
+          <span className="text-sm text-ink-muted">{group ? labels.group.total : t.price}</span>
           <span className="font-display text-3xl font-semibold text-gold-bright">{summary.price}</span>
         </div>
       </div>

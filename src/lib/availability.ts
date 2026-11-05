@@ -38,8 +38,8 @@ export interface SlotRules {
   bufferMinutes: number;
   /** Earliest bookable start on this day (e.g. now + lead time). 0 = no restriction. */
   earliestStart: number;
-  /** Ignore this appointment (used when rescheduling it). */
-  excludeAppointmentId?: string;
+  /** Ignore these appointments (used when rescheduling them). */
+  excludeAppointmentIds?: string[];
 }
 
 export interface Slot {
@@ -108,7 +108,7 @@ export function barberStarts(day: DayInput, barber: DayBarber, rules: SlotRules)
   const { durationMinutes: duration, slotIntervalMinutes: step, bufferMinutes: buffer } = rules;
   const intervals = workingIntervals(day, barber);
   const booked = day.appointments.filter(
-    (a) => a.barberId === barber.id && a.id !== rules.excludeAppointmentId,
+    (a) => a.barberId === barber.id && !rules.excludeAppointmentIds?.includes(a.id),
   );
 
   const candidates = new Set<number>();

@@ -1,7 +1,8 @@
 import { MessageSquare, Phone } from "lucide-react";
 import Link from "next/link";
-import { DemoBadge } from "@/components/ui/badge";
+import { DemoBadge, GroupBadge } from "@/components/ui/badge";
 import { capitalize, formatDateLong, formatDateTime, formatPrice, telHref } from "@/lib/format";
+import { appointmentName } from "@/lib/people";
 import type { AppointmentListItem } from "@/server/services/appointments";
 import { NoShowNote } from "./no-show-note";
 import { StatusActions } from "./status-actions";
@@ -13,7 +14,8 @@ export function RequestCard({ item }: { item: AppointmentListItem }) {
       <div className="flex items-start justify-between gap-3">
         <Link href={`/admin/afspraken/${item.id}`} className="group min-w-0">
           <p className="flex flex-wrap items-center gap-2 text-lg font-semibold text-ink group-hover:text-gold-bright">
-            {item.firstName} {item.lastName}
+            {appointmentName(item)}
+            {item.groupId ? <GroupBadge size={item.groupSize} /> : null}
             {item.isDemo ? <DemoBadge /> : null}
           </p>
           <p className="mt-0.5 text-ink-muted">
@@ -35,6 +37,12 @@ export function RequestCard({ item }: { item: AppointmentListItem }) {
           {item.startTime.slice(0, 5)} – {item.endTime.slice(0, 5)}
         </p>
       </div>
+
+      {item.groupId ? (
+        <p className="mt-3 text-sm text-ink-muted">
+          Samen geboekt voor {item.groupSize} personen, direct na elkaar. Bevestigen of afwijzen geldt voor de hele groep.
+        </p>
+      ) : null}
 
       {item.noShows ? <NoShowNote count={item.noShows} className="mt-3" /> : null}
 

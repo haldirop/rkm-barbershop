@@ -91,7 +91,7 @@ describe("barberStarts", () => {
     const d = day({
       appointments: [{ id: "self", barberId: A, start: t("10:00"), end: t("10:30") }],
     });
-    const starts = times(barberStarts(d, d.barbers[0], rules({ excludeAppointmentId: "self" })));
+    const starts = times(barberStarts(d, d.barbers[0], rules({ excludeAppointmentIds: ["self"] })));
     expect(starts).toContain("10:00");
   });
 });

@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { openDatabase, setDb, type DatabaseHandle } from "@/server/db/client";
-import { appointments, barbers, blockedTimes, customers, services } from "@/server/db/schema";
+import { appointments, barbers, blockedTimes, customers, services, settings } from "@/server/db/schema";
 import { seedBaseData } from "@/server/db/seed";
 import { getDayAvailability, getSuggestions } from "@/server/services/availability";
 import {
@@ -136,6 +136,88 @@ describe("booking requests", () => {
     await expect(
       createBookingRequest(booking({ email, startTime: "13:00" }), { now: NOW }),
     ).rejects.toMatchObject({ code: "LIMIT" });
+  });
+});
+
+describe("booking for several people (e.g. a father and his son)", () => {
+  const withSon = (overrides: Partial<BookingInput> = {}) =>
+    booking({ companions: [{ serviceId: knippenId, name: "Daan" }], ...overrides });
+
+  it("books everyone one after another with the same barber, as one group", async () => {
+    const { appointments: created, token } = await createBookingRequest(withSon({ barberId: null }), { now: NOW });
+    expect(created.map((a) => [a.startTime, a.endTime, a.guestName, a.status])).toEqual([
+      ["14:00:00", "14:30:00", null, "PENDING"],
+      ["14:30:00", "15:00:00", "Daan", "PENDING"],
+    ]);
+    expect(created[0].barberId).toBeTruthy();
+    expect(created[1].barberId).toBe(created[0].barberId);
+    expect(created[0].groupId).toBeTruthy();
+    expect(created[1].groupId).toBe(created[0].groupId);
+    const managed = await getAppointmentByToken(token);
+    expect(managed!.group.map((a) => a.id)).toEqual(created.map((a) => a.id));
+  });
+
+  it("keeps the shop's buffer between the people", async () => {
+    const [{ bufferMinutes }] = await handle.db.select({ bufferMinutes: settings.bufferMinutes }).from(settings);
+    await handle.db.update(settings).set({ bufferMinutes: 10 });
+    try {
+      const { appointments: created } = await createBookingRequest(withSon(), { now: NOW });
+      expect(created.map((a) => a.startTime)).toEqual(["14:00:00", "14:40:00"]);
+    } finally {
+      await handle.db.update(settings).set({ bufferMinutes });
+    }
+  });
+
+  it("only books when the whole group fits", async () => {
+    await createBookingRequest(booking({ startTime: "15:00" }), { now: NOW }); // Rayan at 15:00
+    const single = await getDayAvailability(THURSDAY, { durationMinutes: 30, barberId: rayanId, now: NOW });
+    expect(single.slots.map((s) => s.time)).toContain("14:30"); // one person fits at 14:30 …
+    await expect(createBookingRequest(withSon({ startTime: "14:30" }), { now: NOW })).rejects.toMatchObject({
+      code: "SLOT_TAKEN", // … two don't
+    });
+    await expect(createBookingRequest(withSon({ startTime: "14:00" }), { now: NOW })).resolves.toBeTruthy();
+  });
+
+  it("counts a group once for the open-appointment limit", async () => {
+    const email = "vader@example.com";
+    await createBookingRequest(withSon({ email, startTime: "10:00" }), { now: NOW });
+    await createBookingRequest(withSon({ email, startTime: "11:00" }), { now: NOW });
+    await expect(createBookingRequest(withSon({ email, startTime: "12:00" }), { now: NOW })).resolves.toBeTruthy();
+    await expect(createBookingRequest(booking({ email, startTime: "13:00" }), { now: NOW })).rejects.toMatchObject({
+      code: "LIMIT",
+    });
+  });
+
+  it("moves and cancels the whole group together", async () => {
+    const { appointments: created, token } = await createBookingRequest(withSon(), { now: NOW });
+    // Approving one person's request approves the whole group.
+    const approved = await changeStatus(created[1].id, "APPROVED", { userId: null });
+    expect(approved.appointments.map((a) => [a.id, a.status])).toEqual(created.map((a) => [a.id, "APPROVED"]));
+    // 15 minutes later: the first person moves into the second person's old time.
+    const moved = await rescheduleByCustomer(token, { date: THURSDAY, startTime: "14:15" }, { now: NOW });
+    expect(moved.appointments.map((a) => [a.startTime, a.status])).toEqual([
+      ["14:15:00", "PENDING"],
+      ["14:45:00", "PENDING"],
+    ]);
+    const cancelled = await cancelByCustomer(token, { now: NOW });
+    expect(cancelled.appointments.map((a) => a.status)).toEqual(["CANCELLED", "CANCELLED"]);
+    await expect(createBookingRequest(withSon({ startTime: "14:15" }), { now: NOW })).resolves.toBeTruthy();
+  });
+
+  it("sends one reminder for the whole group", async () => {
+    const { appointments: created } = await createBookingRequest(withSon({ date: "2026-10-06", startTime: "10:00" }), { now: NOW });
+    await changeStatus(created[0].id, "APPROVED", { userId: null });
+    const sent: string[] = [];
+    const result = await runScheduledJobs({ now: { date: NOW.date, minutes: 17 * 60 + 30 }, send: async (id) => (sent.push(id), true) });
+    expect(result.reminders).toBe(1);
+    expect(sent).toEqual([created[0].id]);
+    const rows = await handle.db.select().from(appointments).where(eq(appointments.groupId, created[0].groupId!));
+    expect(rows.every((r) => r.reminderSentAt !== null)).toBe(true); // nobody gets a second one later
+  });
+
+  it("refuses more than four people", async () => {
+    const many = Array.from({ length: 4 }, () => ({ serviceId: knippenId, name: null }));
+    await expect(createBookingRequest(booking({ companions: many }), { now: NOW })).rejects.toMatchObject({ code: "INVALID" });
   });
 });
 

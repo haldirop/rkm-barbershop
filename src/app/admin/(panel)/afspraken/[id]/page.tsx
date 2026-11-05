@@ -1,13 +1,15 @@
-import { Mail, MessageSquare, Pencil, Phone, Receipt, StickyNote, UserRound } from "lucide-react";
+import { Mail, MessageSquare, Pencil, Phone, Receipt, StickyNote, UserRound, Users } from "lucide-react";
 import { NoShowNote } from "@/components/admin/no-show-note";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/admin/page-header";
 import { StatusActions } from "@/components/admin/status-actions";
-import { Badge, DemoBadge, StatusBadge } from "@/components/ui/badge";
+import { Badge, DemoBadge, GroupBadge, StatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
+import { cn } from "@/lib/cn";
 import { capitalize, formatDateLong, formatDateTime, formatDuration, formatPrice, telHref } from "@/lib/format";
+import { appointmentName } from "@/lib/people";
 import { timeToMinutes, zonedNow } from "@/lib/time";
 import { uuidSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
@@ -54,8 +56,9 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
         back={{ href: "/admin/afspraken", label: "Alle afspraken" }}
         title={
           <span className="flex flex-wrap items-center gap-3">
-            {c.firstName} {c.lastName}
+            {appointmentName({ guestName: a.guestName, firstName: c.firstName, lastName: c.lastName })}
             <StatusBadge status={a.status} className="text-sm" />
+            {detail.group.length > 1 ? <GroupBadge size={detail.group.length} /> : null}
             {a.isDemo ? <DemoBadge /> : null}
           </span>
         }
@@ -86,6 +89,7 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
             <CardHeader title="Afspraak" />
             <dl className="grid gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
               {[
+                ...(a.guestName !== null ? [["Voor", a.guestName || "Gast (geen naam opgegeven)"]] : []),
                 ["Behandeling", a.serviceName],
                 ["Barber", a.barberName + (a.anyBarber ? " (klant had geen voorkeur)" : "")],
                 ["Datum", capitalize(formatDateLong(a.date, true))],
@@ -112,6 +116,40 @@ export default async function AppointmentDetailPage({ params }: PageProps<"/admi
               </p>
             ) : null}
           </Card>
+
+          {detail.group.length > 1 ? (
+            <Card>
+              <CardHeader
+                title="Samen geboekt"
+                description={`${detail.group.length} personen, direct na elkaar bij dezelfde barber. Bevestigen of afwijzen van de aanvraag geldt voor iedereen; annuleren kan per persoon.`}
+              />
+              <ul className="divide-y divide-line">
+                {detail.group.map((m) => (
+                  <li key={m.id}>
+                    <Link
+                      href={`/admin/afspraken/${m.id}`}
+                      aria-current={m.id === a.id ? "page" : undefined}
+                      className={cn("flex items-center justify-between gap-3 px-5 py-3 text-sm hover:bg-surface-2", m.id === a.id && "bg-gold/[0.06]")}
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Users className="size-4 shrink-0 text-gold" aria-hidden />
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium text-ink">
+                            {m.guestName === null ? `${c.firstName} ${c.lastName}` : m.guestName || "Gast"}
+                          </span>
+                          <span className="text-ink-muted">
+                            {m.serviceName} · <span className="tabular-nums">{m.startTime.slice(0, 5)} – {m.endTime.slice(0, 5)}</span> ·{" "}
+                            {formatPrice(m.priceCents)}
+                          </span>
+                        </span>
+                      </span>
+                      <StatusBadge status={m.status} />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
 
           {a.notes || a.adminNotes ? (
             <Card>

@@ -33,6 +33,15 @@ export function StatusBadge({
   );
 }
 
+/** Booked together for several people (e.g. a father and his son). */
+export function GroupBadge({ size }: { size: number }) {
+  return (
+    <Badge className="bg-sky-400/10 text-sky-300 ring-sky-400/30" title={`Samen geboekt voor ${size} personen`}>
+      Groep · {size}
+    </Badge>
+  );
+}
+
 export function DemoBadge() {
   return (
     <Badge

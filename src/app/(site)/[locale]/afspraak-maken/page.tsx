@@ -69,6 +69,7 @@ export default async function BookingPage({ params: routeParams, searchParams }:
             barbers={barbers.map((b) => ({ id: b.id, name: b.name, bio: localizedBio(b, locale) }))}
             today={site.now.date}
             lastDate={range.lastDate}
+            bufferMinutes={site.settings.bufferMinutes}
             initial={initial}
           />
         </Suspense>

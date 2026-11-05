@@ -2,7 +2,18 @@ import type { Locale } from "../config";
 
 /** E-mails to customers (the ones to the shop itself stay Dutch, see emails/templates.ts). */
 const nl = {
-  labels: { treatment: "Behandeling", date: "Datum", time: "Tijd", barber: "Barber", price: "Prijs", freeTimes: "Vrije tijden" },
+  labels: {
+    treatment: "Behandeling",
+    date: "Datum",
+    time: "Tijd",
+    barber: "Barber",
+    price: "Prijs",
+    freeTimes: "Vrije tijden",
+    for: "Voor",
+    total: "Totaal",
+  },
+  /** Someone in a booking for several people who didn't get a name. */
+  person: (n: number) => `Persoon ${n}`,
   hi: (name: string) => `Hoi ${name},`,
   when: (date: string, time: string) => `${date} om ${time}`,
   why: (business: string) => `Je ontvangt deze e-mail omdat je een afspraak hebt bij ${business}.`,
@@ -93,7 +104,17 @@ const nl = {
 export type EmailMessages = typeof nl;
 
 const en: EmailMessages = {
-  labels: { treatment: "Treatment", date: "Date", time: "Time", barber: "Barber", price: "Price", freeTimes: "Free times" },
+  labels: {
+    treatment: "Treatment",
+    date: "Date",
+    time: "Time",
+    barber: "Barber",
+    price: "Price",
+    freeTimes: "Free times",
+    for: "For",
+    total: "Total",
+  },
+  person: (n) => `Person ${n}`,
   hi: (name) => `Hi ${name},`,
   when: (date, time) => `${date} at ${time}`,
   why: (business) => `You’re receiving this email because you have an appointment at ${business}.`,
@@ -180,7 +201,17 @@ const en: EmailMessages = {
 };
 
 const de: EmailMessages = {
-  labels: { treatment: "Leistung", date: "Datum", time: "Uhrzeit", barber: "Barber", price: "Preis", freeTimes: "Freie Zeiten" },
+  labels: {
+    treatment: "Leistung",
+    date: "Datum",
+    time: "Uhrzeit",
+    barber: "Barber",
+    price: "Preis",
+    freeTimes: "Freie Zeiten",
+    for: "Für",
+    total: "Gesamt",
+  },
+  person: (n) => `Person ${n}`,
   hi: (name) => `Hallo ${name},`,
   when: (date, time) => `${date} um ${time}`,
   why: (business) => `Du bekommst diese E-Mail, weil du einen Termin bei ${business} hast.`,

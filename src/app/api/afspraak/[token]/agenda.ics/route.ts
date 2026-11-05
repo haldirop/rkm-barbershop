@@ -37,11 +37,18 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/afspraak/[t
   // In the language the customer booked in.
   const locale = isLocale(a.locale) ? a.locale : DEFAULT_LOCALE;
   const t = emailMessages[locale].calendar;
-  const service = a.serviceId ? await getService(a.serviceId) : null;
-  const serviceName = service ? localizeService(service, locale).name : a.serviceName;
+  // A booking for several people is one event, from the first start to the last end.
+  const members = managed.group.filter((m) => m.status === "APPROVED");
+  const names = await Promise.all(
+    members.map(async (m) => {
+      const service = m.serviceId ? await getService(m.serviceId) : null;
+      return service ? localizeService(service, locale).name : m.serviceName;
+    }),
+  );
+  const serviceName = [...new Set(names)].join(" + ");
   const settings = await loadSettings();
-  const start = zonedToUtc(a.date, timeToMinutes(a.startTime));
-  const end = zonedToUtc(a.date, timeToMinutes(a.endTime));
+  const start = zonedToUtc(a.date, timeToMinutes(members[0].startTime));
+  const end = zonedToUtc(a.date, timeToMinutes(members[members.length - 1].endTime));
 
   const lines = [
     "BEGIN:VCALENDAR",

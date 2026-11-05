@@ -1,6 +1,7 @@
 import { Checkout, type TillAppointment } from "@/components/kassa/checkout";
 import { PageHeader } from "@/components/admin/page-header";
 import { Alert } from "@/components/ui/alert";
+import { appointmentName } from "@/lib/people";
 import { zonedNow } from "@/lib/time";
 import { uuidSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
@@ -15,7 +16,8 @@ type Row = Awaited<ReturnType<typeof listUnpaidAppointments>>[number];
 const toTill = (a: Row): TillAppointment => ({
   id: a.id,
   time: a.startTime.slice(0, 5),
-  customerName: `${a.firstName} ${a.lastName}`,
+  customerName: appointmentName(a),
+  groupId: a.groupId,
   email: a.email,
   serviceId: a.serviceId,
   serviceName: a.serviceName,
@@ -48,7 +50,12 @@ export default async function KassaPage({ searchParams }: PageProps<"/kassa">) {
         : null;
   const preselect = linked && !linkedProblem ? toTill(linked) : null;
   const list = unpaid.map(toTill);
-  if (preselect && !list.some((a) => a.id === preselect.id)) list.unshift(preselect);
+  if (preselect && !list.some((a) => a.id === preselect.id)) {
+    // Opened from an appointment on another day: its group partners can be paid along.
+    const partners = preselect.groupId ? (await listUnpaidAppointments(linked!.date)).filter((a) => a.groupId === preselect.groupId) : [];
+    list.unshift(...partners.map(toTill).filter((a) => a.id !== preselect.id));
+    list.unshift(preselect);
+  }
 
   return (
     <div>

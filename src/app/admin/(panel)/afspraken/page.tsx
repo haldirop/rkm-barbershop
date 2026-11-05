@@ -4,10 +4,11 @@ import { AutoRefresh } from "@/components/admin/auto-refresh";
 import { NoShowNote } from "@/components/admin/no-show-note";
 import { EmptyState, PageHeader } from "@/components/admin/page-header";
 import { StatusActions } from "@/components/admin/status-actions";
-import { DemoBadge, StatusBadge } from "@/components/ui/badge";
+import { DemoBadge, GroupBadge, StatusBadge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { capitalize, formatDateShort, formatDateTime } from "@/lib/format";
+import { appointmentName } from "@/lib/people";
 import { APPOINTMENT_STATUSES, STATUS_META, type AppointmentStatus } from "@/lib/status";
 import { requireAdmin } from "@/server/auth/session";
 import { countByStatus, listAppointments } from "@/server/services/appointments";
@@ -163,7 +164,8 @@ export default async function AppointmentsPage({ searchParams }: PageProps<"/adm
                       </td>
                       <td className="px-5 py-4 align-top">
                         <Link href={`/admin/afspraken/${a.id}`} className="flex flex-wrap items-center gap-2 font-medium text-ink hover:text-gold-bright">
-                          {a.firstName} {a.lastName}
+                          {appointmentName(a)}
+                          {a.groupId ? <GroupBadge size={a.groupSize} /> : null}
                           {a.isDemo ? <DemoBadge /> : null}
                         </Link>
                         <span className="text-ink-muted">{a.phone}</span>
@@ -201,7 +203,8 @@ export default async function AppointmentsPage({ searchParams }: PageProps<"/adm
                   <Link href={`/admin/afspraken/${a.id}`} className="block">
                     <div className="flex items-start justify-between gap-3">
                       <p className="flex flex-wrap items-center gap-2 font-semibold text-ink">
-                        {a.firstName} {a.lastName}
+                        {appointmentName(a)}
+                        {a.groupId ? <GroupBadge size={a.groupSize} /> : null}
                         {a.isDemo ? <DemoBadge /> : null}
                       </p>
                       <StatusBadge status={a.status} />

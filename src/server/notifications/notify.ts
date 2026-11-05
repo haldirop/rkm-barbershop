@@ -1,5 +1,5 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { DEFAULT_LOCALE, isLocale, localizedUrl, type Locale } from "@/i18n/config";
 import { localizeService } from "@/i18n/content";
 import { getDb } from "@/server/db/client";
@@ -31,15 +31,30 @@ async function context(appointmentId: string, reason?: string | null): Promise<T
   const token = createManageToken(appointmentId);
   // The customer gets e-mails and links in the language they booked in.
   const locale: Locale = isLocale(row.appointment.locale) ? row.appointment.locale : DEFAULT_LOCALE;
-  const [service] = row.appointment.serviceId
-    ? await db.select().from(services).where(eq(services.id, row.appointment.serviceId))
-    : [];
+  const localName = async (a: typeof row.appointment) => {
+    const [service] = a.serviceId ? await db.select().from(services).where(eq(services.id, a.serviceId)) : [];
+    return service ? localizeService(service, locale).name : a.serviceName;
+  };
+  // A booking for several people gets one e-mail about everyone that this change concerns:
+  // the people in the group with the same status (all requested, confirmed, cancelled, …).
+  const members = row.appointment.groupId
+    ? await db
+        .select()
+        .from(appointments)
+        .where(and(eq(appointments.groupId, row.appointment.groupId), eq(appointments.status, row.appointment.status)))
+        .orderBy(asc(appointments.startTime))
+    : [row.appointment];
+  const appointment = members[0] ?? row.appointment;
+  const people =
+    members.length > 1 ? await Promise.all(members.map(async (a) => ({ appointment: a, serviceName: await localName(a) }))) : undefined;
   return {
     settings: await loadSettings(db),
     ...row,
+    appointment,
+    people,
     reason,
     locale,
-    serviceName: service ? localizeService(service, locale).name : row.appointment.serviceName,
+    serviceName: await localName(appointment),
     links: {
       manage: localizedUrl(base, `/afspraak/${token}`, locale),
       ics: `${base}/api/afspraak/${token}/agenda.ics`,

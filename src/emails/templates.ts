@@ -20,6 +20,11 @@ export interface TemplateContext {
   locale?: Locale;
   /** The treatment in the customer's language (default: the name on the appointment). */
   serviceName?: string;
+  /**
+   * A booking for several people: everyone in it, in order (the first is `appointment`).
+   * `serviceName` is in the customer's language; the shop sees `appointment.serviceName`.
+   */
+  people?: Array<{ appointment: Appointment; serviceName: string }>;
 }
 
 export type RenderedEmail = ReturnType<typeof renderEmail>;
@@ -27,12 +32,36 @@ export type RenderedEmail = ReturnType<typeof renderEmail>;
 const lang = (ctx: TemplateContext): Locale => ctx.locale ?? "nl";
 const msg = (ctx: TemplateContext) => emailMessages[lang(ctx)];
 
+const span = (from: Appointment, to: Appointment) => `${from.startTime.slice(0, 5)} – ${to.endTime.slice(0, 5)}`;
+const isGroup = (ctx: TemplateContext): ctx is TemplateContext & { people: NonNullable<TemplateContext["people"]> } =>
+  (ctx.people?.length ?? 0) > 1;
+/** "Daan", the customer's own first name for the first person, or "Persoon 2". */
+const personName = (ctx: TemplateContext, a: Appointment, i: number, person: (n: number) => string) =>
+  a.guestName || (i === 0 ? ctx.customer.firstName : person(i + 1));
+
 /** The appointment as a list for the customer, in their language. */
 function details(ctx: TemplateContext): Array<[string, string]> {
   const a = ctx.appointment;
   const locale = lang(ctx);
-  const l = msg(ctx).labels;
+  const m = msg(ctx);
+  const l = m.labels;
+  if (isGroup(ctx)) {
+    const total = ctx.people.reduce((sum, p) => sum + p.appointment.priceCents, 0);
+    return [
+      [l.date, capitalize(formatDateLong(a.date, false, locale))],
+      [l.time, span(ctx.people[0].appointment, ctx.people[ctx.people.length - 1].appointment)],
+      [l.barber, a.barberName],
+      ...ctx.people.map(
+        (p, i): [string, string] => [
+          personName(ctx, p.appointment, i, m.person),
+          `${p.serviceName} · ${span(p.appointment, p.appointment)} · ${formatPrice(p.appointment.priceCents, locale)}`,
+        ],
+      ),
+      [l.total, formatPrice(total, locale)],
+    ];
+  }
   return [
+    ...(a.guestName ? ([[l.for, a.guestName]] as Array<[string, string]>) : []),
     [l.treatment, ctx.serviceName ?? a.serviceName],
     [l.date, capitalize(formatDateLong(a.date, false, locale))],
     [l.time, `${a.startTime.slice(0, 5)} – ${a.endTime.slice(0, 5)}`],
@@ -45,6 +74,27 @@ function details(ctx: TemplateContext): Array<[string, string]> {
 function adminDetails(ctx: TemplateContext): Array<[string, string]> {
   const a = ctx.appointment;
   const c = ctx.customer;
+  const appointmentRows: Array<[string, string]> = isGroup(ctx)
+    ? [
+        ["Datum", capitalize(formatDateLong(a.date))],
+        ["Tijd", span(ctx.people[0].appointment, ctx.people[ctx.people.length - 1].appointment)],
+        ["Barber", a.barberName],
+        ...ctx.people.map(
+          (p, i): [string, string] => [
+            `Persoon ${i + 1}`,
+            `${personName(ctx, p.appointment, i, (n) => `Persoon ${n}`)}: ${p.appointment.serviceName} · ${span(p.appointment, p.appointment)} · ${formatPrice(p.appointment.priceCents)}`,
+          ],
+        ),
+        ["Totaal", formatPrice(ctx.people.reduce((sum, p) => sum + p.appointment.priceCents, 0))],
+      ]
+    : [
+        ...(a.guestName ? ([["Voor", a.guestName]] as Array<[string, string]>) : []),
+        ["Behandeling", a.serviceName],
+        ["Datum", capitalize(formatDateLong(a.date))],
+        ["Tijd", `${a.startTime.slice(0, 5)} – ${a.endTime.slice(0, 5)}`],
+        ["Barber", a.barberName],
+        ["Prijs", formatPrice(a.priceCents)],
+      ];
   return [
     ["Klant", `${c.firstName} ${c.lastName}`],
     ["Telefoon", c.phone],
@@ -52,11 +102,7 @@ function adminDetails(ctx: TemplateContext): Array<[string, string]> {
     ...(ctx.locale && ctx.locale !== "nl"
       ? ([["Taal", ctx.locale === "en" ? "Engels" : "Duits"]] as Array<[string, string]>)
       : []),
-    ["Behandeling", a.serviceName],
-    ["Datum", capitalize(formatDateLong(a.date))],
-    ["Tijd", `${a.startTime.slice(0, 5)} – ${a.endTime.slice(0, 5)}`],
-    ["Barber", a.barberName],
-    ["Prijs", formatPrice(a.priceCents)],
+    ...appointmentRows,
     ...(a.notes ? ([["Opmerking", a.notes]] as Array<[string, string]>) : []),
   ];
 }

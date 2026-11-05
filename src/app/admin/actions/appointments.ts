@@ -60,7 +60,7 @@ export async function setAppointmentStatus(
   const reason = reasonSchema.safeParse(options.reason);
   if (!parsedId.success || !reason.success) return { ok: false, error: "Ongeldige invoer." };
   try {
-    const { appointment } = await changeStatus(parsedId.data, status, {
+    const { appointment, appointments: changed } = await changeStatus(parsedId.data, status, {
       userId: user.id,
       reason: reason.data ?? null,
     });
@@ -70,7 +70,8 @@ export async function setAppointmentStatus(
       after(() => notifyStatusChanged(appointment.id, status, reason.data));
     }
     refresh();
-    return { ok: true, message: STATUS_MESSAGES[status] ?? "Opgeslagen." };
+    const message = STATUS_MESSAGES[status] ?? "Opgeslagen.";
+    return { ok: true, message: changed.length > 1 ? `${message} Geldt voor de hele groep (${changed.length} personen).` : message };
   } catch (error) {
     return failure(error);
   }

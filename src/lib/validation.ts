@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_PEOPLE } from "./booking-group";
 import { isIsoDate, isTimeString } from "./time";
 
 /** Removes control characters (except newlines/tabs) and trims. */
@@ -24,6 +25,18 @@ export const nameSchema = z
       .max(60, "Maximaal 60 tekens.")
       .regex(NAME_RE, "Gebruik alleen letters, spaties of koppeltekens."),
   );
+
+/** Optional name of someone else in a booking (e.g. "Daan"); empty = the customer themself. */
+export const guestNameSchema = z
+  .string()
+  .transform(cleanText)
+  .pipe(
+    z.union([
+      z.literal(""),
+      z.string().max(60, "Maximaal 60 tekens.").regex(NAME_RE, "Gebruik alleen letters, spaties of koppeltekens."),
+    ]),
+  )
+  .transform((v) => v || null);
 
 export const phoneSchema = z
   .string()
@@ -71,6 +84,13 @@ export type CustomerDetails = z.infer<typeof customerDetailsSchema>;
 
 export const bookingRequestSchema = customerDetailsSchema.extend({
   serviceId: uuidSchema,
+  /** Who the first treatment is for, when that isn't the customer (e.g. a parent booking for a child). */
+  name: guestNameSchema.optional(),
+  /** More people in the same booking (e.g. "ik kom met mijn zoon"), one after another. */
+  companions: z
+    .array(z.object({ serviceId: uuidSchema, name: guestNameSchema }))
+    .max(MAX_PEOPLE - 1)
+    .optional(),
   /** null = geen voorkeur */
   barberId: uuidSchema.nullable(),
   date: isoDateSchema,

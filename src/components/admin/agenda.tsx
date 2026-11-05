@@ -4,6 +4,7 @@ import { cn } from "@/lib/cn";
 import { capitalize, weekdayShort } from "@/lib/format";
 import { STATUS_META, type AppointmentStatus } from "@/lib/status";
 import { addDays, eachDay, endOfMonth, isoWeekday, minutesToTime, startOfWeek, timeToMinutes } from "@/lib/time";
+import { appointmentName } from "@/lib/people";
 import type { AppointmentListItem } from "@/server/services/appointments";
 
 const PX_PER_MINUTE = 1.4;
@@ -111,10 +112,10 @@ function Lane({
               STATUS_META[a.status].block,
             )}
             style={{ top: top + 1, height: h }}
-            title={`${a.startTime.slice(0, 5)}–${a.endTime.slice(0, 5)} ${a.firstName} ${a.lastName} · ${a.serviceName} (${STATUS_META[a.status].label})`}
+            title={`${a.startTime.slice(0, 5)}–${a.endTime.slice(0, 5)} ${appointmentName(a)} · ${a.serviceName} (${STATUS_META[a.status].label})`}
           >
             <span className="block truncate font-semibold">
-              {compact ? a.startTime.slice(0, 5) : `${a.startTime.slice(0, 5)} ${a.firstName} ${a.lastName}`}
+              {compact ? a.startTime.slice(0, 5) : `${a.startTime.slice(0, 5)} ${a.guestName || `${a.firstName} ${a.lastName}`}`}
             </span>
             {!compact && h > 30 ? <span className="block truncate opacity-80">{a.serviceName}</span> : null}
           </Link>

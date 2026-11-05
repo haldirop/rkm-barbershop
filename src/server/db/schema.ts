@@ -291,10 +291,18 @@ export const appointments = pgTable(
     isDemo: boolean("is_demo").notNull().default(false),
     /** Language the customer booked in (nl, en, de): e-mails and links follow it. */
     locale: text("locale").notNull().default("nl"),
+    /**
+     * Booked together for several people (e.g. a father and his son): the same id on each
+     * appointment, one after another with the same barber. Null for a single appointment.
+     */
+    groupId: uuid("group_id"),
+    /** Who the appointment is for when that isn't the customer who booked (e.g. "Daan"). */
+    guestName: text("guest_name"),
     ...timestamps,
   },
   (t) => [
     index("appointments_date_idx").on(t.date, t.startTime),
+    index("appointments_group_idx").on(t.groupId),
     check("appointments_locale_chk", sql`${t.locale} IN ('nl', 'en', 'de')`),
     index("appointments_status_idx").on(t.status),
     index("appointments_customer_idx").on(t.customerId),
@@ -484,6 +492,23 @@ export const saleLines = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
   },
   (t) => [index("sale_lines_sale_idx").on(t.saleId)],
+);
+
+/**
+ * Which appointments a receipt paid for: usually one, or everyone of a booking for several
+ * people (a father paying for himself and his son). sales.appointment_id keeps the first one.
+ */
+export const saleAppointments = pgTable(
+  "sale_appointments",
+  {
+    saleId: uuid("sale_id")
+      .notNull()
+      .references(() => sales.id, { onDelete: "cascade" }),
+    appointmentId: uuid("appointment_id")
+      .notNull()
+      .references(() => appointments.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.saleId, t.appointmentId] }), index("sale_appointments_appointment_idx").on(t.appointmentId)],
 );
 
 /**

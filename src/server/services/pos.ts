@@ -10,6 +10,7 @@ import {
   cashCounts,
   customers,
   products,
+  saleAppointments,
   saleLines,
   sales,
   services,
@@ -28,6 +29,21 @@ import { DomainError, lockBookings, logEvent } from "./shared";
 
 /** Receipts that count: everything except receipts the owner removed. */
 const active = isNull(sales.deletedAt);
+
+/**
+ * The receipts (that count) which paid for these appointments. One receipt can pay for
+ * several people of a group booking, so this goes through sale_appointments.
+ */
+export function paidReceipts(appointmentIds: string[], db: DbOrTx = getDb()) {
+  return db
+    .select({ appointmentId: saleAppointments.appointmentId, id: sales.id, number: sales.number })
+    .from(saleAppointments)
+    .innerJoin(sales, eq(sales.id, saleAppointments.saleId))
+    .where(and(inArray(saleAppointments.appointmentId, appointmentIds), eq(sales.kind, "SALE"), active));
+}
+
+/** SQL for queries on appointments: the number of the receipt that paid for it, or NULL. */
+export const paidReceiptNumber = sql<number | null>`(SELECT s."number" FROM "sale_appointments" sa JOIN "sales" s ON s."id" = sa."sale_id" WHERE sa."appointment_id" = ${appointments.id} AND s."kind" = 'SALE' AND s."deleted_at" IS NULL LIMIT 1)`;
 
 /** One till action at a time, so receipt numbers stay consecutive without gaps. */
 async function lockTill(tx: DbOrTx) {
@@ -58,6 +74,8 @@ export interface CheckoutItem {
 export interface CheckoutInput {
   /** Paying for an appointment: it is marked as completed. */
   appointmentId: string | null;
+  /** Others of the same group booking paid on this receipt too (e.g. the son). */
+  extraAppointmentIds?: string[];
   customerId: string | null;
   barberId: string | null;
   items: CheckoutItem[];
@@ -77,17 +95,24 @@ export async function checkout(input: CheckoutInput, opts: { now?: ZonedNow } = 
 
     let customerId = input.customerId;
     let appointment: typeof appointments.$inferSelect | undefined;
+    let paidFor: Array<typeof appointments.$inferSelect> = [];
+    const extraIds = [...new Set(input.extraAppointmentIds ?? [])].filter((id) => id !== input.appointmentId);
+    if (extraIds.length && !input.appointmentId) throw new DomainError("Kies eerst de afspraak die wordt afgerekend.");
     if (input.appointmentId) {
       await lockBookings(tx);
       [appointment] = await tx.select().from(appointments).where(eq(appointments.id, input.appointmentId)).for("update");
       if (!appointment) throw new DomainError("Deze afspraak bestaat niet meer.", "NOT_FOUND");
-      if (appointment.status !== "APPROVED" && appointment.status !== "COMPLETED") {
+      const extras = extraIds.length
+        ? await tx.select().from(appointments).where(inArray(appointments.id, extraIds)).for("update")
+        : [];
+      if (extras.length !== extraIds.length || extras.some((e) => !appointment!.groupId || e.groupId !== appointment!.groupId)) {
+        throw new DomainError("Samen afrekenen kan alleen voor afspraken die samen zijn geboekt.", "NOT_ALLOWED");
+      }
+      paidFor = [appointment, ...extras];
+      if (paidFor.some((a) => a.status !== "APPROVED" && a.status !== "COMPLETED")) {
         throw new DomainError("Alleen een bevestigde afspraak kan worden afgerekend.", "NOT_ALLOWED");
       }
-      const [paid] = await tx
-        .select({ number: sales.number })
-        .from(sales)
-        .where(and(eq(sales.appointmentId, appointment.id), eq(sales.kind, "SALE"), active));
+      const [paid] = await paidReceipts(paidFor.map((a) => a.id), tx);
       if (paid) throw new DomainError(`Deze afspraak is al afgerekend (bon ${paid.number}).`, "NOT_ALLOWED");
       customerId = appointment.customerId;
     } else if (customerId) {
@@ -161,6 +186,9 @@ export async function checkout(input: CheckoutInput, opts: { now?: ZonedNow } = 
       })
       .returning();
     await tx.insert(saleLines).values(priced.lines.map((line) => ({ ...line, saleId: sale.id })));
+    if (paidFor.length) {
+      await tx.insert(saleAppointments).values(paidFor.map((a) => ({ saleId: sale.id, appointmentId: a.id })));
+    }
 
     for (const product of productRows) {
       if (product.stock === null) continue;
@@ -170,24 +198,23 @@ export async function checkout(input: CheckoutInput, opts: { now?: ZonedNow } = 
         .where(eq(products.id, product.id));
     }
 
-    if (appointment) {
+    for (const paid of paidFor) {
       // Completing frees the time slot, so only once the appointment is over (as the
       // "Markeer als afgerond" button does); otherwise the nightly job completes it.
-      const ended =
-        appointment.date < now.date || (appointment.date === now.date && timeToMinutes(appointment.endTime) <= now.minutes);
-      const complete = appointment.status === "APPROVED" && ended;
+      const ended = paid.date < now.date || (paid.date === now.date && timeToMinutes(paid.endTime) <= now.minutes);
+      const complete = paid.status === "APPROVED" && ended;
       if (complete) {
         await tx
           .update(appointments)
           .set({ status: "COMPLETED", statusChangedAt: new Date() })
-          .where(eq(appointments.id, appointment.id));
+          .where(eq(appointments.id, paid.id));
       }
       await logEvent(tx, {
-        appointmentId: appointment.id,
+        appointmentId: paid.id,
         type: complete ? "COMPLETED" : "UPDATED",
         actor: "ADMIN",
         actorUserId: input.userId,
-        message: `Afgerekend: bon ${number}.`,
+        message: paidFor.length > 1 ? `Afgerekend: bon ${number} (samen met de groep).` : `Afgerekend: bon ${number}.`,
       });
     }
     return sale;
@@ -411,13 +438,10 @@ export async function listSales(from: IsoDate, to: IsoDate, db: DbOrTx = getDb()
     .orderBy(desc(sales.number));
 }
 
-/** The receipt for an appointment, if it has been paid. */
+/** The receipt for an appointment, if it has been paid (alone or together with its group). */
 export async function getSaleForAppointment(appointmentId: string, db: DbOrTx = getDb()) {
-  const [row] = await db
-    .select({ id: sales.id, number: sales.number })
-    .from(sales)
-    .where(and(eq(sales.appointmentId, appointmentId), eq(sales.kind, "SALE"), active));
-  return row ?? null;
+  const [row] = await paidReceipts([appointmentId], db);
+  return row ? { id: row.id, number: row.number } : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -439,15 +463,13 @@ const checkoutColumns = {
   firstName: customers.firstName,
   lastName: customers.lastName,
   email: customers.email,
-  paidReceipt: sales.number,
+  guestName: appointments.guestName,
+  groupId: appointments.groupId,
+  paidReceipt: paidReceiptNumber.mapWith(Number),
 };
 
 function checkoutQuery(db: DbOrTx) {
-  return db
-    .select(checkoutColumns)
-    .from(appointments)
-    .innerJoin(customers, eq(customers.id, appointments.customerId))
-    .leftJoin(sales, and(eq(sales.appointmentId, appointments.id), eq(sales.kind, "SALE"), active));
+  return db.select(checkoutColumns).from(appointments).innerJoin(customers, eq(customers.id, appointments.customerId));
 }
 
 export type CheckoutAppointment = Awaited<ReturnType<typeof getCheckoutAppointment>>;
@@ -455,7 +477,7 @@ export type CheckoutAppointment = Awaited<ReturnType<typeof getCheckoutAppointme
 /** Confirmed appointments on a day that haven't been paid yet. */
 export async function listUnpaidAppointments(date: IsoDate, db: DbOrTx = getDb()) {
   return checkoutQuery(db)
-    .where(and(eq(appointments.date, date), inArray(appointments.status, ["APPROVED", "COMPLETED"]), isNull(sales.id)))
+    .where(and(eq(appointments.date, date), inArray(appointments.status, ["APPROVED", "COMPLETED"]), sql`${paidReceiptNumber} IS NULL`))
     .orderBy(asc(appointments.startTime));
 }
 

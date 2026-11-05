@@ -33,6 +33,8 @@ const note = z
 
 const checkoutSchema = z.object({
   appointmentId: uuidSchema.nullable(),
+  /** Others of the same group booking, paid on this receipt too. */
+  extraAppointmentIds: z.array(uuidSchema).max(3).default([]),
   barberId: uuidSchema.nullable(),
   items: z
     .array(

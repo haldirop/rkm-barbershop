@@ -30,7 +30,7 @@ export async function runScheduledJobs(
   let reminders = 0;
   if (settings.remindersEnabled && now.minutes >= timeToMinutes(settings.reminderSendTime)) {
     const due = await db
-      .select({ id: appointments.id })
+      .select({ id: appointments.id, groupId: appointments.groupId })
       .from(appointments)
       .where(
         and(
@@ -39,14 +39,21 @@ export async function runScheduledJobs(
           eq(appointments.date, addDays(now.date, 1)),
         ),
       );
-    for (const { id } of due) {
+    const remindedGroups = new Set<string>();
+    for (const { id, groupId } of due) {
       // Claim first, so a slow mail server can never cause a double reminder on the next run.
       const [claimed] = await db
         .update(appointments)
         .set({ reminderSentAt: new Date() })
         .where(and(eq(appointments.id, id), isNull(appointments.reminderSentAt)))
         .returning({ id: appointments.id });
-      if (claimed && (await send(id))) reminders++;
+      if (!claimed) continue;
+      // A booking for several people gets one reminder, about everyone in it.
+      if (groupId) {
+        if (remindedGroups.has(groupId)) continue;
+        remindedGroups.add(groupId);
+      }
+      if (await send(id)) reminders++;
     }
   }
 
