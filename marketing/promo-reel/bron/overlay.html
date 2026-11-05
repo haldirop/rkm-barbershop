@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>RKM promo – tekstlaag</title>
+<!--
+  Animated text layer for the promo reel, 1080 x 1920 (9:16), transparent.
+  render(t, scene) shows one scene at time t (seconds); render-overlay.mjs captures every frame.
+  The montage puts each scene on its own shot, so the transitions carry the text along.
+  Everything stays inside the social safe zone: x 90–990, y 300–1460 (no app buttons or captions there).
+-->
+<style>
+  @font-face { font-family: Cinzel; src: url(../../../drukwerk/visitekaartje/bron/fonts/cinzel-600.ttf); font-weight: 600; }
+  @font-face { font-family: Cinzel; src: url(../../../drukwerk/visitekaartje/bron/fonts/cinzel-700.ttf); font-weight: 700; }
+  @font-face { font-family: Manrope; src: url(../../../drukwerk/visitekaartje/bron/fonts/manrope-500.ttf); font-weight: 500; }
+  @font-face { font-family: Manrope; src: url(../../../drukwerk/visitekaartje/bron/fonts/manrope-800.ttf); font-weight: 800; }
+
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body { width: 1080px; height: 1920px; position: relative; overflow: hidden; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .el { position: absolute; left: 540px; transform-origin: 50% 50%; white-space: nowrap; will-change: transform; }
+
+  .gold {
+    background-image:
+      linear-gradient(105deg, rgba(255,255,255,0) 42%, rgba(255,250,230,0.95) 50%, rgba(255,255,255,0) 58%),
+      linear-gradient(180deg, #fff1b5 0%, #f4cf72 38%, #d9a13a 62%, #b97d22 100%);
+    background-size: 300% 100%, 100% 100%;
+    background-position: 130% 0, 0 0;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,0.75));
+  }
+  .display { font-family: Cinzel; font-weight: 700; line-height: 1; letter-spacing: 0.03em; }
+  .caps { font-family: Manrope; font-weight: 800; text-transform: uppercase; color: #f6f2ea; line-height: 1;
+          filter: drop-shadow(0 4px 14px rgba(0,0,0,0.8)); }
+  .scrim { position: absolute; left: 540px; border-radius: 50%;
+           background: radial-gradient(closest-side, rgba(0,0,0,0.62), rgba(0,0,0,0.38) 55%, rgba(0,0,0,0) 100%); }
+  .mask { overflow: hidden; padding: 0 30px; }
+  .mask > span { display: inline-block; }
+  .bar { position: absolute; left: 540px; height: 6px; border-radius: 3px;
+         background: linear-gradient(90deg, rgba(214,160,62,0), #f4cf72 20%, #fff1b5 50%, #f4cf72 80%, rgba(214,160,62,0)); }
+
+  /* End card */
+  .logo { position: absolute; left: 540px; width: 660px; }
+  .logo img { display: block; width: 100%; filter: drop-shadow(0 10px 30px rgba(0,0,0,0.6)); }
+  .logo .shine { position: absolute; inset: 0;
+    -webkit-mask-image: url(../../../src/assets/rkm-mark.png); mask-image: url(../../../src/assets/rkm-mark.png);
+    -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+    background: linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,251,235,0.85) 50%, rgba(255,255,255,0) 60%);
+    background-size: 300% 100%; background-repeat: no-repeat; background-position: 130% 0; }
+  .wordmark { display: flex; align-items: center; gap: 26px; width: 660px; }
+  .wordmark .line { flex: 1; height: 3px; }
+  .wordmark .l { background: linear-gradient(90deg, rgba(214,160,62,0), #e7b75a 70%, #f7dc8f); }
+  .wordmark .r { background: linear-gradient(90deg, #f7dc8f, #e7b75a 30%, rgba(214,160,62,0)); }
+  .wordmark span.text { font-family: Cinzel; font-weight: 600; font-size: 40px; color: #f4f1ea; letter-spacing: 0.55em; margin-right: -0.55em; }
+  .pill { font-family: Manrope; font-weight: 800; font-size: 50px; letter-spacing: 0.08em; color: #140d03;
+          padding: 34px 78px; border-radius: 999px;
+          background: linear-gradient(180deg, #fff1b5 0%, #f4cf72 40%, #d9a13a 75%, #c08328 100%);
+          box-shadow: 0 0 0 3px rgba(255,241,181,0.35), 0 12px 50px rgba(240,178,74,0.45); }
+  .site { font-family: Manrope; font-weight: 800; font-size: 60px; color: #fbf8f2; letter-spacing: 0.01em;
+          filter: drop-shadow(0 4px 14px rgba(0,0,0,0.8)); }
+  .addr { font-family: Manrope; font-weight: 500; font-size: 40px; color: #ddd5c6; letter-spacing: 0.04em;
+          filter: drop-shadow(0 4px 14px rgba(0,0,0,0.8)); }
+  .pin { width: 92px; height: 92px; filter: drop-shadow(0 6px 16px rgba(0,0,0,0.7)); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff1b5"/><stop offset="0.45" stop-color="#efc76a"/><stop offset="1" stop-color="#b47a22"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- 0: hook -->
+<section class="scene" data-scene="0">
+  <div class="scrim" id="s0-scrim" style="top:1040px; width:1180px; height:560px"></div>
+  <div class="el display gold" id="s0-a" style="top:1110px; font-size:176px">STRAK</div>
+  <div class="el display gold" id="s0-b" style="top:1290px; font-size:150px">GEKNIPT.</div>
+  <div class="bar" id="s0-bar" style="top:1455px"></div>
+</section>
+
+<!-- 1: slogan, second half -->
+<section class="scene" data-scene="1">
+  <div class="scrim" style="top:1060px; width:1180px; height:520px"></div>
+  <div class="el mask" id="s1-a" style="top:1150px"><span class="caps" style="font-size:66px; letter-spacing:0.16em; margin-right:-0.16em">Zelfverzekerd</span></div>
+  <div class="el mask" id="s1-b" style="top:1240px; padding-bottom:20px"><span class="display gold" style="font-size:128px">NAAR BUITEN.</span></div>
+</section>
+
+<!-- 2: services, one per beat -->
+<section class="scene" data-scene="2">
+  <div class="scrim" style="top:1040px; width:1180px; height:520px"></div>
+  <div class="el display gold" id="s2-w0" style="top:1180px; font-size:168px">KNIPPEN</div>
+  <div class="el display gold" id="s2-w1" style="top:1180px; font-size:168px">FADES</div>
+  <div class="el display gold" id="s2-w2" style="top:1180px; font-size:168px">BAARD</div>
+  <div class="el caps" id="s2-row" style="top:1235px; font-size:56px; letter-spacing:0.1em">Knippen <span style="color:#f0b24a">•</span> Fades <span style="color:#f0b24a">•</span> Baard</div>
+</section>
+
+<!-- 3: craftsmanship -->
+<section class="scene" data-scene="3">
+  <div class="scrim" style="top:1060px; width:1180px; height:520px"></div>
+  <div class="el display gold" id="s3-a" style="top:1170px; font-size:112px">VAKMANSCHAP</div>
+  <div class="bar" id="s3-bar" style="top:1318px"></div>
+  <div class="el caps" id="s3-b" style="top:1352px; font-size:42px; letter-spacing:0.34em; margin-right:-0.34em">Tot in de details</div>
+</section>
+
+<!-- 4: location -->
+<section class="scene" data-scene="4">
+  <div class="scrim" style="top:1000px; width:1180px; height:600px"></div>
+  <svg class="el pin" id="s4-pin" viewBox="0 0 24 24" style="top:1060px"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" fill="url(#goldFill)"/><circle cx="12" cy="10" r="3.1" fill="#120c03"/></svg>
+  <div class="el display gold" id="s4-a" style="top:1172px; font-size:172px">LOSSER</div>
+  <div class="el caps" id="s4-b" style="top:1365px; font-size:46px; letter-spacing:0.26em; margin-right:-0.26em">De Brink 18</div>
+</section>
+
+<!-- 5: question before the end card -->
+<section class="scene" data-scene="5">
+  <div class="scrim" style="top:1040px; width:1180px; height:540px"></div>
+  <div class="el mask" id="s5-a" style="top:1130px"><span class="caps" style="font-size:58px; letter-spacing:0.18em; margin-right:-0.18em">Klaar voor een</span></div>
+  <div class="el display gold" id="s5-b" style="top:1230px; font-size:136px">FRISSE LOOK?</div>
+</section>
+
+<!-- 6: end card -->
+<section class="scene" data-scene="6">
+  <div class="logo el" id="s6-logo" style="top:470px"><img src="../../../src/assets/rkm-mark.png" alt="RKM"><div class="shine" id="s6-shine"></div></div>
+  <div class="el wordmark" id="s6-word" style="top:880px"><span class="line l"></span><span class="text">BARBERSHOP</span><span class="line r"></span></div>
+  <div class="el pill" id="s6-pill" style="top:1010px">BOEK NU ONLINE</div>
+  <div class="el site" id="s6-site" style="top:1205px">rkmbarbershop.nl</div>
+  <div class="el addr" id="s6-addr" style="top:1295px">De Brink 18 · Losser</div>
+</section>
+
+<script>
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, start, dur) => clamp((t - start) / dur);
+const out3 = (p) => 1 - Math.pow(1 - p, 3);
+const out5 = (p) => 1 - Math.pow(1 - p, 5);
+const back = (p) => { const c1 = 2.2, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+const $ = (id) => document.getElementById(id);
+
+function set(id, { x = 0, y = 0, s = 1, o = 1, blur = 0, extra = "" } = {}) {
+  const el = $(id);
+  el.style.transform = `translate(-50%, 0) translate(${x}px, ${y}px) scale(${s})`;
+  el.style.opacity = o;
+  el.style.filter = blur > 0.05 ? `blur(${blur}px)` : "";
+  if (extra) el.style.cssText += extra;
+}
+/** Hit-in: big and transparent → in place, on a beat. */
+function slam(id, t, at, from = 1.6, drift = 0.03) {
+  const p = prog(t, at, 0.2);
+  const s = 1 + (from - 1) * (1 - out3(p)) + drift * prog(t, at + 0.2, 1.8);
+  set(id, { s, o: prog(t, at, 0.07), blur: 10 * (1 - out3(p)) });
+}
+function shine(el, t, at, dur = 0.55, layered = true) {
+  const p = prog(t, at, dur);
+  const pos = 130 - 160 * p;
+  el.style.backgroundPosition = layered ? `${pos}% 0, 0 0` : `${pos}% 0`;
+}
+function maskIn(id, t, at, dur = 0.38) {
+  const span = $(id).firstElementChild;
+  const p = out5(prog(t, at, dur));
+  span.style.transform = `translateY(${(1 - p) * 115}%)`;
+  set(id, { o: prog(t, at, 0.05) });
+}
+function bar(id, t, at, width, dur = 0.4) {
+  const w = width * out3(prog(t, at, dur));
+  const el = $(id);
+  el.style.width = `${w}px`;
+  el.style.transform = "translate(-50%, 0)";
+  el.style.opacity = w > 1 ? 1 : 0;
+}
+/** Shrinks a line that is wider than the safe zone. */
+function fit(id, max = 900) {
+  const el = $(id);
+  el.style.transform = "none";
+  const w = el.getBoundingClientRect().width;
+  if (w > max) el.style.fontSize = `${parseFloat(getComputedStyle(el).fontSize) * max / w}px`;
+}
+
+const SCENES = [
+  (t) => {
+    slam("s0-a", t, 0.0, 1.7);
+    slam("s0-b", t, 0.5, 1.7);
+    bar("s0-bar", t, 0.95, 560);
+    shine($("s0-a"), t, 1.1); shine($("s0-b"), t, 1.2);
+  },
+  (t) => {
+    maskIn("s1-a", t, 2.06);
+    maskIn("s1-b", t, 2.22, 0.42);
+    shine($("s1-b").firstElementChild, t, 3.0);
+  },
+  (t) => {
+    const words = ["s2-w0", "s2-w1", "s2-w2"];
+    words.forEach((id, i) => {
+      const at = 4.02 + i * 0.5;
+      if (t >= at && t < at + 0.5) slam(id, t, at, 1.45, 0.04);
+      else set(id, { o: 0 });
+    });
+    if (t >= 5.5) {
+      const p = out3(prog(t, 5.5, 0.3));
+      set("s2-row", { y: 30 * (1 - p), o: p, s: 0.92 + 0.08 * p });
+    } else set("s2-row", { o: 0 });
+  },
+  (t) => {
+    const p = out5(prog(t, 6.04, 0.8));
+    const el = $("s3-a");
+    set("s3-a", { o: prog(t, 6.04, 0.25), s: 1 + 0.04 * prog(t, 6.04, 2) });
+    el.style.letterSpacing = `${0.32 - 0.29 * p}em`;
+    el.style.marginRight = `-${0.32 - 0.29 * p}em`;
+    bar("s3-bar", t, 6.35, 480, 0.45);
+    const q = out3(prog(t, 6.5, 0.4));
+    set("s3-b", { y: 24 * (1 - q), o: q });
+    shine(el, t, 7.1);
+  },
+  (t) => {
+    const pin = prog(t, 8.22, 0.45);
+    set("s4-pin", { y: -90 * (1 - back(pin)), o: prog(t, 8.22, 0.1) });
+    const p = out3(prog(t, 8.32, 0.4));
+    set("s4-a", { s: 1.25 - 0.25 * p + 0.04 * prog(t, 8.7, 2.3), o: prog(t, 8.32, 0.12), blur: 14 * (1 - p) });
+    const q = out3(prog(t, 8.6, 0.4));
+    set("s4-b", { y: 24 * (1 - q), o: q });
+    shine($("s4-a"), t, 9.3);
+  },
+  (t) => {
+    maskIn("s5-a", t, 11.05);
+    slam("s5-b", t, 11.5, 1.6, 0.0);
+    // tension in the breakdown just before the end card
+    if (t > 12.5) {
+      const s = 1 + 0.07 * out3(prog(t, 12.5, 0.5));
+      $("s5-b").style.transform += ` scale(${s})`;
+    }
+    shine($("s5-b"), t, 11.9);
+  },
+  (t) => {
+    const p = out5(prog(t, 13.05, 0.6));
+    set("s6-logo", { s: 1.14 - 0.14 * p, o: prog(t, 13.05, 0.3), blur: 16 * (1 - p) });
+    shine($("s6-shine"), t, 13.75, 0.7, false);
+    const w = out3(prog(t, 13.35, 0.5));
+    set("s6-word", { o: w, s: 0.94 + 0.06 * w });
+    // the button pops on the beat and pulses on every beat after
+    let s = back(prog(t, 13.75, 0.4)) * 1;
+    const beats = [14.5, 15.0, 15.5, 16.0, 16.5];
+    for (const b of beats) if (t >= b) s += 0.045 * Math.exp(-(t - b) / 0.12);
+    set("s6-pill", { s: Math.max(0.0001, s), o: prog(t, 13.75, 0.08) });
+    const q = out3(prog(t, 14.05, 0.4));
+    set("s6-site", { y: 26 * (1 - q), o: q });
+    const r = out3(prog(t, 14.25, 0.4));
+    set("s6-addr", { y: 26 * (1 - r), o: r });
+  },
+];
+
+let fitted = false;
+window.render = (t, scene) => {
+  if (!fitted) {
+    for (const s of document.querySelectorAll(".scene")) s.style.display = "block";
+    ["s0-a", "s0-b", "s2-w0", "s2-w1", "s2-w2", "s2-row", "s3-a", "s4-a", "s5-b"].forEach((id) => fit(id, 880));
+    fitted = true;
+  }
+  for (const s of document.querySelectorAll(".scene")) s.style.display = Number(s.dataset.scene) === scene ? "block" : "none";
+  SCENES[scene](t);
+};
+</script>
+</body>
+</html>
