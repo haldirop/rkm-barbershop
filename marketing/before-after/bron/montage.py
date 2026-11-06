@@ -120,8 +120,10 @@ class Video:
     def split(self, t, i, slide=1.0):
         """Before on top, after below; `slide` 0 → 1 brings the halves in from the sides."""
         u = float(np.clip((t - 12.0) / 2.0, 0, 1))
-        top = panel(self.clips["before"], 0.2 + 1.4 * u, 0.86 + 0.03 * u, (0.5, 0.27))
-        bottom = panel(self.clips["after"], 0.3 + 1.5 * u, 0.90 + 0.03 * u, (0.5, 0.40))
+        # The moments where the face is seen best, both looking the same way, the whole head
+        # (hair to chin) centred in its half with room around it; slowed down a little.
+        top = panel(self.clips["before"], 8.5 + 1.2 * u, 0.94 + 0.03 * u, (0.53, 0.45))
+        bottom = panel(self.clips["after"], 14.8 + 1.2 * u, 0.83 + 0.03 * u, (0.53, 0.39))
         return top, bottom
 
     def shot(self, s, t, i):
