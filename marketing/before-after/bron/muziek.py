@@ -15,10 +15,13 @@ SR = 44100
 BPM = 120
 BEAT = 60 / BPM            # 0.5 s
 BAR = 4 * BEAT             # 2 s
-LENGTH = 19.0              # video length
-REVEAL = 4.0               # before → after
-CUTS = [4.0, 7.0, 10.0, 13.0, 15.0]  # transitions in the video
-END_CARD = 15.0
+# Music time: the video starts OFFSET seconds into the music (the first second is cut off at the
+# end), so the reveal at 3.0 s in the video lands on a bar of the music (4.0).
+OFFSET = 1.0
+LENGTH = 12.5 + OFFSET     # video length + offset
+REVEAL = 4.0               # before → after (3.0 s in the video)
+CUTS = [4.0, 6.0, 8.0, 10.0]  # transitions (3, 5, 7 and 9 s in the video)
+END_CARD = 10.0
 rng = np.random.default_rng(12)
 
 N = int(SR * (LENGTH + 0.05))
@@ -194,7 +197,7 @@ CHORDS = {  # bar → (808 root, pad notes, bell notes)
     "Dm": ("D2", ["F3", "A3", "D4"], ["D5", "A5", "D6", "F6"]),
     "E": ("E1", ["G#3", "B3", "E4"], ["E5", "B5", "E6", "G#5"]),
 }
-# before (2 bars) | after (4.5 bars) | one above the other (1 bar) | end card (2 bars)
+# (half a bar cut off) before (1.5 bars) | after (3 bars) | end card (2 bars)
 BARS = ["Am", "E", "Am", "F", "C", "G", "Dm", "F", "E", "Am"]
 
 intro, drums, bass, keys, fx = buf(), buf(), buf(), buf(), buf()
@@ -277,7 +280,7 @@ for c in CUTS[1:-1]:
     place(fx, whoosh(0.55, 0.42, up=(c != 10.0)), c - 0.42, 0.45)  # soft: the cuts are calm dissolves
 place(fx, riser(1.2), END_CARD - 1.2, 0.6)
 place(fx, impact(2.4), END_CARD, 0.75)
-place(fx, impact(1.2), 18.0, 0.5)                           # last hit
+place(fx, impact(1.2), END_CARD + 2.0, 0.5)                 # last hit
 
 # ---------------------------------------------------------------- mix
 
@@ -312,6 +315,7 @@ def master(x):
 out = Path(sys.argv[1] if len(sys.argv) > 1 else ".")
 out.mkdir(parents=True, exist_ok=True)
 for name, sig in [("muziek.wav", master(mix)), ("effecten.wav", master(fx_only))]:
+    sig = sig[int(OFFSET * SR):]  # the video starts here
     pcm = (np.clip(sig, -1, 1) * 32767).astype("<i2")
     import wave
 

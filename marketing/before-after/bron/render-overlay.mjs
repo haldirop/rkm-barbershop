@@ -5,8 +5,8 @@ import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 
 const out = process.argv[2] ?? "ov";
-const FPS = 30, LENGTH = 19;
-const CUTS = [0, 4, 7, 10, 13, 15, LENGTH]; // scene s runs from CUTS[s] to CUTS[s + 1]
+const FPS = 30, LENGTH = 12.5;
+const CUTS = [0, 3, 5, 7, 9, LENGTH]; // scene s runs from CUTS[s] to CUTS[s + 1]
 const PAD = 0.45;
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined });
 
