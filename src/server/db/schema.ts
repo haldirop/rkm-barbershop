@@ -128,6 +128,22 @@ export const barbers = pgTable("barbers", {
   /** English and German bio for the website in those languages (empty: the Dutch one is shown). */
   bioEn: text("bio_en"),
   bioDe: text("bio_de"),
+  /** Job title on the website, e.g. "Eigenaar & barber" (empty: "Barber"). */
+  role: text("role"),
+  roleEn: text("role_en"),
+  roleDe: text("role_de"),
+  /**
+   * Year the barber started cutting hair. The admin enters "years of experience" and the
+   * website counts on from this year, so the number never goes stale.
+   */
+  experienceSince: smallint("experience_since"),
+  isCertified: boolean("is_certified").notNull().default(false),
+  /** The owner is introduced in the large "Maak kennis met …" block on the homepage. */
+  isOwner: boolean("is_owner").notNull().default(false),
+  /** Introduction in that block (empty: a standard sentence). Paragraphs separated by blank lines. */
+  intro: text("intro"),
+  introEn: text("intro_en"),
+  introDe: text("intro_de"),
   isActive: boolean("is_active").notNull().default(true),
   sortOrder: integer("sort_order").notNull().default(0),
   ...timestamps,

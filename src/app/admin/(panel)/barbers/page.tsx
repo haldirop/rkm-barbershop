@@ -22,6 +22,7 @@ export default async function BarbersPage() {
             <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3 px-5 py-4 [&::-webkit-details-marker]:hidden">
               <span className="flex items-center gap-3">
                 <span className="font-semibold text-ink">{barber.name}</span>
+                {barber.isOwner ? <Badge className="bg-gold/10 text-gold-bright ring-gold/30">Eigenaar</Badge> : null}
                 {!barber.isActive ? <Badge className="bg-zinc-400/10 text-zinc-300 ring-zinc-400/30">Inactief</Badge> : null}
               </span>
               <span className="flex items-center gap-4 text-sm text-ink-muted">

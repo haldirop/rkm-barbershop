@@ -49,21 +49,22 @@ const nl = {
     eyebrowTeam: "Het team",
     eyebrowSolo: "Je barber",
     meet: ["Maak kennis met", ""] as [before: string, after: string],
-    team: (owner: string) => [
-      `${owner} is de eigenaar van RKM Barbershop. Hij knipt al twintig jaar en is gecertificeerd barber. Van een klassieke herensnit tot een strakke skin fade of een baard in model: je bent in ervaren handen.`,
-      "Je kiest zelf bij wie je zit. Ga je steeds naar dezelfde barber, dan hoef je niet elke keer opnieuw uit te leggen hoe je het wilt.",
-    ],
-    solo: (owner: string) => [
-      `Bij RKM Barbershop zit je altijd bij ${owner}. Hij is de eigenaar van de zaak, knipt al twintig jaar en is gecertificeerd barber. Van een klassieke herensnit tot een strakke skin fade of een baard in model: je bent in ervaren handen.`,
-      `Omdat je steeds door dezelfde barber wordt geholpen, hoef je niet elke keer opnieuw uit te leggen hoe je het wilt. ${owner} kent je stijl en denkt met je mee, zodat het elke keer klopt.`,
-    ],
-    facts: [
-      { value: "20 jaar", label: "ervaring als barber" },
-      { value: "Gecertificeerd", label: "barber" },
-      { value: "Eigenaar", label: "van de zaak" },
-    ],
+    /** Shown when the barber has no introduction of their own under Beheer → Barbers. */
+    defaultIntro: (name: string) =>
+      `Van een klassieke herensnit tot een strakke skin fade of een baard in model: bij ${name} ben je in goede handen.`,
+    team: "Je kiest zelf bij wie je zit. Ga je steeds naar dezelfde barber, dan hoef je niet elke keer opnieuw uit te leggen hoe je het wilt.",
+    solo: (name: string) =>
+      `Bij RKM Barbershop zit je altijd bij ${name}. Omdat je steeds door dezelfde barber wordt geholpen, hoef je niet elke keer opnieuw uit te leggen hoe je het wilt: je barber kent je stijl en denkt met je mee, zodat het elke keer klopt.`,
+    facts: {
+      experience: (years: number) => ({ value: `${years} jaar`, label: "ervaring als barber" }),
+      certified: { value: "Gecertificeerd", label: "barber" },
+      owner: { value: "Eigenaar", label: "van de zaak" },
+    },
+    experienceShort: (years: number) => `${years} jaar ervaring`,
+    certifiedShort: "Gecertificeerd",
     bookWith: (name: string) => `Maak een afspraak bij ${name}`,
     ownerRole: "Eigenaar & barber",
+    barberRole: "Barber",
     alsoInTeam: "Ook in het team",
     bookWithShort: (name: string) => `Afspraak bij ${name}`,
   },
@@ -77,8 +78,15 @@ const nl = {
   whyUs: {
     eyebrow: "Waarom RKM?",
     title: "De details maken het verschil",
+    /** First reason; the years come from the most experienced barber under Beheer → Barbers. */
+    craft: {
+      title: "Vakmanschap",
+      text: (years: number | null) =>
+        years
+          ? `${years} jaar ervaring in fades, klassieke cuts en baardwerk, tot in de puntjes verzorgd.`
+          : "Vakwerk in fades, klassieke cuts en baardwerk, tot in de puntjes verzorgd.",
+    },
     reasons: [
-      { title: "Vakmanschap", text: "Twintig jaar ervaring in fades, klassieke cuts en baardwerk, tot in de puntjes verzorgd." },
       {
         title: "Afspraak of binnenlopen",
         text: "Met een afspraak zit je op een vast moment in de stoel. Geen afspraak? Loop gerust binnen: als er tijd is, helpen we je meteen.",
@@ -201,21 +209,21 @@ const en: HomeMessages = {
     eyebrowTeam: "The team",
     eyebrowSolo: "Your barber",
     meet: ["Meet", ""],
-    team: (owner) => [
-      `${owner} is the owner of RKM Barbershop. He has been cutting hair for twenty years and is a certified barber. From a classic gentleman’s cut to a sharp skin fade or a shaped beard: you’re in experienced hands.`,
-      "You choose who you sit with. If you keep going to the same barber, you don’t have to explain how you like it every time.",
-    ],
-    solo: (owner) => [
-      `At RKM Barbershop you’re always in the chair with ${owner}. He owns the shop, has been cutting hair for twenty years and is a certified barber. From a classic gentleman’s cut to a sharp skin fade or a shaped beard: you’re in experienced hands.`,
-      `Because the same barber looks after you every time, you don’t have to explain how you like it again and again. ${owner} knows your style and thinks along with you, so it’s right every time.`,
-    ],
-    facts: [
-      { value: "20 years", label: "of experience as a barber" },
-      { value: "Certified", label: "barber" },
-      { value: "Owner", label: "of the shop" },
-    ],
+    defaultIntro: (name) =>
+      `From a classic gentleman’s cut to a sharp skin fade or a shaped beard: with ${name} you’re in good hands.`,
+    team: "You choose who you sit with. If you keep going to the same barber, you don’t have to explain how you like it every time.",
+    solo: (name) =>
+      `At RKM Barbershop you’re always in the chair with ${name}. Because the same barber looks after you every time, you don’t have to explain how you like it again and again: your barber knows your style and thinks along with you, so it’s right every time.`,
+    facts: {
+      experience: (years) => ({ value: `${years} ${years === 1 ? "year" : "years"}`, label: "of experience as a barber" }),
+      certified: { value: "Certified", label: "barber" },
+      owner: { value: "Owner", label: "of the shop" },
+    },
+    experienceShort: (years) => `${years} ${years === 1 ? "year" : "years"} of experience`,
+    certifiedShort: "Certified",
     bookWith: (name) => `Book with ${name}`,
     ownerRole: "Owner & barber",
+    barberRole: "Barber",
     alsoInTeam: "Also on the team",
     bookWithShort: (name) => `Book with ${name}`,
   },
@@ -229,8 +237,14 @@ const en: HomeMessages = {
   whyUs: {
     eyebrow: "Why RKM?",
     title: "The details make the difference",
+    craft: {
+      title: "Craftsmanship",
+      text: (years) =>
+        years
+          ? `${years} ${years === 1 ? "year" : "years"} of experience in fades, classic cuts and beard work, done to perfection.`
+          : "Expert fades, classic cuts and beard work, done to perfection.",
+    },
     reasons: [
-      { title: "Craftsmanship", text: "Twenty years of experience in fades, classic cuts and beard work, done to perfection." },
       {
         title: "Book or walk in",
         text: "With an appointment you’re in the chair at a fixed time. No appointment? Feel free to walk in: if there’s time, we’ll help you straight away.",
@@ -351,21 +365,21 @@ const de: HomeMessages = {
     eyebrowTeam: "Das Team",
     eyebrowSolo: "Dein Barber",
     meet: ["Lerne", "kennen"],
-    team: (owner) => [
-      `${owner} ist der Inhaber von RKM Barbershop. Er schneidet seit zwanzig Jahren Haare und ist zertifizierter Barber. Vom klassischen Herrenschnitt bis zum sauberen Skin Fade oder einem Bart in Form: Du bist in erfahrenen Händen.`,
-      "Du entscheidest selbst, bei wem du sitzt. Gehst du immer zum selben Barber, musst du nicht jedes Mal neu erklären, wie du es haben möchtest.",
-    ],
-    solo: (owner) => [
-      `Bei RKM Barbershop sitzt du immer bei ${owner}. Er ist der Inhaber, schneidet seit zwanzig Jahren Haare und ist zertifizierter Barber. Vom klassischen Herrenschnitt bis zum sauberen Skin Fade oder einem Bart in Form: Du bist in erfahrenen Händen.`,
-      `Weil dich immer derselbe Barber betreut, musst du nicht jedes Mal neu erklären, wie du es haben möchtest. ${owner} kennt deinen Stil und denkt mit, damit es jedes Mal passt.`,
-    ],
-    facts: [
-      { value: "20 Jahre", label: "Erfahrung als Barber" },
-      { value: "Zertifizierter", label: "Barber" },
-      { value: "Inhaber", label: "des Ladens" },
-    ],
+    defaultIntro: (name) =>
+      `Vom klassischen Herrenschnitt bis zum sauberen Skin Fade oder einem Bart in Form: Bei ${name} bist du in guten Händen.`,
+    team: "Du entscheidest selbst, bei wem du sitzt. Gehst du immer zum selben Barber, musst du nicht jedes Mal neu erklären, wie du es haben möchtest.",
+    solo: (name) =>
+      `Bei RKM Barbershop sitzt du immer bei ${name}. Weil dich immer derselbe Barber betreut, musst du nicht jedes Mal neu erklären, wie du es haben möchtest: Dein Barber kennt deinen Stil und denkt mit, damit es jedes Mal passt.`,
+    facts: {
+      experience: (years) => ({ value: `${years} ${years === 1 ? "Jahr" : "Jahre"}`, label: "Erfahrung als Barber" }),
+      certified: { value: "Zertifizierter", label: "Barber" },
+      owner: { value: "Inhaber", label: "des Ladens" },
+    },
+    experienceShort: (years) => `${years} ${years === 1 ? "Jahr" : "Jahre"} Erfahrung`,
+    certifiedShort: "Zertifiziert",
     bookWith: (name) => `Termin bei ${name} buchen`,
     ownerRole: "Inhaber & Barber",
+    barberRole: "Barber",
     alsoInTeam: "Außerdem im Team",
     bookWithShort: (name) => `Termin bei ${name}`,
   },
@@ -379,8 +393,14 @@ const de: HomeMessages = {
   whyUs: {
     eyebrow: "Warum RKM?",
     title: "Die Details machen den Unterschied",
+    craft: {
+      title: "Handwerk",
+      text: (years) =>
+        years
+          ? `${years} ${years === 1 ? "Jahr" : "Jahre"} Erfahrung mit Fades, klassischen Schnitten und Bartarbeit, bis ins Detail gepflegt.`
+          : "Fachkundige Fades, klassische Schnitte und Bartarbeit, bis ins Detail gepflegt.",
+    },
     reasons: [
-      { title: "Handwerk", text: "Zwanzig Jahre Erfahrung mit Fades, klassischen Schnitten und Bartarbeit, bis ins Detail gepflegt." },
       {
         title: "Mit Termin oder spontan",
         text: "Mit Termin sitzt du zu einer festen Zeit im Stuhl. Kein Termin? Komm gern vorbei: Wenn Zeit ist, bist du sofort dran.",

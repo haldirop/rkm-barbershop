@@ -36,7 +36,22 @@ export function localizedTagline(
   return pick(locale, settings.tagline, settings.taglineEn, settings.taglineDe);
 }
 
+/** An optional admin text in the visitor's language (null when nothing was filled in). */
+function pickOptional(locale: Locale, nl: string | null, en: string | null, de: string | null): string | null {
+  if (nl === null && !en && !de) return null;
+  return pick(locale, nl ?? "", en, de) || null;
+}
+
 export function localizedBio(barber: { bio: string | null; bioEn: string | null; bioDe: string | null }, locale: Locale) {
-  if (barber.bio === null && !barber.bioEn && !barber.bioDe) return null;
-  return pick(locale, barber.bio ?? "", barber.bioEn, barber.bioDe) || null;
+  return pickOptional(locale, barber.bio, barber.bioEn, barber.bioDe);
+}
+
+/** The barber's job title, e.g. "Eigenaar & barber". */
+export function localizedRole(barber: { role: string | null; roleEn: string | null; roleDe: string | null }, locale: Locale) {
+  return pickOptional(locale, barber.role, barber.roleEn, barber.roleDe);
+}
+
+/** The introduction in the large "Maak kennis met …" block on the homepage. */
+export function localizedIntro(barber: { intro: string | null; introEn: string | null; introDe: string | null }, locale: Locale) {
+  return pickOptional(locale, barber.intro, barber.introEn, barber.introDe);
 }

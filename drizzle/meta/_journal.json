@@ -106,6 +106,13 @@
       "when": 1793894591988,
       "tag": "0014_sale_appointments",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793984956385,
+      "tag": "0015_barber_profile",
+      "breakpoints": true
     }
   ]
 }

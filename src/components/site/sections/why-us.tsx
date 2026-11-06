@@ -3,11 +3,19 @@ import { Reveal } from "@/components/site/reveal";
 import { SectionHeading } from "@/components/site/section-heading";
 import type { Locale } from "@/i18n/config";
 import { home } from "@/i18n/messages/home";
+import { currentYear, experienceYears } from "@/lib/barber-profile";
+import { getActiveBarbers } from "@/server/services/catalog";
 
 const ICONS = [Scissors, Clock, MessageSquare, ShieldCheck];
 
-export function WhyUs({ locale }: { locale: Locale }) {
+export async function WhyUs({ locale }: { locale: Locale }) {
   const t = home[locale].whyUs;
+  // "20 jaar ervaring": the most experienced active barber, as entered under Beheer → Barbers.
+  const year = currentYear();
+  const years = (await getActiveBarbers())
+    .map((barber) => experienceYears(barber.experienceSince, year))
+    .reduce<number | null>((most, y) => (y !== null && (most === null || y > most) ? y : most), null);
+  const reasons = [{ title: t.craft.title, text: t.craft.text(years) }, ...t.reasons];
   return (
     <section aria-labelledby="waarom" className="border-y border-line bg-surface py-24 sm:py-32">
       <div className="container-page">
@@ -15,7 +23,7 @@ export function WhyUs({ locale }: { locale: Locale }) {
           <SectionHeading id="waarom" eyebrow={t.eyebrow} title={t.title} align="center" />
         </Reveal>
         <ul className="mt-16 grid gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-2 lg:grid-cols-4">
-          {t.reasons.map(({ title, text }, i) => {
+          {reasons.map(({ title, text }, i) => {
             const Icon = ICONS[i];
             return (
             <Reveal as="li" key={title} delay={i * 90} className="bg-surface p-8">

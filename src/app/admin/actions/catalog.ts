@@ -1,6 +1,7 @@
 "use server";
 
 import { z } from "zod";
+import { MAX_EXPERIENCE_YEARS, currentYear, experienceSince } from "@/lib/barber-profile";
 import { cleanText, timeSchema, uuidSchema } from "@/lib/validation";
 import { requireAdmin } from "@/server/auth/session";
 import { deleteBarber, deleteService, saveBarber, saveService } from "@/server/services/admin-config";
@@ -69,9 +70,28 @@ export async function deleteServiceAction(id: string): Promise<SimpleResult> {
 const barberSchema = z.object({
   id: optionalId,
   name: text(40),
+  role: optionalText(40),
+  roleEn: optionalText(40),
+  roleDe: optionalText(40),
   bio: optionalText(160),
   bioEn: optionalText(160),
   bioDe: optionalText(160),
+  intro: optionalText(800),
+  introEn: optionalText(800),
+  introDe: optionalText(800),
+  /** Empty: not shown on the website. */
+  experienceYears: z
+    .string()
+    .optional()
+    .transform((v) => (v?.trim() ? Number(v.trim()) : null))
+    .pipe(
+      z
+        .number("Vul een aantal jaren in.")
+        .int("Gebruik hele jaren.")
+        .min(1, "Minimaal 1 jaar (of laat het leeg).")
+        .max(MAX_EXPERIENCE_YEARS, `Maximaal ${MAX_EXPERIENCE_YEARS} jaar.`)
+        .nullable(),
+    ),
   sortOrder: z.coerce.number().int().min(0).max(999).default(0),
 });
 
@@ -97,12 +117,12 @@ export async function saveBarberAction(_prev: FormState, formData: FormData): Pr
   if (Object.keys(errors).length) return { error: "Controleer de werktijden.", fieldErrors: errors };
 
   try {
-    await saveBarber(parsed.data.id, {
-      name: parsed.data.name,
-      bio: parsed.data.bio,
-      bioEn: parsed.data.bioEn,
-      bioDe: parsed.data.bioDe,
-      sortOrder: parsed.data.sortOrder,
+    const { id, experienceYears, ...fields } = parsed.data;
+    await saveBarber(id, {
+      ...fields,
+      experienceSince: experienceSince(experienceYears, currentYear()),
+      isCertified: data.isCertified === "on",
+      isOwner: data.isOwner === "on",
       isActive: data.isActive === "on",
       hours,
     });

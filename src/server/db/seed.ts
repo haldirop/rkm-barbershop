@@ -70,7 +70,7 @@ export async function seedBaseData(db: Database): Promise<boolean> {
     const [first, second] = await tx
       .insert(barbers)
       .values([
-        { name: "Rayan", bio: "Eigenaar. Specialist in fades en strakke contouren.", sortOrder: 1 },
+        { name: "Rayan", bio: "Eigenaar. Specialist in fades en strakke contouren.", isOwner: true, sortOrder: 1 },
         { name: "Milan", bio: "Klassieke knipbeurten en baardverzorging.", sortOrder: 2 },
       ])
       .returning();

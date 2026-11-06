@@ -82,6 +82,16 @@ export interface BarberInput {
   bio: string | null;
   bioEn: string | null;
   bioDe: string | null;
+  role: string | null;
+  roleEn: string | null;
+  roleDe: string | null;
+  intro: string | null;
+  introEn: string | null;
+  introDe: string | null;
+  /** Year the barber started (the admin enters years of experience). */
+  experienceSince: number | null;
+  isCertified: boolean;
+  isOwner: boolean;
   isActive: boolean;
   sortOrder: number;
   hours: Array<{ weekday: number; isWorking: boolean; startTime: string; endTime: string }>;
