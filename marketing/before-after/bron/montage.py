@@ -1,11 +1,12 @@
-"""Builds the RKM before/after video (1080 x 1920, 30 fps) from the two clips, the text layer and the music.
+"""Builds the RKM before/after video (1080 x 1920, 30 fps) from the two clips, the end-card layer and the music.
 
   python3 montage.py <before.mp4> <after.mp4> <overlay-dir> <muziek.wav> <effecten.wav> <out-dir> [--preview 0.5,4.0,...]
 
-The "before" plays muted and grey with a 3-2-1 countdown, a golden line wipes it away into the
-"after" (rich black/gold) on the drop, then the result from every side, both one above the other,
-and an end card to book online. Building blocks (grading, transitions, grain, loudness) come from
-the promo reel: ../../promo-reel/bron/montage.py.
+Natural and calm: the colours exactly as filmed, the whole picture (no zooming in), no text over the
+footage. The before plays in real slow motion (it was filmed at 120 fps), a thin golden line wipes it
+into the after on the drop of the music, the result from three sides, before and after one above the
+other with both faces in view, then the end card to book online.
+Building blocks (geometry, loudness) come from the promo reel: ../../promo-reel/bron/montage.py.
 Needs: numpy, opencv-python-headless, ffmpeg.
 """
 import importlib.util
@@ -22,83 +23,80 @@ promo = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(promo)
 
 FPS, W, H = promo.FPS, promo.W, promo.H
-LENGTH = 18.5
+LENGTH = 19.0
 NF = int(round(LENGTH * FPS))
 HALF = H // 2
 
 SCENES = [
-    # before: the orbit around the long hair, a bit faster
-    dict(start=0, end=4, clip="before", src=(0.0, 6.0), zoom=(1.10, 1.20), c0=(0.48, 0.36), c1=(0.50, 0.36)),
-    # after: side, back with the hand through the hair, the fade up close, the other side
-    dict(start=4, end=6, clip="after", src=(0.0, 3.0), zoom=(1.22, 1.12), c0=(0.48, 0.32), c1=(0.48, 0.32)),
-    dict(start=6, end=8, clip="after", src=(5.8, 8.4), zoom=(1.10, 1.20), c0=(0.50, 0.38), c1=(0.50, 0.40)),
-    dict(start=8, end=10, clip="after", src=(9.3, 11.1), zoom=(1.55, 1.68), c0=(0.50, 0.48), c1=(0.50, 0.50)),
-    dict(start=10, end=12, clip="after", src=(13.2, 17.0), zoom=(1.16, 1.08), c0=(0.45, 0.33), c1=(0.45, 0.33)),
-    # both, one above the other
-    dict(start=12, end=14, split=True),
+    # before: side and back, in slow motion (0.7×, real frames from the 120 fps recording)
+    dict(start=0, end=4, clip="before", src=(0.0, 2.8)),
+    # after: one side, the back with the hand through the hair, the other side
+    dict(start=4, end=7, clip="after", src=(0.0, 3.0)),
+    dict(start=7, end=10, clip="after", src=(6.0, 9.6)),
+    dict(start=10, end=13, clip="after", src=(13.2, 16.8)),
+    # both, one above the other, faces in view
+    dict(start=13, end=15, split=True),
     # end card on the blurred result
-    dict(start=14, end=LENGTH, clip="after", src=(14.4, 16.6), zoom=(1.25, 1.32), c0=(0.45, 0.33), c1=(0.45, 0.33), endcard=True),
+    dict(start=15, end=LENGTH, clip="after", src=(14.4, 16.6), endcard=True),
 ]
 # (cut, type, seconds before, seconds after)
 TRANSITIONS = [
-    (4.0, "wipe", 0.18, 0.2),
-    (6.0, "zoom", 0.2, 0.22),
-    (8.0, "whip", 0.18, 0.18),
-    (10.0, "flash", 0.12, 0.3),
-    (12.0, "split", 0.0, 0.4),
-    (14.0, "blurflash", 0.4, 0.45),
+    (4.0, "wipe", 0.2, 0.25),
+    (7.0, "dissolve", 0.12, 0.12),
+    (10.0, "dissolve", 0.12, 0.12),
+    (13.0, "split", 0.0, 0.4),
+    (15.0, "fade", 0.45, 0.45),
 ]
-IMPACTS = [4.0, 14.0]
-BUMPS = [2.5, 3.0, 3.5, 5.0, 7.0, 9.0, 11.0, 13.0]  # the countdown, then beats 1 and 3
+SLOW_PUSH = 0.03  # each shot moves in 3% over its length: alive, never close
 
 
-def before_grade(rgb):
-    """The "before": grey, flat and a little cold, so the after can shine."""
-    x = rgb.astype(np.float32) / 255
-    lum = (x @ promo.LUMA)[..., None]
-    x = lum + (x - lum) * 0.42
-    x = 0.05 + x * 0.84
-    x = x * np.array([0.97, 1.0, 1.04], np.float32)
-    return np.clip(x, 0, 1)
+def natural(rgb):
+    """The colours as filmed: no grade at all."""
+    return rgb.astype(np.float32) / 255
 
 
 class Clip(promo.Clip):
-    def __init__(self, path, grade):
-        super().__init__(path)
-        self.grade = grade
-
     def frame(self, i):
         i = int(np.clip(i, 0, len(self.frames) - 1))
         if i not in self.cache:
             if len(self.cache) > 80:
                 self.cache.clear()
-            self.cache[i] = self.grade(self.frames[i])
+            self.cache[i] = natural(self.frames[i])
         return self.cache[i]
 
+    def at(self, t):
+        """The nearest real frame (the before has 120 per second, so slow motion stays real)."""
+        return self.frame(int(round(t * self.fps)))
 
-def view(clip, t_src, zoom, centre, size=(W, H), shift=(0.0, 0.0)):
-    """A graded, sharpened frame of a clip at a source time, framed around `centre` (fractions)."""
+
+def sharpen(img, amount=0.5, sigma=1.4):
+    """Light unsharp mask after scaling up: crisp hair and fade, no halos."""
+    blur = cv2.GaussianBlur(img, (0, 0), sigma)
+    return np.clip(img + amount * (img - blur), 0, 1)
+
+
+def full(clip, t_src, zoom=1.0, size=(W, H)):
+    """The whole picture of a clip (9:16 like the video), scaled with Lanczos, centred."""
     img = clip.at(max(0.0, t_src))
     out_w, out_h = size
-    base = max(out_w / clip.w, out_h / clip.h)
-    hw, hh = out_w / (2 * base * zoom * clip.w), out_h / (2 * base * zoom * clip.h)
-    cx, cy = np.clip(centre[0], hw, 1 - hw), np.clip(centre[1], hh, 1 - hh)
-    M = promo.affine(base * zoom, 0, (cx * clip.w, cy * clip.h), (out_w / 2 + shift[0], out_h / 2 + shift[1]))
-    return promo.sharpen(promo.warp(img, M, size))
+    scale = max(out_w / clip.w, out_h / clip.h) * zoom
+    M = promo.affine(scale, 0, (clip.w / 2, clip.h / 2), (out_w / 2, out_h / 2))
+    return sharpen(cv2.warpAffine(img, M, size, flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_REFLECT_101))
 
 
 def panel(clip, t_src, zoom, centre, size=(W, HALF)):
-    """A whole head in a wide half of the screen: the clip a little smaller (zoom < 1), on a
-    blurred, darkened version of itself where it doesn't reach the edges."""
+    """A whole head in a wide half of the screen: the clip a little smaller, on a blurred version
+    of itself where it doesn't reach the edges."""
     img = clip.at(max(0.0, t_src))
     out_w, out_h = size
     base = max(out_w / clip.w, out_h / clip.h)
     M = promo.affine(base * zoom, 0, (centre[0] * clip.w, centre[1] * clip.h), (out_w / 2, out_h / 2))
-    fg = cv2.warpAffine(img, M, size, flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT)
+    fg = cv2.warpAffine(img, M, size, flags=cv2.INTER_LANCZOS4, borderMode=cv2.BORDER_CONSTANT)
     mask = cv2.warpAffine(np.ones(img.shape[:2], np.float32), M, size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_CONSTANT)
     mask = cv2.GaussianBlur(mask, (0, 0), 3)[..., None]
-    bg = cv2.GaussianBlur(view(clip, t_src, 1.15, centre, size), (0, 0), 22) * 0.45
-    return promo.sharpen(fg) * mask + bg * (1 - mask)
+    bg_M = promo.affine(base * 1.2, 0, (centre[0] * clip.w, centre[1] * clip.h), (out_w / 2, out_h / 2))
+    bg = cv2.GaussianBlur(cv2.warpAffine(img, bg_M, size, flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101), (0, 0), 24) * 0.55
+    return sharpen(fg) * mask + bg * (1 - mask)
 
 
 class Video:
@@ -109,44 +107,24 @@ class Video:
     def overlay(self, s, i):
         return promo.load_overlay(self.ov_dir, s, i)
 
-    def shake(self, t, i):
-        off = np.zeros(2, np.float32)
-        for c in IMPACTS:
-            if 0 <= t - c < 0.5:
-                amp = 24 * np.exp(-(t - c) / 0.12)
-                off += np.random.default_rng(i * 7 + 3).uniform(-amp, amp, 2)
-        return off
-
-    def split(self, t, i, slide=1.0):
-        """Before on top, after below; `slide` 0 → 1 brings the halves in from the sides."""
-        u = float(np.clip((t - 12.0) / 2.0, 0, 1))
-        # The moments where the face is seen best, both looking the same way, the whole head
-        # (hair to chin) centred in its half with room around it; slowed down a little.
-        top = panel(self.clips["before"], 8.5 + 1.2 * u, 0.94 + 0.03 * u, (0.53, 0.45))
-        bottom = panel(self.clips["after"], 14.8 + 1.2 * u, 0.83 + 0.03 * u, (0.53, 0.39))
+    def split(self, t):
+        u = float(np.clip((t - 13.0) / 2.0, 0, 1))
+        # The moments where the face is seen best, both looking the same way, the whole head centred.
+        top = panel(self.clips["before"], 8.5 + 1.6 * u, 0.94 + 0.02 * u, (0.53, 0.45))
+        bottom = panel(self.clips["after"], 14.8 + 2.0 * u, 0.83 + 0.02 * u, (0.53, 0.39))
         return top, bottom
 
     def shot(self, s, t, i):
         sc = SCENES[s]
         if sc.get("split"):
-            top, bottom = self.split(t, i)
-            frame = np.concatenate([top, bottom], axis=0) * promo.LOOK
-            return promo.over(frame, self.overlay(s, i))
+            top, bottom = self.split(t)
+            return promo.over(np.concatenate([top, bottom], axis=0), self.overlay(s, i))
         clip = self.clips[sc["clip"]]
         u = (t - sc["start"]) / (sc["end"] - sc["start"])
         src_t = sc["src"][0] + u * (sc["src"][1] - sc["src"][0])
-        ue = float(np.clip(u, 0, 1))
-        ease = ue * ue * (3 - 2 * ue)
-        z = sc["zoom"][0] + (sc["zoom"][1] - sc["zoom"][0]) * ease
-        centre = tuple(sc["c0"][k] + (sc["c1"][k] - sc["c0"][k]) * ease for k in range(2))
-        if not sc.get("endcard"):
-            for b in BUMPS:
-                if sc["start"] + 0.25 < b < sc["end"] - 0.2 and 0 <= t - b < 0.4:
-                    z *= 1 + (0.05 if b < 4 else 0.03) * np.exp(-(t - b) / 0.1)
-        frame = view(clip, src_t, z, centre, shift=tuple(self.shake(t, i)))
+        frame = full(clip, src_t, 1.0 + SLOW_PUSH * float(np.clip(u, 0, 1)))
         if sc.get("endcard"):
             frame = cv2.GaussianBlur(frame, (0, 0), 16) * 0.2 + promo.GOLD_GLOW * 0.3
-        frame = frame * promo.LOOK
         return promo.over(frame, self.overlay(s, i))
 
     def scene_at(self, t):
@@ -163,32 +141,38 @@ class Video:
         return np.clip(self.shot(self.scene_at(t), t, i), 0, 1)
 
     def transition(self, kind, t, cut, before, after, s_out, s_in, i):
-        if kind == "wipe":  # a golden line sweeps the before away, the after behind it
+        if kind == "wipe":  # a thin golden line sweeps the before away, the after behind it
             p = (t - (cut - before)) / (before + after)
             x = int(round(W * (0.5 - 0.5 * np.cos(np.pi * p))))
             img = self.shot(s_out, t, i).copy()
             if x > 0:
                 img[:, :x] = self.shot(s_in, t, i)[:, :x]
-            glow = np.exp(-(((np.arange(W) - x) / 26.0) ** 2)).astype(np.float32)[None, :, None]
-            core = np.exp(-(((np.arange(W) - x) / 4.0) ** 2)).astype(np.float32)[None, :, None]
-            gold = np.array([1.0, 0.82, 0.42], np.float32)
-            img = img * (1 - 0.65 * glow) + gold * 0.65 * glow
-            img = img * (1 - core) + np.array([1.0, 0.97, 0.86], np.float32) * core
-            flash = 0.55 * np.exp(-(((t - cut) / 0.07) ** 2))
-            return img * (1 - flash) + np.array([1.0, 0.93, 0.76], np.float32) * flash
+            cols = np.arange(W)
+            glow = np.exp(-(((cols - x) / 14.0) ** 2)).astype(np.float32)[None, :, None]
+            core = np.exp(-(((cols - x) / 2.2) ** 2)).astype(np.float32)[None, :, None]
+            img = img * (1 - 0.45 * glow) + np.array([0.98, 0.78, 0.4], np.float32) * 0.45 * glow
+            return img * (1 - core) + np.array([1.0, 0.95, 0.82], np.float32) * core
+        if kind == "dissolve":
+            q = (t - (cut - before)) / (before + after)
+            q = q * q * (3 - 2 * q)
+            return self.shot(s_out, t, i) * (1 - q) + self.shot(s_in, t, i) * q
         if kind == "split":  # the halves slide in over the last shot
             q = promo.ease_out((t - cut) / after)
-            back = self.shot(s_out, t, i) * (1 - 0.5 * q)
-            top, bottom = self.split(t, i)
-            out = back.copy()
-            top, bottom = top * promo.LOOK[:HALF], bottom * promo.LOOK[HALF:]
+            out = self.shot(s_out, t, i) * (1 - 0.5 * q)
+            top, bottom = self.split(t)
             dx = int(round(W * (1 - q)))
             if dx < W:
                 out[:HALF, : W - dx] = top[:, dx:]  # from the left
                 out[HALF:, dx:] = bottom[:, : W - dx]  # from the right
             return promo.over(out, self.overlay(s_in, i)) if q > 0.6 else out
-        # zoom, whip, flash and blurflash work as in the promo reel
-        return promo.Montage.transition(self, kind, t, cut, before, after, s_out, s_in, i)
+        if kind == "fade":  # softly blurs and fades into the end card
+            if t < cut:
+                p = (t - (cut - before)) / before
+                img = self.shot(s_out, t, i)
+                return cv2.GaussianBlur(img, (0, 0), 0.1 + 14 * p * p) * (1 - 0.6 * p)
+            q = (t - cut) / after
+            return self.shot(s_in, t, i) * (0.4 + 0.6 * q * q * (3 - 2 * q))
+        raise ValueError(kind)
 
 
 def main():
@@ -201,28 +185,28 @@ def main():
     before_path, after_path, ov_dir, music, sfx, out_dir = args
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
-    video = Video(Clip(before_path, before_grade), Clip(after_path, promo.grade), ov_dir)
+    video = Video(Clip(before_path), Clip(after_path), ov_dir)
 
     if preview:
         for t in preview:
             i = min(NF - 1, int(round(t * FPS)))
-            cv2.imwrite(str(out / f"preview-{t:05.2f}.png"), cv2.cvtColor(promo.to_u8(promo.grain(video.render(i), i)), cv2.COLOR_RGB2BGR))
+            cv2.imwrite(str(out / f"preview-{t:05.2f}.png"), cv2.cvtColor(promo.to_u8(video.render(i)), cv2.COLOR_RGB2BGR))
         print("previews written")
         return
 
     silent = out / "video.mp4"
     enc = subprocess.Popen(
         ["ffmpeg", "-v", "error", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
-         "-c:v", "libx264", "-preset", "slow", "-crf", "19", "-maxrate", "10M", "-bufsize", "20M",
+         "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-maxrate", "14M", "-bufsize", "28M", "-tune", "film",
          "-profile:v", "high", "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709",
          "-color_trc", "bt709", "-movflags", "+faststart", str(silent)],
         stdin=subprocess.PIPE)
-    cover_frame = int(13.3 * FPS)  # before and after, one above the other
+    cover_frame = int(14.2 * FPS)  # before and after, one above the other
     for i in range(NF):
-        frame = promo.to_u8(promo.grain(video.render(i), i))
+        frame = promo.to_u8(video.render(i))
         enc.stdin.write(frame.tobytes())
         if i == cover_frame:
-            cv2.imwrite(str(out / "RKM-before-after-cover.jpg"), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 94])
+            cv2.imwrite(str(out / "RKM-before-after-cover.jpg"), cv2.cvtColor(frame, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_JPEG_QUALITY, 95])
         if i % 60 == 0:
             print(f"  frame {i}/{NF}", flush=True)
     enc.stdin.close()

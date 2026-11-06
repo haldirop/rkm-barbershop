@@ -15,10 +15,10 @@ SR = 44100
 BPM = 120
 BEAT = 60 / BPM            # 0.5 s
 BAR = 4 * BEAT             # 2 s
-LENGTH = 18.5              # video length
+LENGTH = 19.0              # video length
 REVEAL = 4.0               # before → after
-CUTS = [4.0, 6.0, 8.0, 10.0, 12.0, 14.0]  # transitions in the video
-END_CARD = 14.0
+CUTS = [4.0, 7.0, 10.0, 13.0, 15.0]  # transitions in the video
+END_CARD = 15.0
 rng = np.random.default_rng(12)
 
 N = int(SR * (LENGTH + 0.05))
@@ -194,7 +194,7 @@ CHORDS = {  # bar → (808 root, pad notes, bell notes)
     "Dm": ("D2", ["F3", "A3", "D4"], ["D5", "A5", "D6", "F6"]),
     "E": ("E1", ["G#3", "B3", "E4"], ["E5", "B5", "E6", "G#5"]),
 }
-# before (2 bars) | after (4 bars) | side by side (1 bar) | end card (2 bars + tail)
+# before (2 bars) | after (4.5 bars) | one above the other (1 bar) | end card (2 bars)
 BARS = ["Am", "E", "Am", "F", "C", "G", "Dm", "F", "E", "Am"]
 
 intro, drums, bass, keys, fx = buf(), buf(), buf(), buf(), buf()
@@ -274,7 +274,7 @@ place(fx, riser(2.0), REVEAL - 2.0, 0.85)
 place(fx, impact(2.6), REVEAL, 1.0)                         # the reveal
 place(fx, whoosh(0.6, 0.35, up=True), REVEAL - 0.35, 0.8)
 for c in CUTS[1:-1]:
-    place(fx, whoosh(0.55, 0.42, up=(c != 10.0)), c - 0.42, 0.75)
+    place(fx, whoosh(0.55, 0.42, up=(c != 10.0)), c - 0.42, 0.45)  # soft: the cuts are calm dissolves
 place(fx, riser(1.2), END_CARD - 1.2, 0.6)
 place(fx, impact(2.4), END_CARD, 0.75)
 place(fx, impact(1.2), 18.0, 0.5)                           # last hit

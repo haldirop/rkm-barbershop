@@ -85,21 +85,20 @@
   </defs>
 </svg>
 
-<!-- 0–4: only the footage, no text -->
+<!-- 0–3: only the footage, no text -->
 <section class="scene" data-scene="0"></section>
 <section class="scene" data-scene="1"></section>
 <section class="scene" data-scene="2"></section>
 <section class="scene" data-scene="3"></section>
-<section class="scene" data-scene="4"></section>
 
-<!-- 5: before and after, one above the other, split by a golden line -->
-<section class="scene" data-scene="5">
+<!-- 4: before and after, one above the other, split by a golden line -->
+<section class="scene" data-scene="4">
   <div class="divider" id="s5-line"></div>
   <div class="gem" id="s5-gem"></div>
 </section>
 
-<!-- 6: end card: book online -->
-<section class="scene" data-scene="6">
+<!-- 5: end card: book online -->
+<section class="scene" data-scene="5">
   <div class="logo el" id="s6-logo" style="top:300px; width:560px"><img src="../../../src/assets/rkm-mark.png" alt="RKM"><div class="shine" id="s6-shine"></div></div>
   <div class="el caps" id="s6-q1" style="top:690px; font-size:54px; letter-spacing:0.2em; margin-right:-0.2em">Ook zo’n</div>
   <div class="el display gold" id="s6-q2" style="top:760px; font-size:124px">FRISSE LOOK?</div>
@@ -174,25 +173,24 @@ const SCENES = [
   () => {},
   () => {},
   () => {},
-  () => {},
   (t) => {
-    const line = out5(prog(t, 12.0, 0.45));
+    const line = out5(prog(t, 13.0, 0.45));
     $("s5-line").style.width = `${1080 * line}px`;
-    $("s5-gem").style.transform = `rotate(45deg) scale(${Math.max(0.0001, back(prog(t, 12.3, 0.35)))})`;
-    $("s5-gem").style.opacity = prog(t, 12.3, 0.1);
+    $("s5-gem").style.transform = `rotate(45deg) scale(${Math.max(0.0001, back(prog(t, 13.3, 0.35)))})`;
+    $("s5-gem").style.opacity = prog(t, 13.3, 0.1);
   },
   (t) => {
-    const p = out5(prog(t, 14.05, 0.6));
-    set("s6-logo", { s: 1.14 - 0.14 * p, o: prog(t, 14.05, 0.3), blur: 16 * (1 - p) });
-    shine($("s6-shine"), t, 14.8, 0.7, false);
-    maskless("s6-q1", t, 14.4);
-    slam("s6-q2", t, 14.5, 1.5, 0.0);
-    maskless("s6-text", t, 14.85);
-    let s = back(prog(t, 15.0, 0.4));
-    for (const b of [15.5, 16.0, 16.5, 17.0, 17.5, 18.0]) if (t >= b) s += 0.045 * Math.exp(-(t - b) / 0.12);
-    set("s6-pill", { s: Math.max(0.0001, s), o: prog(t, 15.0, 0.08) });
-    maskless("s6-site", t, 15.25);
-    maskless("s6-addr", t, 15.45);
+    const p = out5(prog(t, 15.05, 0.6));
+    set("s6-logo", { s: 1.14 - 0.14 * p, o: prog(t, 15.05, 0.3), blur: 16 * (1 - p) });
+    shine($("s6-shine"), t, 15.8, 0.7, false);
+    maskless("s6-q1", t, 15.4);
+    slam("s6-q2", t, 15.5, 1.5, 0.0);
+    maskless("s6-text", t, 15.85);
+    let s = back(prog(t, 16, 0.4));
+    for (const b of [16.5, 17, 17.5, 18, 18.5, 19]) if (t >= b) s += 0.045 * Math.exp(-(t - b) / 0.12);
+    set("s6-pill", { s: Math.max(0.0001, s), o: prog(t, 16, 0.08) });
+    maskless("s6-site", t, 16.25);
+    maskless("s6-addr", t, 16.45);
   },
 ];
 function maskless(id, t, at) {
