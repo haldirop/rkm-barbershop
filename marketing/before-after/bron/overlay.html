@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>RKM before/after – tekstlaag</title>
+<!--
+  Animated text layer for the before/after video, 1080 x 1920 (9:16), transparent.
+  render(t, scene) shows one scene at time t (seconds); render-overlay.mjs captures every frame.
+  Styles and fonts as in the promo reel (../../promo-reel/bron/overlay.html).
+  Everything stays inside the social safe zone: x 90–990, y 280–1460.
+-->
+<style>
+  @font-face { font-family: Cinzel; src: url(../../../drukwerk/visitekaartje/bron/fonts/cinzel-600.ttf); font-weight: 600; }
+  @font-face { font-family: Cinzel; src: url(../../../drukwerk/visitekaartje/bron/fonts/cinzel-700.ttf); font-weight: 700; }
+  @font-face { font-family: Manrope; src: url(../../../drukwerk/visitekaartje/bron/fonts/manrope-500.ttf); font-weight: 500; }
+  @font-face { font-family: Manrope; src: url(../../../drukwerk/visitekaartje/bron/fonts/manrope-800.ttf); font-weight: 800; }
+
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body { width: 1080px; height: 1920px; position: relative; overflow: hidden; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .el { position: absolute; left: 540px; transform-origin: 50% 50%; white-space: nowrap; will-change: transform; }
+
+  .gold {
+    background-image:
+      linear-gradient(105deg, rgba(255,255,255,0) 42%, rgba(255,250,230,0.95) 50%, rgba(255,255,255,0) 58%),
+      linear-gradient(180deg, #fff1b5 0%, #f4cf72 38%, #d9a13a 62%, #b97d22 100%);
+    background-size: 300% 100%, 100% 100%;
+    background-position: 130% 0, 0 0;
+    background-repeat: no-repeat;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 6px 18px rgba(0,0,0,0.75));
+  }
+  .display { font-family: Cinzel; font-weight: 700; line-height: 1; letter-spacing: 0.03em; }
+  .caps { font-family: Manrope; font-weight: 800; text-transform: uppercase; color: #f6f2ea; line-height: 1;
+          filter: drop-shadow(0 4px 14px rgba(0,0,0,0.8)); }
+  .scrim { position: absolute; left: 540px; border-radius: 50%;
+           background: radial-gradient(closest-side, rgba(0,0,0,0.62), rgba(0,0,0,0.38) 55%, rgba(0,0,0,0) 100%); }
+  .mask { overflow: hidden; padding: 0 30px; }
+  .mask > span { display: inline-block; }
+  .bar { position: absolute; left: 540px; height: 6px; border-radius: 3px;
+         background: linear-gradient(90deg, rgba(214,160,62,0), #f4cf72 20%, #fff1b5 50%, #f4cf72 80%, rgba(214,160,62,0)); }
+
+  /* End card */
+  .logo { position: absolute; left: 540px; width: 660px; }
+  .logo img { display: block; width: 100%; filter: drop-shadow(0 10px 30px rgba(0,0,0,0.6)); }
+  .logo .shine { position: absolute; inset: 0;
+    -webkit-mask-image: url(../../../src/assets/rkm-mark.png); mask-image: url(../../../src/assets/rkm-mark.png);
+    -webkit-mask-size: 100% 100%; mask-size: 100% 100%;
+    background: linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,251,235,0.85) 50%, rgba(255,255,255,0) 60%);
+    background-size: 300% 100%; background-repeat: no-repeat; background-position: 130% 0; }
+  .wordmark { display: flex; align-items: center; gap: 26px; width: 660px; }
+  .wordmark .line { flex: 1; height: 3px; }
+  .wordmark .l { background: linear-gradient(90deg, rgba(214,160,62,0), #e7b75a 70%, #f7dc8f); }
+  .wordmark .r { background: linear-gradient(90deg, #f7dc8f, #e7b75a 30%, rgba(214,160,62,0)); }
+  .wordmark span.text { font-family: Cinzel; font-weight: 600; font-size: 40px; color: #f4f1ea; letter-spacing: 0.55em; margin-right: -0.55em; }
+  .pill { font-family: Manrope; font-weight: 800; font-size: 50px; letter-spacing: 0.08em; color: #140d03;
+          padding: 34px 78px; border-radius: 999px;
+          background: linear-gradient(180deg, #fff1b5 0%, #f4cf72 40%, #d9a13a 75%, #c08328 100%);
+          box-shadow: 0 0 0 3px rgba(255,241,181,0.35), 0 12px 50px rgba(240,178,74,0.45); }
+  .site { font-family: Manrope; font-weight: 800; font-size: 60px; color: #fbf8f2; letter-spacing: 0.01em;
+          filter: drop-shadow(0 4px 14px rgba(0,0,0,0.8)); }
+  .addr { font-family: Manrope; font-weight: 500; font-size: 40px; color: #ddd5c6; letter-spacing: 0.04em;
+          filter: drop-shadow(0 4px 14px rgba(0,0,0,0.8)); }
+  .pin { width: 92px; height: 92px; filter: drop-shadow(0 6px 16px rgba(0,0,0,0.7)); }
+
+  /* Before / after */
+  .tag { font-family: Manrope; font-weight: 800; font-size: 40px; letter-spacing: 0.32em; margin-right: -0.32em; color: #f6f2ea;
+         padding: 14px 30px 14px 40px; border-radius: 999px; background: rgba(8,8,8,0.62); border: 2px solid rgba(227,178,87,0.75);
+         filter: drop-shadow(0 6px 18px rgba(0,0,0,0.6)); }
+  .tag.gold { color: #140d03; background: linear-gradient(180deg, #fff1b5 0%, #f4cf72 40%, #d9a13a 75%, #c08328 100%); border-color: rgba(255,241,181,0.6); }
+  .count { font-family: Cinzel; font-weight: 700; font-size: 300px; line-height: 1; }
+  .divider { position: absolute; left: 0; top: 957px; height: 6px; background: linear-gradient(90deg, #b97d22, #f4cf72 30%, #fff1b5 50%, #f4cf72 70%, #b97d22);
+             box-shadow: 0 0 24px rgba(240,178,74,0.8); }
+  .gem { position: absolute; left: 540px; top: 960px; width: 34px; height: 34px; margin: -17px 0 0 -17px; transform: rotate(45deg);
+         background: linear-gradient(135deg, #fff1b5, #d9a13a); box-shadow: 0 0 20px rgba(240,178,74,0.9); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="goldFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff1b5"/><stop offset="0.45" stop-color="#efc76a"/><stop offset="1" stop-color="#b47a22"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- 0: before, with a countdown into the reveal -->
+<section class="scene" data-scene="0">
+  <div class="el tag" id="s0-tag" style="top:300px; font-size:48px">BEFORE</div>
+  <div class="scrim" id="s0-scrim" style="top:1000px; width:900px; height:520px"></div>
+  <div class="el count gold" id="s0-c3" style="top:1110px">3</div>
+  <div class="el count gold" id="s0-c2" style="top:1110px">2</div>
+  <div class="el count gold" id="s0-c1" style="top:1110px">1</div>
+</section>
+
+<!-- 1: the reveal -->
+<section class="scene" data-scene="1">
+  <div class="el display gold" id="s1-after" style="top:290px; font-size:170px">AFTER</div>
+</section>
+
+<!-- 2–4: the result from every side -->
+<section class="scene" data-scene="2">
+  <div class="el tag gold" id="s2-tag" style="top:300px">AFTER</div>
+  <div class="scrim" style="top:1060px; width:1180px; height:520px"></div>
+  <div class="el display gold" id="s2-a" style="top:1180px; font-size:118px">STRAK GEKNIPT.</div>
+</section>
+<section class="scene" data-scene="3">
+  <div class="el tag gold" id="s3-tag" style="top:300px">AFTER</div>
+  <div class="scrim" style="top:1060px; width:1180px; height:520px"></div>
+  <div class="el display gold" id="s3-a" style="top:1170px; font-size:112px">VAKMANSCHAP</div>
+  <div class="bar" id="s3-bar" style="top:1318px"></div>
+  <div class="el caps" id="s3-b" style="top:1352px; font-size:42px; letter-spacing:0.34em; margin-right:-0.34em">Tot in de details</div>
+</section>
+<section class="scene" data-scene="4">
+  <div class="el tag gold" id="s4-tag" style="top:300px">AFTER</div>
+  <div class="scrim" style="top:1060px; width:1180px; height:520px"></div>
+  <div class="el mask" id="s4-a" style="top:1150px"><span class="caps" style="font-size:66px; letter-spacing:0.16em; margin-right:-0.16em">Zelfverzekerd</span></div>
+  <div class="el mask" id="s4-b" style="top:1240px; padding-bottom:20px"><span class="display gold" style="font-size:128px">NAAR BUITEN.</span></div>
+</section>
+
+<!-- 5: before and after, one above the other -->
+<section class="scene" data-scene="5">
+  <div class="el tag" id="s5-before" style="top:300px">BEFORE</div>
+  <div class="divider" id="s5-line"></div>
+  <div class="gem" id="s5-gem"></div>
+  <div class="el tag gold" id="s5-after" style="top:985px">AFTER</div>
+</section>
+
+<!-- 6: end card: book online -->
+<section class="scene" data-scene="6">
+  <div class="logo el" id="s6-logo" style="top:300px; width:560px"><img src="../../../src/assets/rkm-mark.png" alt="RKM"><div class="shine" id="s6-shine"></div></div>
+  <div class="el caps" id="s6-q1" style="top:690px; font-size:54px; letter-spacing:0.2em; margin-right:-0.2em">Ook zo’n</div>
+  <div class="el display gold" id="s6-q2" style="top:760px; font-size:124px">FRISSE LOOK?</div>
+  <div class="el addr" id="s6-text" style="top:918px; font-size:52px; color:#f4f1ea">Maak je afspraak online</div>
+  <div class="el pill" id="s6-pill" style="top:1010px">BOEK NU ONLINE</div>
+  <div class="el site" id="s6-site" style="top:1200px">rkmbarbershop.nl</div>
+  <div class="el addr" id="s6-addr" style="top:1290px">De Brink 18 · Losser</div>
+</section>
+
+<script>
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, start, dur) => clamp((t - start) / dur);
+const out3 = (p) => 1 - Math.pow(1 - p, 3);
+const out5 = (p) => 1 - Math.pow(1 - p, 5);
+const back = (p) => { const c1 = 2.2, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+const $ = (id) => document.getElementById(id);
+
+function set(id, { x = 0, y = 0, s = 1, o = 1, blur = 0, extra = "" } = {}) {
+  const el = $(id);
+  el.style.transform = `translate(-50%, 0) translate(${x}px, ${y}px) scale(${s})`;
+  el.style.opacity = o;
+  el.style.filter = blur > 0.05 ? `blur(${blur}px)` : "";
+  if (extra) el.style.cssText += extra;
+}
+/** Hit-in: big and transparent → in place, on a beat. */
+function slam(id, t, at, from = 1.6, drift = 0.03) {
+  const p = prog(t, at, 0.2);
+  const s = 1 + (from - 1) * (1 - out3(p)) + drift * prog(t, at + 0.2, 1.8);
+  set(id, { s, o: prog(t, at, 0.07), blur: 10 * (1 - out3(p)) });
+}
+function shine(el, t, at, dur = 0.55, layered = true) {
+  const p = prog(t, at, dur);
+  const pos = 130 - 160 * p;
+  el.style.backgroundPosition = layered ? `${pos}% 0, 0 0` : `${pos}% 0`;
+}
+function maskIn(id, t, at, dur = 0.38) {
+  const span = $(id).firstElementChild;
+  const p = out5(prog(t, at, dur));
+  span.style.transform = `translateY(${(1 - p) * 115}%)`;
+  set(id, { o: prog(t, at, 0.05) });
+}
+function bar(id, t, at, width, dur = 0.4) {
+  const w = width * out3(prog(t, at, dur));
+  const el = $(id);
+  el.style.width = `${w}px`;
+  el.style.transform = "translate(-50%, 0)";
+  el.style.opacity = w > 1 ? 1 : 0;
+}
+/** Shrinks a line that is wider than the safe zone. */
+function fit(id, max = 900) {
+  const el = $(id);
+  el.style.transform = "none";
+  const w = el.getBoundingClientRect().width;
+  if (w > max) el.style.fontSize = `${parseFloat(getComputedStyle(el).fontSize) * max / w}px`;
+}
+
+
+/** A word that pops in on a beat and is gone before the next one. */
+function beatWord(id, t, at, len = 0.45) {
+  if (t < at || t >= at + len) return set(id, { o: 0 });
+  const p = prog(t, at, 0.16);
+  const s = 1.6 - 0.6 * out3(p) - 0.12 * prog(t, at + 0.16, len - 0.16);
+  set(id, { s, o: Math.min(prog(t, at, 0.05), 1 - prog(t, at + len - 0.1, 0.1)), blur: 10 * (1 - out3(p)) });
+}
+function tag(id, t, at) {
+  const p = out3(prog(t, at, 0.3));
+  set(id, { y: -30 * (1 - p), o: p });
+}
+
+const SCENES = [
+  (t) => {
+    slam("s0-tag", t, 0.05, 1.5, 0.02);
+    beatWord("s0-c3", t, 2.5);
+    beatWord("s0-c2", t, 3.0);
+    beatWord("s0-c1", t, 3.5);
+    $("s0-scrim").style.opacity = t >= 2.4 ? 1 : 0;
+  },
+  (t) => {
+    slam("s1-after", t, 4.03, 1.8, 0.04);
+    shine($("s1-after"), t, 4.5, 0.6);
+  },
+  (t) => {
+    tag("s2-tag", t, 6.0);
+    slam("s2-a", t, 6.1, 1.6, 0.03);
+    shine($("s2-a"), t, 6.9);
+  },
+  (t) => {
+    tag("s3-tag", t, 8.0);
+    const p = out5(prog(t, 8.04, 0.8));
+    const el = $("s3-a");
+    set("s3-a", { o: prog(t, 8.04, 0.25), s: 1 + 0.04 * prog(t, 8.04, 2) });
+    el.style.letterSpacing = `${0.32 - 0.29 * p}em`;
+    el.style.marginRight = `-${0.32 - 0.29 * p}em`;
+    bar("s3-bar", t, 8.35, 480, 0.45);
+    const q = out3(prog(t, 8.5, 0.4));
+    set("s3-b", { y: 24 * (1 - q), o: q });
+  },
+  (t) => {
+    tag("s4-tag", t, 10.0);
+    maskIn("s4-a", t, 10.06);
+    maskIn("s4-b", t, 10.22, 0.42);
+    shine($("s4-b").firstElementChild, t, 11.0);
+  },
+  (t) => {
+    const line = out5(prog(t, 12.0, 0.45));
+    $("s5-line").style.width = `${1080 * line}px`;
+    set("s5-gem", { s: back(prog(t, 12.3, 0.35)), o: prog(t, 12.3, 0.1), extra: "" });
+    $("s5-gem").style.transform = `rotate(45deg) scale(${Math.max(0.0001, back(prog(t, 12.3, 0.35)))})`;
+    tag("s5-before", t, 12.2);
+    tag("s5-after", t, 12.35);
+  },
+  (t) => {
+    const p = out5(prog(t, 14.05, 0.6));
+    set("s6-logo", { s: 1.14 - 0.14 * p, o: prog(t, 14.05, 0.3), blur: 16 * (1 - p) });
+    shine($("s6-shine"), t, 14.8, 0.7, false);
+    maskless("s6-q1", t, 14.4);
+    slam("s6-q2", t, 14.5, 1.5, 0.0);
+    maskless("s6-text", t, 14.85);
+    let s = back(prog(t, 15.0, 0.4));
+    for (const b of [15.5, 16.0, 16.5, 17.0, 17.5, 18.0]) if (t >= b) s += 0.045 * Math.exp(-(t - b) / 0.12);
+    set("s6-pill", { s: Math.max(0.0001, s), o: prog(t, 15.0, 0.08) });
+    maskless("s6-site", t, 15.25);
+    maskless("s6-addr", t, 15.45);
+  },
+];
+function maskless(id, t, at) {
+  const q = out3(prog(t, at, 0.4));
+  set(id, { y: 26 * (1 - q), o: q });
+}
+
+let fitted = false;
+window.render = (t, scene) => {
+  if (!fitted) {
+    for (const s of document.querySelectorAll(".scene")) s.style.display = "block";
+    ["s1-after", "s2-a", "s3-a", "s6-q2"].forEach((id) => fit(id, 880));
+    fitted = true;
+  }
+  for (const s of document.querySelectorAll(".scene")) s.style.display = Number(s.dataset.scene) === scene ? "block" : "none";
+  SCENES[scene](t);
+};
+</script>
+</body>
+</html>
