@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <title>RKM before/after – tekstlaag</title>
 <!--
-  Animated text layer for the before/after video, 1080 x 1920 (9:16), transparent.
+  Animated layer for the before/after video, 1080 x 1920 (9:16), transparent: no text over the
+  footage (only the golden line between before and after), then the end card to book online.
   render(t, scene) shows one scene at time t (seconds); render-overlay.mjs captures every frame.
   Styles and fonts as in the promo reel (../../promo-reel/bron/overlay.html).
   Everything stays inside the social safe zone: x 90–990, y 280–1460.
@@ -84,46 +85,17 @@
   </defs>
 </svg>
 
-<!-- 0: before, with a countdown into the reveal -->
-<section class="scene" data-scene="0">
-  <div class="el tag" id="s0-tag" style="top:300px; font-size:48px">BEFORE</div>
-  <div class="scrim" id="s0-scrim" style="top:1000px; width:900px; height:520px"></div>
-  <div class="el count gold" id="s0-c3" style="top:1110px">3</div>
-  <div class="el count gold" id="s0-c2" style="top:1110px">2</div>
-  <div class="el count gold" id="s0-c1" style="top:1110px">1</div>
-</section>
+<!-- 0–4: only the footage, no text -->
+<section class="scene" data-scene="0"></section>
+<section class="scene" data-scene="1"></section>
+<section class="scene" data-scene="2"></section>
+<section class="scene" data-scene="3"></section>
+<section class="scene" data-scene="4"></section>
 
-<!-- 1: the reveal -->
-<section class="scene" data-scene="1">
-  <div class="el display gold" id="s1-after" style="top:290px; font-size:170px">AFTER</div>
-</section>
-
-<!-- 2–4: the result from every side -->
-<section class="scene" data-scene="2">
-  <div class="el tag gold" id="s2-tag" style="top:300px">AFTER</div>
-  <div class="scrim" style="top:1060px; width:1180px; height:520px"></div>
-  <div class="el display gold" id="s2-a" style="top:1180px; font-size:118px">STRAK GEKNIPT.</div>
-</section>
-<section class="scene" data-scene="3">
-  <div class="el tag gold" id="s3-tag" style="top:300px">AFTER</div>
-  <div class="scrim" style="top:1060px; width:1180px; height:520px"></div>
-  <div class="el display gold" id="s3-a" style="top:1170px; font-size:112px">VAKMANSCHAP</div>
-  <div class="bar" id="s3-bar" style="top:1318px"></div>
-  <div class="el caps" id="s3-b" style="top:1352px; font-size:42px; letter-spacing:0.34em; margin-right:-0.34em">Tot in de details</div>
-</section>
-<section class="scene" data-scene="4">
-  <div class="el tag gold" id="s4-tag" style="top:300px">AFTER</div>
-  <div class="scrim" style="top:1060px; width:1180px; height:520px"></div>
-  <div class="el mask" id="s4-a" style="top:1150px"><span class="caps" style="font-size:66px; letter-spacing:0.16em; margin-right:-0.16em">Zelfverzekerd</span></div>
-  <div class="el mask" id="s4-b" style="top:1240px; padding-bottom:20px"><span class="display gold" style="font-size:128px">NAAR BUITEN.</span></div>
-</section>
-
-<!-- 5: before and after, one above the other -->
+<!-- 5: before and after, one above the other, split by a golden line -->
 <section class="scene" data-scene="5">
-  <div class="el tag" id="s5-before" style="top:300px">BEFORE</div>
   <div class="divider" id="s5-line"></div>
   <div class="gem" id="s5-gem"></div>
-  <div class="el tag gold" id="s5-after" style="top:985px">AFTER</div>
 </section>
 
 <!-- 6: end card: book online -->
@@ -198,46 +170,16 @@ function tag(id, t, at) {
 }
 
 const SCENES = [
-  (t) => {
-    slam("s0-tag", t, 0.05, 1.5, 0.02);
-    beatWord("s0-c3", t, 2.5);
-    beatWord("s0-c2", t, 3.0);
-    beatWord("s0-c1", t, 3.5);
-    $("s0-scrim").style.opacity = t >= 2.4 ? 1 : 0;
-  },
-  (t) => {
-    slam("s1-after", t, 4.03, 1.8, 0.04);
-    shine($("s1-after"), t, 4.5, 0.6);
-  },
-  (t) => {
-    tag("s2-tag", t, 6.0);
-    slam("s2-a", t, 6.1, 1.6, 0.03);
-    shine($("s2-a"), t, 6.9);
-  },
-  (t) => {
-    tag("s3-tag", t, 8.0);
-    const p = out5(prog(t, 8.04, 0.8));
-    const el = $("s3-a");
-    set("s3-a", { o: prog(t, 8.04, 0.25), s: 1 + 0.04 * prog(t, 8.04, 2) });
-    el.style.letterSpacing = `${0.32 - 0.29 * p}em`;
-    el.style.marginRight = `-${0.32 - 0.29 * p}em`;
-    bar("s3-bar", t, 8.35, 480, 0.45);
-    const q = out3(prog(t, 8.5, 0.4));
-    set("s3-b", { y: 24 * (1 - q), o: q });
-  },
-  (t) => {
-    tag("s4-tag", t, 10.0);
-    maskIn("s4-a", t, 10.06);
-    maskIn("s4-b", t, 10.22, 0.42);
-    shine($("s4-b").firstElementChild, t, 11.0);
-  },
+  () => {},
+  () => {},
+  () => {},
+  () => {},
+  () => {},
   (t) => {
     const line = out5(prog(t, 12.0, 0.45));
     $("s5-line").style.width = `${1080 * line}px`;
-    set("s5-gem", { s: back(prog(t, 12.3, 0.35)), o: prog(t, 12.3, 0.1), extra: "" });
     $("s5-gem").style.transform = `rotate(45deg) scale(${Math.max(0.0001, back(prog(t, 12.3, 0.35)))})`;
-    tag("s5-before", t, 12.2);
-    tag("s5-after", t, 12.35);
+    $("s5-gem").style.opacity = prog(t, 12.3, 0.1);
   },
   (t) => {
     const p = out5(prog(t, 14.05, 0.6));
@@ -262,7 +204,7 @@ let fitted = false;
 window.render = (t, scene) => {
   if (!fitted) {
     for (const s of document.querySelectorAll(".scene")) s.style.display = "block";
-    ["s1-after", "s2-a", "s3-a", "s6-q2"].forEach((id) => fit(id, 880));
+    ["s6-q2"].forEach((id) => fit(id, 880));
     fitted = true;
   }
   for (const s of document.querySelectorAll(".scene")) s.style.display = Number(s.dataset.scene) === scene ? "block" : "none";

@@ -14,12 +14,14 @@ bijschrift in de apps. De muziek is zelf gemaakt (geen nummers van anderen).
 
 ## Opbouw
 
+Geen tekst over de beelden: alleen de before en de after, daarna de eindkaart om te boeken.
+
 | Tijd | Wat je ziet |
 | --- | --- |
-| 0–4 s | **BEFORE**, in grijze, matte kleuren, met aftellen 3 · 2 · 1 op de beat |
-| 4 s | Een gouden lijn veegt de before weg, op de drop van de muziek: **AFTER** |
-| 4–12 s | Het resultaat van alle kanten: zijkant, achterkant, de fade van dichtbij ("Vakmanschap"), andere zijkant |
-| 12–14 s | Before en after boven elkaar |
+| 0–4 s | De before, in grijze, matte kleuren (de muziek klinkt gedempt en bouwt op) |
+| 4 s | Een gouden lijn veegt de before weg, op de drop van de muziek |
+| 4–12 s | De after van alle kanten: zijkant, achterkant, de fade van dichtbij, andere zijkant |
+| 12–14 s | Before en after boven elkaar, gescheiden door een gouden lijn |
 | 14–18,5 s | Eindkaart: logo, "Ook zo'n frisse look? Maak je afspraak online", **BOEK NU ONLINE**, rkmbarbershop.nl en het adres |
 
 ## Posten
@@ -37,7 +39,7 @@ Ook zo'n frisse look? Boek je afspraak online via rkmbarbershop.nl (link in bio)
 ## Opnieuw maken of aanpassen
 
 De bron staat in `bron/`. De montage gebruikt de bouwstenen van de promovideo (`../promo-reel/bron/montage.py`).
-Teksten pas je aan in `overlay.html`, de shots en overgangen bovenaan `montage.py`.
+De eindkaart pas je aan in `overlay.html`, de shots en overgangen bovenaan `montage.py`.
 Nodig: Python 3 met numpy, scipy en opencv-python-headless, ffmpeg en Node met Playwright.
 
 ```sh
