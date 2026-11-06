@@ -7,7 +7,7 @@ Een before/after-video (18,5 s) voor Instagram Reels, TikTok en YouTube Shorts, 
 | --- | --- |
 | `RKM-before-after.mp4` | De video met eigen beat en geluidseffecten. Klaar om te posten. |
 | `RKM-before-after-zonder-muziek.mp4` | Zelfde video met alleen de geluidseffecten, voor als je in de app zelf een populair nummer toevoegt. |
-| `RKM-before-after-cover.jpg` | Omslagfoto: before en after boven elkaar. |
+| `RKM-before-after-cover.jpg` | Omslagfoto: before en after boven elkaar, met het hele hoofd en gezicht in beeld. |
 
 Formaat 1080 × 1920 (9:16), 30 beelden per seconde. Alle tekst staat buiten het gebied van de knoppen en het
 bijschrift in de apps. De muziek is zelf gemaakt (geen nummers van anderen).
@@ -21,7 +21,7 @@ Geen tekst over de beelden: alleen de before en de after, daarna de eindkaart om
 | 0–4 s | De before, in grijze, matte kleuren (de muziek klinkt gedempt en bouwt op) |
 | 4 s | Een gouden lijn veegt de before weg, op de drop van de muziek |
 | 4–12 s | De after van alle kanten: zijkant, achterkant, de fade van dichtbij, andere zijkant |
-| 12–14 s | Before en after boven elkaar, gescheiden door een gouden lijn |
+| 12–14 s | Before en after boven elkaar, dezelfde kant op, het hele hoofd met gezicht in beeld, gescheiden door een gouden lijn |
 | 14–18,5 s | Eindkaart: logo, "Ook zo'n frisse look? Maak je afspraak online", **BOEK NU ONLINE**, rkmbarbershop.nl en het adres |
 
 ## Posten
