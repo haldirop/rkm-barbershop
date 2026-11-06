@@ -271,6 +271,43 @@ export async function getSuggestions(
   return suggestions;
 }
 
+export interface UpcomingDay {
+  date: IsoDate;
+  level: DayLevel;
+  /** Every free start time, e.g. "09:30". */
+  times: string[];
+}
+
+/**
+ * The next `count` days the shop is open (within the booking window), each with all of its free
+ * start times; fully booked days are included (empty `times`). Today is left out once nothing
+ * is free any more.
+ */
+export async function getUpcomingDays(
+  query: AvailabilityQuery & { count?: number; searchDays?: number },
+  db: DbOrTx = getDb(),
+): Promise<UpcomingDay[]> {
+  const now = query.now ?? zonedNow();
+  const horizon = Math.min((await loadSettings(db)).bookingHorizonDays, query.searchDays ?? 60);
+  const to = addDays(now.date, horizon);
+  const schedule = await loadSchedule(now.date, to, db);
+  const window = bookingWindow(schedule.settings, now);
+  const filter = barberFilter(query.barberId);
+  const days: UpcomingDay[] = [];
+  for (const date of eachDay(now.date, to)) {
+    const rules = rulesForDate(schedule.settings, query.durationMinutes, date, window);
+    if (!rules) continue;
+    const day = buildDay(schedule, date);
+    const summary = summarizeDay(day, rules, filter);
+    if (summary.level === "closed") continue;
+    const times = daySlots(day, rules, filter).map((s) => minutesToTime(s.start));
+    if (date === now.date && !times.length) continue;
+    days.push({ date, level: summary.level, times });
+    if (days.length >= (query.count ?? 7)) break;
+  }
+  return days;
+}
+
 /** Free hours left today across all active barbers (for the dashboard). */
 export async function freeMinutesOnDate(date: IsoDate, db: DbOrTx = getDb()): Promise<number> {
   const schedule = await loadSchedule(date, date, db);

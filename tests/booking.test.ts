@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { openDatabase, setDb, type DatabaseHandle } from "@/server/db/client";
 import { appointments, barbers, blockedTimes, customers, services, settings } from "@/server/db/schema";
 import { seedBaseData } from "@/server/db/seed";
-import { getDayAvailability, getSuggestions } from "@/server/services/availability";
+import { getDayAvailability, getSuggestions, getUpcomingDays } from "@/server/services/availability";
 import {
   cancelByCustomer,
   createBookingRequest,
@@ -299,5 +299,26 @@ describe("suggestions", () => {
     } finally {
       await handle.db.delete(blockedTimes);
     }
+  });
+});
+
+describe("coming days with all their times", () => {
+  it("lists the next open days with every free time, skipping closed days", async () => {
+    const days = await getUpcomingDays({ durationMinutes: 30, barberId: null, now: NOW, count: 7 });
+    // Monday 5 – Saturday 10 October, then Monday 12 (Sunday is closed).
+    expect(days.map((d) => d.date)).toEqual([
+      "2026-10-05", "2026-10-06", "2026-10-07", "2026-10-08", "2026-10-09", "2026-10-10", "2026-10-12",
+    ]);
+    expect(days[0].times[0]).toBe("11:00"); // lead time of 60 minutes
+    const tuesday = await getDayAvailability("2026-10-06", { durationMinutes: 30, barberId: null, now: NOW });
+    expect(days[1].times).toEqual(tuesday.slots.map((s) => s.time)); // all of them, not just three
+    expect(days[1].times.length).toBeGreaterThan(3);
+    expect(days[1].level).toBe(tuesday.level);
+  });
+
+  it("leaves out today once nothing is free any more", async () => {
+    const late: ZonedNow = { date: NOW.date, minutes: 23 * 60 };
+    const days = await getUpcomingDays({ durationMinutes: 30, barberId: null, now: late, count: 2 });
+    expect(days.map((d) => d.date)).toEqual(["2026-10-06", "2026-10-07"]);
   });
 });

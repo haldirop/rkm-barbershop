@@ -11,7 +11,7 @@ import { Services } from "@/components/site/sections/services";
 import { WhyUs } from "@/components/site/sections/why-us";
 import { pageLocale } from "@/i18n/server";
 import { addDays } from "@/lib/time";
-import { getCalendar, getSuggestions } from "@/server/services/availability";
+import { getCalendar, getUpcomingDays } from "@/server/services/availability";
 import { getSiteData } from "@/server/services/site";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +21,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const site = await getSiteData(locale);
   const featured = site.services[0] ?? null;
   const query = { durationMinutes: featured?.durationMinutes ?? 30, barberId: null, now: site.now };
-  const [suggestions, days] = await Promise.all([
-    getSuggestions({ ...query, maxDays: 3, perDay: 3 }),
+  const [upcoming, days] = await Promise.all([
+    getUpcomingDays({ ...query, count: 7 }),
     getCalendar(site.now.date, addDays(site.now.date, 13), query),
   ]);
   const featuredRef = featured ? { id: featured.id, name: featured.name } : null;
@@ -37,7 +37,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         status={site.status}
         today={site.now.date}
         featuredService={featuredRef}
-        suggestions={suggestions}
+        days={upcoming}
       />
       <About locale={locale} />
       <Barber locale={locale} />

@@ -1,14 +1,12 @@
-import { ArrowRight, MapPin, Sparkles } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight, CalendarDays, MapPin } from "lucide-react";
+import { FreeTimes } from "@/components/site/free-times";
 import { BrandLockup } from "@/components/site/logo";
 import { ButtonLink } from "@/components/ui/button";
 import { localizePath, type Locale } from "@/i18n/config";
 import { common } from "@/i18n/messages/common";
 import { home } from "@/i18n/messages/home";
 import { cn } from "@/lib/cn";
-import { relativeDayLabel } from "@/lib/format";
-import { bookingHref } from "@/lib/links";
-import type { Suggestion } from "@/server/services/availability";
+import type { UpcomingDay } from "@/server/services/availability";
 
 export function Hero({
   locale,
@@ -17,7 +15,7 @@ export function Hero({
   status,
   today,
   featuredService,
-  suggestions,
+  days,
 }: {
   locale: Locale;
   city: string;
@@ -25,7 +23,8 @@ export function Hero({
   status: { isOpen: boolean; label: string };
   today: string;
   featuredService: { id: string; name: string } | null;
-  suggestions: Suggestion[];
+  /** The coming open days with all their free times (for the featured treatment). */
+  days: UpcomingDay[];
 }) {
   const t = home[locale].hero;
   return (
@@ -69,35 +68,14 @@ export function Hero({
           <div className="relative rounded-3xl border border-line bg-surface/70 p-6 backdrop-blur-sm sm:p-8">
             <div className="absolute inset-x-8 -top-px h-px bg-gradient-to-r from-transparent via-gold/60 to-transparent" aria-hidden />
             <p className="flex items-center gap-2 text-sm font-semibold text-gold">
-              <Sparkles className="size-4" aria-hidden />
+              <CalendarDays className="size-4" aria-hidden />
               {t.bestTitle}
             </p>
             <p className="mt-1 text-sm text-ink-faint">
               {featuredService ? `${featuredService.name} · ` : ""}
               {t.bestSubtitle}
             </p>
-            {suggestions.length ? (
-              <ul className="mt-6 space-y-5">
-                {suggestions.map((s) => (
-                  <li key={s.date}>
-                    <p className="text-sm font-medium text-ink">{relativeDayLabel(s.date, today, locale)}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {s.times.map((time) => (
-                        <Link
-                          key={time}
-                          href={localizePath(bookingHref({ serviceId: featuredService?.id, date: s.date, time }), locale)}
-                          className="rounded-full border border-line-strong px-4 py-2 text-sm font-medium text-ink tabular-nums transition-colors hover:border-gold hover:bg-gold/10 hover:text-gold-bright"
-                        >
-                          {time}
-                        </Link>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-6 text-sm text-ink-muted">{t.bestEmpty}</p>
-            )}
+            <FreeTimes days={days} today={today} serviceId={featuredService?.id ?? null} />
             <p className="mt-7 border-t border-line pt-4 text-xs leading-relaxed text-ink-faint">{t.bestNote}</p>
           </div>
         </div>

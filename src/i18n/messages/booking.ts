@@ -79,8 +79,8 @@ const nl = {
   noSlots:
     "Op deze dag is helaas geen plek meer voor deze behandeling. Kies een andere dag of bekijk de beste beschikbaarheid hierboven.",
   bestThisDay: "Beste beschikbaarheid deze dag:",
-  bestTitle: "Beste beschikbaarheid",
-  bestNote: "Op basis van de huidige agenda zijn deze tijden het meest waarschijnlijk beschikbaar.",
+  upcomingTitle: "Eerstvolgende dagen",
+  upcomingHint: "Tik op een dag om alle vrije tijden te zien.",
   loadError: "Er ging iets mis. Probeer het opnieuw.",
   offline: "Geen verbinding. Controleer je internet en probeer het opnieuw.",
 
@@ -293,8 +293,8 @@ const en: BookingMessages = {
   noSlots:
     "Unfortunately there’s no room left on this day for this treatment. Choose another day or look at the best availability above.",
   bestThisDay: "Best availability this day:",
-  bestTitle: "Best availability",
-  bestNote: "Based on the current calendar, these times are the most likely to be free.",
+  upcomingTitle: "Next days",
+  upcomingHint: "Tap a day to see all free times.",
   loadError: "Something went wrong. Please try again.",
   offline: "No connection. Check your internet and try again.",
 
@@ -501,8 +501,8 @@ const de: BookingMessages = {
   noSlots:
     "An diesem Tag ist für diese Leistung leider nichts mehr frei. Wähle einen anderen Tag oder sieh dir oben die beste Verfügbarkeit an.",
   bestThisDay: "Beste Verfügbarkeit an diesem Tag:",
-  bestTitle: "Beste Verfügbarkeit",
-  bestNote: "Nach dem aktuellen Kalender sind diese Zeiten am wahrscheinlichsten frei.",
+  upcomingTitle: "Nächste Tage",
+  upcomingHint: "Tippe auf einen Tag, um alle freien Zeiten zu sehen.",
   loadError: "Etwas ist schiefgelaufen. Bitte versuch es noch einmal.",
   offline: "Keine Verbindung. Prüfe dein Internet und versuch es noch einmal.",
 
