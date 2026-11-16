@@ -26,7 +26,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/admin/logi
           {notice.text}
         </Alert>
       ) : null}
-      <LoginForm returnTo={returnTo} />
+      <LoginForm returnTo={returnTo} canReset={authMode() === "supabase"} />
       {authMode() === "supabase" ? (
         <p className="mt-6 text-center text-sm">
           <Link href="/admin/wachtwoord-vergeten" className="text-ink-muted hover:text-gold">

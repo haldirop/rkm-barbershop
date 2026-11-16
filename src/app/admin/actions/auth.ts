@@ -2,8 +2,16 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import {
+  LOGIN_LIMIT_PER_EMAIL,
+  LOGIN_LIMIT_PER_NETWORK,
+  LOGIN_WINDOW_MINUTES,
+  latest,
+  lockedState,
+  withAttemptsLeft,
+} from "@/server/auth/login-limit";
 import { passwordProblem } from "@/server/auth/password";
-import { clearHits, clientIp, isRateLimited, recordHit } from "@/server/auth/rate-limit";
+import { clearHits, clientIp, hitsInWindow, isRateLimited, recordHit, unlockTime } from "@/server/auth/rate-limit";
 import {
   changeOwnPassword,
   requestPasswordReset,
@@ -27,12 +35,22 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!parsed.success) return { error: "Onjuist e-mailadres of wachtwoord.", values: { email } };
 
-  const keys = [`login:ip:${await clientIp()}`, `login:email:${email}`];
-  for (const key of keys) {
-    if (await isRateLimited(key, 5, 15)) {
-      return { error: "Te veel mislukte pogingen. Wacht 15 minuten en probeer het opnieuw.", values: { email } };
-    }
-  }
+  const emailKey = `login:email:${email}`;
+  const limits = [
+    { key: emailKey, limit: LOGIN_LIMIT_PER_EMAIL },
+    { key: `login:ip:${await clientIp()}`, limit: LOGIN_LIMIT_PER_NETWORK },
+  ];
+  const lockedUntil = async () =>
+    latest(
+      await Promise.all(
+        limits.map(async ({ key, limit }) =>
+          unlockTime(await hitsInWindow(key, LOGIN_WINDOW_MINUTES), limit, LOGIN_WINDOW_MINUTES),
+        ),
+      ),
+    );
+
+  const until = await lockedUntil();
+  if (until) return { ...lockedState(until), values: { email } };
 
   let result;
   try {
@@ -42,10 +60,13 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     return { error: UNAVAILABLE, values: { email } };
   }
   if (!result.ok) {
-    await Promise.all(keys.map(recordHit));
-    return { error: result.error, values: { email } };
+    await Promise.all(limits.map(({ key }) => recordHit(key)));
+    const nowLocked = await lockedUntil();
+    if (nowLocked) return { ...lockedState(nowLocked), values: { email } };
+    const left = LOGIN_LIMIT_PER_EMAIL - (await hitsInWindow(emailKey, LOGIN_WINDOW_MINUTES)).length;
+    return { error: withAttemptsLeft(result.error, left), values: { email } };
   }
-  await clearHits(`login:email:${email}`);
+  await clearHits(emailKey);
   redirect(safeReturnPath(formData.get("naar")) ?? "/admin");
 }
 
@@ -104,7 +125,7 @@ export async function forgotPassword(_prev: FormState, formData: FormData): Prom
 }
 
 export async function chooseNewPassword(_prev: FormState, formData: FormData): Promise<FormState> {
-  await requireAdmin();
+  const user = await requireAdmin();
   const next = String(formData.get("next") ?? "");
   const repeat = String(formData.get("repeat") ?? "");
   const problem = passwordProblem(next);
@@ -117,5 +138,7 @@ export async function chooseNewPassword(_prev: FormState, formData: FormData): P
     console.error("[auth] Nieuw wachtwoord instellen mislukt:", error);
     return { error: UNAVAILABLE };
   }
+  // The e-mail link proved who this is: earlier wrong passwords no longer block logging in.
+  await clearHits(`login:email:${user.email.trim().toLowerCase()}`);
   redirect("/admin?wachtwoord=gewijzigd");
 }
